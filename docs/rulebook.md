@@ -29,7 +29,7 @@
 1.6. The player must restore the Blackwall by building **Blackwall Towers** and permanently closing all **Blackwall Gateways**.  
 1.7. Gameplay is **real-time** and **strategic** — players must manage resources, tower placement, and ability timing simultaneously.  
 1.8. The simulation runs at 60 ticks per second.  
-1.9. All time-based mechanics (e.g. cooldowns, durations, damage over time) are applied based on the 60 ticks per second simulation. All numbers are floats.  
+1.9. All time-based mechanics (e.g. cooldowns, durations, damage over time) are applied based on the 60 ticks per second simulation. All numbers are floats. For reference: 1 second = 60 ticks.  
 1.10. Systems process ticks as shown below:
 
 - 1.10.1 Process scheduled events (phase transitions, wave triggers, Gateway HP reduction)
@@ -100,7 +100,7 @@
 4.2.2. Acquired by: spending **Eddies**, or collecting drops via **Ping Towers** (see §5.7).  
 4.2.3. **Components** dropped by defeated enemies or dismantled towers exist on the map as **pickups**.  
 4.2.4. Pickups within range of a **Ping Tower** are automatically collected.  
-4.2.5. Pickups **outside** Ping Tower range will **decay at 5% of their initial value per second, floored to integer values** and are fully lost when they reach 0.  
+4.2.7. Pickups **outside** Ping Tower range will **decay at (5/60) ≈ 0.083% of their initial value per tick, floored to integer values** and are fully lost when they reach 0.
 4.2.6. Towers dismantled **within** Ping Tower range return **100% of their **Components\***\*.  
 4.2.7. Towers dismantled **outside** Ping Tower range return **0% of their **Components\*\*** (left to decay).  
 4.2.8. Decaying **Components** can be saved by building a new Ping Tower near them before they expire.
@@ -119,20 +119,20 @@
 5.0.5. **Maximum tower level is 10.**  
 5.0.6. Towers **unlock an Ability at level 5**. Abilities are **tower-instance specific** — unlocking on one tower does not unlock it on others of the same type.  
 5.0.7. Abilities can be further upgraded with **Components** up to a **maximum ability level of 5**.
-5.0.8. All Damages are applied at 60 ticks per second based on the tower's current DPS value. For example, a tower with 10 DPS applies 10/60 damage every tick to enemies within range, distributed according to the tower's targeting rules (e.g. single-target, multi-target, area damage, etc.).
+5.0.8. All Damages are applied every tick. For example, a tower with 10 DPS applies 10/60 ≈ 0.167 damage per tick to enemies within range, distributed according to the tower's targeting rules (e.g. single-target, multi-target, area damage, etc.).
 
 ---
 
 ### 5.1. ICE Wall
 
-| Stat          | Value                                                              |
-| ------------- | ------------------------------------------------------------------ |
-| Role          | Obstacle / Crowd Control                                           |
-| Health        | 200 HP (level 1)                                                   |
-| Range         | 1 block in all directions                                          |
-| Damage        | 1 damage/sec to adjacent enemies and **Glitches** passing through. |
-| Slow          | 20% at level 1 → 50% at max upgrade                                |
-| Unlocks (Lv5) | EMP Blast (see §6.1)                                               |
+| Stat          | Value                                                                           |
+| ------------- | ------------------------------------------------------------------------------- |
+| Role          | Obstacle / Crowd Control                                                        |
+| Health        | 200 HP (level 1)                                                                |
+| Range         | 1 block in all directions                                                       |
+| Damage        | 1/60 ≈ 0.0167 damage/tick to adjacent enemies and **Glitches** passing through. |
+| Slow          | 20% at level 1 → 50% at max upgrade                                             |
+| Unlocks (Lv5) | EMP Blast (see §6.1)                                                            |
 
 **Cost & Upgrade Path**
 
@@ -160,15 +160,15 @@
 
 ### 5.2. Firewall
 
-| Stat          | Value                                                                |
-| ------------- | -------------------------------------------------------------------- |
-| Role          | Trap / Area Denial                                                   |
-| Health        | 500 HP per tower (level 1)                                           |
-| Placement     | Pair of towers occupying 3 tiles (horizontal, vertical, or diagonal) |
-| Range         | 1 tile between the two towers                                        |
-| Damage        | 10 damage/sec to enemies passing between them                        |
-| Effect        | Stuns enemies (full stop) while in the gateway                       |
-| Unlocks (Lv5) | Tuned (see §6.3)                                                     |
+| Stat          | Value                                                                           |
+| ------------- | ------------------------------------------------------------------------------- |
+| Role          | Trap / Area Denial                                                              |
+| Health        | 500 HP per tower (level 1)                                                      |
+| Placement     | Pair of towers occupying 3 tiles (horizontal, vertical, or diagonal)            |
+| Range         | 1 tile between the two towers                                                   |
+| Damage        | 10/60 ≈ 0.167 damage/tick to enemies passing between them                       |
+| Effect        | Stuns enemies (full stop) for 60 ticks while in the gateway, applied every tick |
+| Unlocks (Lv5) | Tuned (see §6.3)                                                                |
 
 **Cost & Upgrade Path**
 
@@ -202,7 +202,7 @@
 | Health        | 500 HP (level 1)                          |
 | Range         | 2 tiles in facing direction (level 1)     |
 | Damage        | 10 damage/spike; hits all enemies in path |
-| Fire Rate     | 1 spike every 2 seconds                   |
+| Fire Rate     | 1 spike every 120 ticks (2 seconds)       |
 | Fire Arc      | Fixed 90° cone (3 side-by-side tiles)     |
 | Unlocks (Lv5) | Overclock (see §6.2)                      |
 
@@ -250,7 +250,7 @@
 | Health        | 100 HP (level 1)                                                                   |
 | Range         | 1 tile (level 1)                                                                   |
 | Damage        | 10 damage/daemon (level 1); applied to **each enemy** on the tile the daemon hits. |
-| Fire Rate     | 1 daemon every 2 seconds (level 1)                                                 |
+| Fire Rate     | 1 daemon every 120 ticks (2 seconds, level 1)                                      |
 | Rotation      | Slow at level 1; faster at higher levels                                           |
 | Unlocks (Lv5) | Overclock (see §6.2)                                                               |
 
@@ -263,11 +263,11 @@
 | 3     | -      | 21         | +100 HP, +5 damage/daemon             |
 | 4     | -      | 42         | +100 HP, +5 damage/daemon             |
 | 5     | -      | 84         | +100 HP, Unlocks Overclock (see §6.2) |
-| 6     | -      | 168        | 1 Daemon/1.8 sec                      |
-| 7     | -      | 336        | 1 Daemon/1.6 sec                      |
-| 8     | -      | 672        | 1 Daemon/1.4 sec                      |
-| 9     | -      | 1344       | 1 Daemon/1.2 sec                      |
-| 10    | -      | 2688       | 1 Daemon/1 sec                        |
+| 6     | -      | 168        | 1 Daemon/108 ticks (1.8 sec)          |
+| 7     | -      | 336        | 1 Daemon/96 ticks (1.6 sec)           |
+| 8     | -      | 672        | 1 Daemon/84 ticks (1.4 sec)           |
+| 9     | -      | 1344       | 1 Daemon/72 ticks (1.2 sec)           |
+| 10    | -      | 2688       | 1 Daemon/60 ticks (1 sec)             |
 
 5.4.1. **Rotates** to face enemies — rotation speed increases with upgrades.  
 5.4.2. Can target **multiple enemies simultaneously**; deals 10 damage/daemon to every enemy on the impacted tile (not split — each enemy takes the full amount). Player selects targetting mode.
@@ -289,29 +289,29 @@
 | Range         | 3–5 tiles (minimum 3, maximum 5 at level 1) |
 | Damage        | 50 damage/shot (level 1)                    |
 | Targets       | 1 enemy at a time                           |
-| Fire Rate     | 1 shot every 3 seconds                      |
-| On-hit Effect | Slow 20% for 2 seconds (level 1)            |
+| Fire Rate     | 1 shot every 180 ticks (3 seconds)          |
+| On-hit Effect | Slow 20% for 120 ticks (2 seconds, level 1) |
 | Rotation      | Can rotate to face target                   |
 | Unlocks (Lv5) | Overclock (see §6.2)                        |
 
 **Cost & Upgrade Path**
 
-| Level | Eddies | Components | Effect                       |
-| ----- | ------ | ---------- | ---------------------------- |
-| 1     | -      | 10         | Basic sniper                 |
-| 2     | -      | 15         | +100 HP, +10 damage/shot     |
-| 3     | -      | 30         | +100 HP, +10 damage/shot     |
-| 4     | -      | 60         | +100 HP, +10 damage/shot     |
-| 5     | -      | 120        | Unlocks Overclock (see §6.2) |
-| 6     | -      | 240        | 30% slow, 1 Daemon/2.8 sec   |
-| 7     | -      | 480        | 40% slow, 1 Daemon/2.6 sec   |
-| 8     | -      | 960        | 50% slow, 1 Daemon/2.4 sec   |
-| 9     | -      | 1920       | 60% slow, 1 Daemon/2.2 sec   |
-| 10    | -      | 3840       | 70% slow, 1 Daemon/2 sec     |
+| Level | Eddies | Components | Effect                                 |
+| ----- | ------ | ---------- | -------------------------------------- |
+| 1     | -      | 10         | Basic sniper                           |
+| 2     | -      | 15         | +100 HP, +10 damage/shot               |
+| 3     | -      | 30         | +100 HP, +10 damage/shot               |
+| 4     | -      | 60         | +100 HP, +10 damage/shot               |
+| 5     | -      | 120        | Unlocks Overclock (see §6.2)           |
+| 6     | -      | 240        | 30% slow, 1 Daemon/168 ticks (2.8 sec) |
+| 7     | -      | 480        | 40% slow, 1 Daemon/156 ticks (2.6 sec) |
+| 8     | -      | 960        | 50% slow, 1 Daemon/144 ticks (2.4 sec) |
+| 9     | -      | 1920       | 60% slow, 1 Daemon/132 ticks (2.2 sec) |
+| 10    | -      | 3840       | 70% slow, 1 Daemon/120 ticks (2 sec)   |
 
 5.5.1. Fires in **one direction** but can rotate to track targets.  
 5.5.2. Has a **minimum range of 3 tiles** — does not attack enemies closer than 3 tiles.  
-5.5.3. Applies a **20% slow for 2 seconds** on every hit at level 1; slow percentage and duration increase with upgrades.  
+5.5.3. Applies a **20% slow for 120 ticks (2 seconds)** on every hit at level 1; slow percentage and duration increase with upgrades.  
 5.5.4. Targets only **one enemy at a time** — best used against high-HP priority targets. Player selects targetting mode.
 5.5.4.1 **Closest Enemy Mode:** (Default) Targets the closest enemy.
 5.5.4.2 **Highest HP Mode:** Targets the enemy with the highest HP.
@@ -329,31 +329,31 @@
 | -------------------- | ----------------------------------------------------------- |
 | Role                 | Support / Blackwall Restoration                             |
 | Health               | 1000 HP (level 1)                                           |
-| Passive Damage Taken | -1000 HP/2 mins/adjacent Gateway                            |
-| Damage               | Damages adjacent Gateway by 1000 HP/2 mins                  |
+| Passive Damage Taken | -1000 HP/7200 ticks (2 mins) per adjacent Gateway           |
+| Damage               | Damages adjacent Gateway by 1000 HP/7200 ticks (2 mins)     |
 | Repair Cost          | 10 **Components** for a full repair; consumed automatically |
 
 **Cost & Upgrade Path**
 
-| Level | Eddies | Components | Effect                           |
-| ----- | ------ | ---------- | -------------------------------- |
-| 1     | -      | 20         | Basic Blackwall Tower            |
-| 2     | -      | 40         | +1000 HP, +1000 HP/2 mins damage |
-| 3     | -      | 80         | +1000 HP, +1000 HP/2 mins damage |
-| 4     | -      | 160        | +1000 HP, +1000 HP/2 mins damage |
-| 5     | -      | 320        | +1000 HP, +1000 HP/2 mins damage |
-| 6     | -      | 640        | +1000 HP, +1000 HP/2 mins damage |
-| 7     | -      | 1280       | +1000 HP, +1000 HP/2 mins damage |
-| 8     | -      | 2560       | +1000 HP, +1000 HP/2 mins damage |
-| 9     | -      | 5120       | +1000 HP, +1000 HP/2 mins damage |
-| 10    | -      | 10240      | +1000 HP, +1000 HP/2 mins damage |
+| Level | Eddies | Components | Effect                               |
+| ----- | ------ | ---------- | ------------------------------------ |
+| 1     | -      | 20         | Basic Blackwall Tower                |
+| 2     | -      | 40         | +1000 HP, +1000 HP/7200 ticks damage |
+| 3     | -      | 80         | +1000 HP, +1000 HP/7200 ticks damage |
+| 4     | -      | 160        | +1000 HP, +1000 HP/7200 ticks damage |
+| 5     | -      | 320        | +1000 HP, +1000 HP/7200 ticks damage |
+| 6     | -      | 640        | +1000 HP, +1000 HP/7200 ticks damage |
+| 7     | -      | 1280       | +1000 HP, +1000 HP/7200 ticks damage |
+| 8     | -      | 2560       | +1000 HP, +1000 HP/7200 ticks damage |
+| 9     | -      | 5120       | +1000 HP, +1000 HP/7200 ticks damage |
+| 10    | -      | 10240      | +1000 HP, +1000 HP/7200 ticks damage |
 
 5.6.1. Must be placed **adjacent** (orthogonally or diagonally) to a Blackwall Gateway to begin closing it. A Blackwall Tower can only be assigned to close a Gateway if it is placed in one of the 8 tiles surrounding that Gateway.  
-5.6.2. Each Blackwall Tower reduces the assigned Gateway's HP by **1000 HP per 2 minutes applied as discrete tick per second** (see §9.2.9). Multiple towers stack additively.  
+5.6.2. Each Blackwall Tower reduces the assigned Gateway's HP by **1000 HP / 7200 ticks** (≈0.139 HP/tick, applied every tick; see §9.2.9). Multiple towers stack additively.  
 5.6.3. A Gateway that is being closed **does not spawn enemies**.  
 5.6.4. If a Blackwall Tower is **destroyed**, it stops contributing HP reduction to the Gateway. If no Blackwall Towers remain assigned, the Gateway **immediately reopens** and resumes spawning.  
 5.6.5. A **permanently closed** Gateway (HP = 0) is removed from the map and cannot reopen.  
-5.6.6. Takes **1000 HP damage per 2 minutes applied as discrete tick per second** while adjacent to an open Gateway. A level 1 tower (1000 HP) is destroyed after **2 minutes** without repair.  
+5.6.6. Takes **1000 HP / 7200 ticks** (≈0.139 HP/tick, applied every tick) damage while adjacent to an open Gateway. A level 1 tower (1000 HP) is destroyed after **7200 ticks** (2 minutes) without repair.  
 5.6.7. Repair costs **10 **Components\***\* for a full HP restore at level 1. Repair is **automatic** — **Components** are consumed from the player's pool continuously as needed. Partial repairs occur if the player has fewer **Components** than required for a full restore.  
 5.6.8. Upgrade cost: doubles in **Eddies** and **Components\*\* at each level.
 
@@ -395,30 +395,30 @@
 
 ### 5.8. Harvester
 
-| Stat          | Value                    |
-| ------------- | ------------------------ |
-| Role          | Support / Economy        |
-| Health        | 100 HP (level 1)         |
-| Generation    | 1 Eddie/second (level 1) |
-| Unlocks (Lv5) | Overclock (see §6.2)     |
+| Stat          | Value                              |
+| ------------- | ---------------------------------- |
+| Role          | Support / Economy                  |
+| Health        | 100 HP (level 1)                   |
+| Generation    | 1/60 ≈ 0.0167 Eddie/tick (level 1) |
+| Unlocks (Lv5) | Overclock (see §6.2)               |
 
 **Cost & Upgrade Path**
 
-| Level | Eddies | Components | Effect                                    |
-| ----- | ------ | ---------- | ----------------------------------------- |
-| 1     | -      | 2          | Basic Harvester                           |
-| 2     | -      | 4          | +100HP, +1 Eddie/second                   |
-| 3     | -      | 8          | +100HP, +1 Eddie/second, +1 Component/10s |
-| 4     | -      | 16         | +100HP, +1 Eddie/second, +1 Component/10s |
-| 5     | -      | 32         | Unlocks Overclock (see §6.2)              |
-| 6     | -      | 64         | +100HP, +1 Eddie/second, +1 Component/10s |
-| 7     | -      | 128        | +100HP, +1 Eddie/second, +1 Component/10s |
-| 8     | -      | 256        | +100HP, +1 Eddie/second, +1 Component/10s |
-| 9     | -      | 512        | +100HP, +1 Eddie/second, +1 Component/10s |
-| 10    | -      | 1024       | +100HP, +1 Eddie/second, +1 Component/10s |
+| Level | Eddies | Components | Effect                                          |
+| ----- | ------ | ---------- | ----------------------------------------------- |
+| 1     | -      | 2          | Basic Harvester                                 |
+| 2     | -      | 4          | +100HP, +1/60 Eddie/tick                        |
+| 3     | -      | 8          | +100HP, +1/60 Eddie/tick, +1/600 Component/tick |
+| 4     | -      | 16         | +100HP, +1/60 Eddie/tick, +1/600 Component/tick |
+| 5     | -      | 32         | Unlocks Overclock (see §6.2)                    |
+| 6     | -      | 64         | +100HP, +1/60 Eddie/tick, +1/600 Component/tick |
+| 7     | -      | 128        | +100HP, +1/60 Eddie/tick, +1/600 Component/tick |
+| 8     | -      | 256        | +100HP, +1/60 Eddie/tick, +1/600 Component/tick |
+| 9     | -      | 512        | +100HP, +1/60 Eddie/tick, +1/600 Component/tick |
+| 10    | -      | 1024       | +100HP, +1/60 Eddie/tick, +1/600 Component/tick |
 
 5.8.1. Generates **Eddies over time** if connected to a **Ping Tower** network.  
-5.8.2. Upgraded Harvesters can also generate **Components** starting at level 3, 1 component per 10 seconds.  
+5.8.2. Upgraded Harvesters can also generate **Components** starting at level 3, 1 component per 600 ticks (10 seconds).  
 5.8.3. Can be **damaged or disabled** by certain enemy types.  
 5.8.4. Must be protected with combat towers and abilities.  
 5.8.5. Upgrades increase health and Eddie (and eventually Component) generation rate.  
@@ -443,25 +443,25 @@
 | ------------- | ----------------------------------------------------------------------------------------- |
 | Type          | Offensive / Crowd Control                                                                 |
 | Unlocked By   | ICE Wall (level 5)                                                                        |
-| Cooldown      | 10 seconds (base) → 15 seconds (max upgrade)                                              |
+| Cooldown      | 600 ticks (base) → 900 ticks (max upgrade)                                                |
 | Range         | Same as the ICE Wall it is attached to (1 tile at level 1, increases with tower upgrades) |
-| Stun Duration | 2 seconds (base) → 10 seconds (max upgrade)                                               |
+| Stun Duration | 120 ticks (base) → 600 ticks (max upgrade)                                                |
 
 **Cost & Upgrade Path**
 
-| Level | Components | Effect                                 |
-| ----- | ---------- | -------------------------------------- |
-| 1     | 1          | Base EMP Blast (2s stun, 10s cooldown) |
-| 2     | 2          | +2s stun duration, +1s cooldown        |
-| 3     | 4          | +2s stun duration, +1s cooldown        |
-| 4     | 8          | +2s stun duration, +1s cooldown        |
-| 5     | 16         | +2s stun duration, 15s cooldown        |
+| Level | Components | Effect                                            |
+| ----- | ---------- | ------------------------------------------------- |
+| 1     | 1          | Base EMP Blast (120 tick stun, 600 tick cooldown) |
+| 2     | 2          | +120 tick stun duration, +60 tick cooldown        |
+| 3     | 4          | +120 tick stun duration, +60 tick cooldown        |
+| 4     | 8          | +120 tick stun duration, +60 tick cooldown        |
+| 5     | 16         | +120 tick stun duration, 900 tick cooldown        |
 
 6.1.1. **Fully stops** all enemies within the ICE Wall's current range for the stun duration (speed reduced to 0).  
 6.1.2. Stun is a **hard crowd-control** effect — enemies cannot move or act while stunned (see §7.0.7).  
 6.1.3. **Data Leech** is immune to EMP Blast stun.  
-6.1.4. Synergises with **Overclock** to increase range and stun duration temporarily. Applies the overclock fire rate boost to the stun duration as well, effectively increasing it by up to 200% at max upgrade (e.g. 10 seconds base duration becomes 30 seconds with max Overclock boost).
-6.1.5. Cooldown **increases** at max upgrade (15s vs 10s base) due to stun duration increase.
+6.1.4. Synergises with **Overclock** to increase range and stun duration temporarily. Applies the overclock fire rate boost to the stun duration as well, effectively increasing it by up to 200% at max upgrade (e.g. 600 tick base duration becomes 1800 ticks with max Overclock boost).
+6.1.5. Cooldown **increases** at max upgrade (900 ticks vs 600 ticks base) due to stun duration increase.
 
 ---
 
@@ -471,19 +471,19 @@
 | --------------- | ---------------------------------------------------------- |
 | Type            | Offensive / Buff                                           |
 | Unlocked By     | Data Spike, Daemon Turret, ICE Sniper, Harvester (level 5) |
-| Cooldown        | 20 seconds                                                 |
-| Duration        | 5 seconds                                                  |
+| Cooldown        | 1200 ticks (20 seconds)                                    |
+| Duration        | 300 ticks (5 seconds)                                      |
 | Fire Rate Boost | +50% (base) → +200% (max upgrade)                          |
 
 **Cost & Upgrade Path**
 
-| Level | Components | Effect                              |
-| ----- | ---------- | ----------------------------------- |
-| 1     | 1          | Base Overclock (+50% fire rate, 5s) |
-| 2     | 2          | +25% fire rate boost                |
-| 3     | 4          | +25% fire rate boost                |
-| 4     | 8          | +25% fire rate boost                |
-| 5     | 16         | +25% fire rate boost (total +200%)  |
+| Level | Components | Effect                                     |
+| ----- | ---------- | ------------------------------------------ |
+| 1     | 1          | Base Overclock (+50% fire rate, 300 ticks) |
+| 2     | 2          | +25% fire rate boost                       |
+| 3     | 4          | +25% fire rate boost                       |
+| 4     | 8          | +25% fire rate boost                       |
+| 5     | 16         | +25% fire rate boost (total +200%)         |
 
 6.2.1. Temporarily increases the **firing rate** of the tower it is attached to for **5 seconds**.  
 6.2.2. On Harvesters, increases **Eddie generation rate** instead of fire rate.  
@@ -499,17 +499,17 @@
 | Type                   | Offensive / Type Bonus                                                                                                 |
 | Unlocked By            | Firewall (level 5)                                                                                                     |
 | Damage Bonus           | Base = Firewall's current damage value (e.g. 10 DPS at level 1) added on top → +100% of Firewall damage at max upgrade |
-| Target Switch Cooldown | 20 seconds (level 1) → 5 seconds (max upgrade)                                                                         |
+| Target Switch Cooldown | 1200 ticks (level 1) → 300 ticks (max upgrade)                                                                         |
 
 **Cost & Upgrade Path**
 
-| Level | Components | Effect                                              |
-| ----- | ---------- | --------------------------------------------------- |
-| 1     | 1          | Base Tuned (+10 DPS bonus, 20s switch cooldown)     |
-| 2     | 2          | +25% damage bonus, -3s switch cooldown              |
-| 3     | 4          | +25% damage bonus, -3s switch cooldown              |
-| 4     | 8          | +25% damage bonus, -3s switch cooldown              |
-| 5     | 16         | +25% damage bonus (total +100%), 5s switch cooldown |
+| Level | Components | Effect                                                    |
+| ----- | ---------- | --------------------------------------------------------- |
+| 1     | 1          | Base Tuned (+10 DPS bonus, 1200 tick switch cooldown)     |
+| 2     | 2          | +25% damage bonus, -180 tick switch cooldown              |
+| 3     | 4          | +25% damage bonus, -180 tick switch cooldown              |
+| 4     | 8          | +25% damage bonus, -180 tick switch cooldown              |
+| 5     | 16         | +25% damage bonus (total +100%), 300 tick switch cooldown |
 
 6.3.1. Increases the Firewall's damage against a **player-chosen enemy type** by an amount equal to the Firewall's current base damage (e.g. +10 DPS at level 1, doubling effective damage against that type).  
 6.3.2. The player can **manually switch the target enemy type** at any time, subject to a cooldown.  
@@ -576,7 +576,7 @@
 ### General Enemy Rules
 
 7.0.1. Enemies are displayed as **red dots** on the map.  
-7.0.2. All enemies use **pathfinding** to find the shortest valid path to the Core. Enemies do not travel diagonally — they only move orthogonally, so they must navigate around obstacles accordingly.
+7.0.2. All enemies use **pathfinding** to find the shortest valid path to the Core. Enemies do not travel diagonally — they only move orthogonally, so they must navigate around obstacles accordingly. Enemy movement is updated every tick based on their speed in tiles/tick.
 7.0.3. Enemies that reach the Core deal their **damage value** to Core Health.  
 7.0.4. Enemies scale in strength with **wave multipliers** — the same enemy type is stronger in later waves.  
 7.0.5. Each enemy type has specific **resistances, immunities, and vulnerabilities** that must be accounted for strategically.
@@ -585,16 +585,16 @@
 7.0.8. Values are calculated as: **Enemy Value = (Damage + Health) x Speed x Tier Multiplier x Level**
 7.0.9. Enemies can be affected by **status effects** that modify their behavior temporarily, such as slowing or stunning them.
 
-
 **Status Effect Definitions:**  
 7.0.10. **Slow** — Reduces an enemy's movement speed by a percentage for a duration. Does not stop movement entirely.  
 7.0.11. **Stun** — Brings an enemy's movement speed to **0** (full stop) for a duration. The enemy cannot move or act while stunned.
 
 **Status Effect Interactions:**
-7.0.12. If Stun is applied to a slowed enemy, the slow effect is removed and the enemy is fully stopped for the stun duration. When the stun expires, the enemy's speed returns to normal (not slowed).
+7.0.12. If Stun is applied to a slowed enemy, the slow effect is removed and the enemy is fully stopped for the stun duration in ticks. When the stun expires, the enemy's speed returns to normal (not slowed).
 7.0.13. Slow cannot be applied to Stunned enemies.
 7.0.14. If an enemy is immune to Stun, it cannot be stunned but can still be slowed if it is not already at minimum speed. If it is already at minimum speed, slow effects have no impact.
 7.0.15. Only one Slow may be active on an enemy at a time. If a new Slow is applied: if its reduction percentage is **greater** than the current Slow, it **replaces** the current Slow and **resets the duration**; otherwise the new Slow is **ignored**. Stuns always take priority over slows regardless of duration or strength.
+7.0.16. Only one Stun may be active on an enemy at a time. If a new Stun is applied: if its duration is **greater** than the remaining duration of the current Stun, it **replaces** the current Stun; otherwise the new Stun is **ignored**. Stuns always take priority over slows regardless of duration or strength.
 
 ---
 
@@ -604,7 +604,7 @@
 | --------------- | --------------------------------------------- |
 | Damage          | 5                                             |
 | Health          | 10                                            |
-| Speed           | 0.5 tiles/second                              |
+| Speed           | 0.5/60 ≈ 0.0083 tiles/tick                    |
 | Stun Immune     | Yes (immune to EMP Blast)                     |
 | Slow Immune     | Yes (already at minimum speed)                |
 | Tier Multiplier | 1 (base)                                      |
@@ -623,7 +623,7 @@
 | --------------- | -------------------------------------------- |
 | Damage          | 10                                           |
 | Health          | 5                                            |
-| Speed           | 1.0 tile/second                              |
+| Speed           | 1.0/60 ≈ 0.0167 tiles/tick                   |
 | Tier Multiplier | 2 (level 1)                                  |
 | Value           | (10 + 5) x 1.0 x 2 = 30 **Eddies** (level 1) |
 
@@ -635,15 +635,15 @@
 
 ### 7.3. Firewall Breacher
 
-| Stat          | Level 1 Value                                  |
-| ------------- | ---------------------------------------------- |
-| Damage        | 20                                             |
-| Health        | 50                                             |
-| Speed         | 0.5 tiles/second                               |
-| Immune To     | ICE Wall slow, Firewall slow                   |
-| Vulnerable To | Daemon Turret                                  |
-| Tier Multiplier | 3 (level 1)                                  |
-| Value         | (20 + 50) x 0.5 x 3 = 105 **Eddies** (level 1) |
+| Stat            | Level 1 Value                                  |
+| --------------- | ---------------------------------------------- |
+| Damage          | 20                                             |
+| Health          | 50                                             |
+| Speed           | 0.5/60 ≈ 0.0083 tiles/tick                     |
+| Immune To       | ICE Wall slow, Firewall slow                   |
+| Vulnerable To   | Daemon Turret                                  |
+| Tier Multiplier | 3 (level 1)                                    |
+| Value           | (20 + 50) x 0.5 x 3 = 105 **Eddies** (level 1) |
 
 7.3.1. Slow and tanky — Immune to wall-type towers.  
 7.3.2. Can be **stunned** (fully stopped) by EMP Blast. but not by Firewall stun.
@@ -653,14 +653,14 @@
 
 ### 7.4. Glitch
 
-| Stat    | Level 1 Value                                  |
-| ------- | ---------------------------------------------- |
-| Damage  | 20                                             |
-| Health  | 50                                             |
-| Speed   | 0.5 tiles/second                               |
-| Special | Phases through ICE Wall and Firewall tiles     |
-| Tier Multiplier | 4 (level 1)                                  |
-| Value   | (20 + 50) x 0.5 x 4 = 140 **Eddies** (level 1) |
+| Stat            | Level 1 Value                                  |
+| --------------- | ---------------------------------------------- |
+| Damage          | 20                                             |
+| Health          | 50                                             |
+| Speed           | 0.5 tiles/second                               |
+| Special         | Phases through ICE Wall and Firewall tiles     |
+| Tier Multiplier | 4 (level 1)                                    |
+| Value           | (20 + 50) x 0.5 x 4 = 140 **Eddies** (level 1) |
 
 7.4.1. Can **phase through** ICE Wall and Firewall towers — it passes through their tiles with **no collision** (not blocked, not slowed, not stunned by them).  
 7.4.2. Still takes **full damage** from any active-fire tower (Data Spike, Daemon Turret, ICE Sniper) that targets it.  
@@ -671,15 +671,15 @@
 
 ### 7.5. Orchestrator
 
-| Stat      | Level 1 Value                                    |
-| --------- | ------------------------------------------------ |
-| Damage    | 100                                              |
-| Health    | 200                                              |
-| Speed     | 0.5 tiles/second                                 |
-| Immune To | ICE Wall damage over time, Firewall damage       |
-| On Death  | Spawns 1 Blackwall Gateway at its death location |
-| Tier Multiplier | 5 (level 1)                                  |
-| Value     | (100 + 200) x 0.5 x 5 = 750 **Eddies** (level 1) |
+| Stat            | Level 1 Value                                    |
+| --------------- | ------------------------------------------------ |
+| Damage          | 100                                              |
+| Health          | 200                                              |
+| Speed           | 0.5/60 ≈ 0.0083 tiles/tick                       |
+| Immune To       | ICE Wall damage over time, Firewall damage       |
+| On Death        | Spawns 1 Blackwall Gateway at its death location |
+| Tier Multiplier | 5 (level 1)                                      |
+| Value           | (100 + 200) x 0.5 x 5 = 750 **Eddies** (level 1) |
 
 7.5.1. A **mini-boss** that must be prioritised — killing it spawns a Gateway (see §9).  
 7.5.2. Immune to ICE Wall damage over time and Firewall damage.  
@@ -691,17 +691,17 @@
 
 ### 7.6. VDB Netrunner
 
-| Stat    | Level 1 Value                                                     |
-| ------- | ----------------------------------------------------------------- |
-| Damage  | 30                                                                |
-| Health  | 750                                                               |
-| Speed   | 0.5 tiles/second                                                  |
-| Special | Deals 30 damage (level 1) to all towers within 1 tile as it moves |
-| Tier Multiplier | 6 (level 1)                                  |
-| Value   | (30 + 750) x 0.5 x 6 = 465 **Eddies** (level 1)                   |
+| Stat            | Level 1 Value                                                     |
+| --------------- | ----------------------------------------------------------------- |
+| Damage          | 30                                                                |
+| Health          | 750                                                               |
+| Speed           | 0.5/60 ≈ 0.0083 tiles/tick                                        |
+| Special         | Deals 30 damage (level 1) to all towers within 1 tile as it moves |
+| Tier Multiplier | 6 (level 1)                                                       |
+| Value           | (30 + 750) x 0.5 x 6 = 465 **Eddies** (level 1)                   |
 
 7.6.1. A **mini-boss** that deals damage to towers, not just the Core.  
-7.6.2. Deals its **base damage value** (30 at level 1, scaled by wave multiplier) to all towers within **1 tile** as it moves through each tile.  
+7.6.2. Deals its **base damage value** (30 at level 1, scaled by wave multiplier) to all towers within **1 tile** as it enters each tile every tick.  
 7.6.3. Best countered by ICE Sniper (long-range, high single-target damage).  
 7.6.4. Can be stunned by EMP Blast. and Firewall stun.
 7.6.5. Must be eliminated quickly to prevent tower attrition.
@@ -714,13 +714,13 @@
 | ---------------- | ------------------------------------------------ |
 | Damage           | 20                                               |
 | Health           | 500                                              |
-| Speed            | 0.5 tiles/second                                 |
+| Speed            | 0.5/60 ≈ 0.0083 tiles/tick                       |
 | Disable Radius   | 1 tile (8 adjacent tiles)                        |
-| Disable Duration | 5 seconds (level 1); increases with wave scaling |
+| Disable Duration | 300 ticks (level 1); increases with wave scaling |
 | Tier Multiplier  | 7 (level 1)                                      |
 | Value            | (20 + 500) x 0.5 x 7 = 1820 **Eddies** (level 1) |
 
-7.7.1. **Disables all towers** within a 1-tile radius (8 adjacent tiles) for 5 seconds every 10 seconds. Disabled towers cannot attack or use abilities, but still block enemy movement.  
+7.7.1. **Disables all towers** within a 1-tile radius (8 adjacent tiles) for 300 ticks (5 seconds) every 600 ticks (10 seconds). Disabled towers cannot attack or use abilities, but still block enemy movement.  
 7.7.2. Best countered by ICE Sniper.  
 7.7.3. Can be stunned by EMP Blast. and Firewall stun.
 7.7.4. Extremely dangerous near clusters of towers — spread tower placement to mitigate.
@@ -729,14 +729,14 @@
 
 ### 7.8. AI Overlord _(Boss)_
 
-| Stat   | Level 1 Value                                     |
-| ------ | ------------------------------------------------- |
-| Damage | 50                                                |
-| Health | 1000                                              |
-| Speed  | 0.5 tiles/second                                  |
-| Phases | 3                                                 |
-| Tier Multiplier | 8 (level 1)                                  |
-| Value  | (50 + 1000) x 0.5 x 8 = 4200 **Eddies** (level 1) |
+| Stat            | Level 1 Value                                     |
+| --------------- | ------------------------------------------------- |
+| Damage          | 50                                                |
+| Health          | 1000                                              |
+| Speed           | 0.5/60 ≈ 0.0083 tiles/tick                        |
+| Phases          | 3                                                 |
+| Tier Multiplier | 8 (level 1)                                       |
+| Value           | (50 + 1000) x 0.5 x 8 = 4200 **Eddies** (level 1) |
 
 **Phase 1:**  
 7.8.1. **Immune to all damage types.** Except for slowing and stunning effects, the Overlord cannot be damaged in this phase.
@@ -749,8 +749,8 @@
 **Phase 3:**  
 7.8.5. Becomes **even more vulnerable** to damage (50% more damage taken).  
 7.8.6. Spawns **Orchestrators** on every 5th tile it walks over.
-7.8.7. **Phase transitions** occur every **30 seconds** regardless of HP — the Overlord moves to the next phase automatically on the timer.  
-7.8.8. **Phase 1 → Phase 2** at 30 seconds. **Phase 2 → Phase 3** at 60 seconds.  
+7.8.7. **Phase transitions** occur every **1800 ticks** (30 seconds) regardless of HP — the Overlord moves to the next phase automatically on the timer.  
+7.8.8. **Phase 1 → Phase 2** at 1800 ticks. **Phase 2 → Phase 3** at 3600 ticks.  
 7.8.9. Requires a combination of tower types and abilities to defeat.  
 7.8.10. Appears every **10 waves starting from wave 50**.  
 7.8.11. Defeating all AI Overlords is required for the **win condition** (see §10.1).
@@ -775,12 +775,12 @@ Each cycle of waves follows this escalation pattern:
 
 8.2.1. **Waves 1–10:** Player manually triggers each wave (no auto-start).  
 8.2.2. **Wave 11 onwards:** Waves start automatically with a break between them.  
-8.2.3. Break duration scales **linearly** from **30 seconds at wave 10** down to **1 second at wave 40** using the formula: `break = 30 - ((wave - 10) × (29 / 30))` seconds, floored at 1 second. From wave 40 onwards the break is fixed at **1 second**.  
+8.2.3. Break duration scales **linearly** from **1800 ticks (30 seconds) at wave 10** down to **60 ticks (1 second) at wave 40** using the formula: `break = 1800 - ((wave - 10) × (1740 / 30))` ticks, floored at 60 ticks. From wave 40 onwards the break is fixed at **60 ticks (1 second)**.  
 8.2.4. The player may **skip the break** at any time to start the next wave early.
 
 ### 8.3. Skip Break Bonus
 
-8.3.1. Skipping a break grants a **2× Eddie generation boost** on all Harvesters for the next **10 seconds**.  
+8.3.1. Skipping a break grants a **2× Eddie generation boost** on all Harvesters for the next **600 ticks (10 seconds)**.  
 8.3.2. This bonus should be used strategically to fund emergency builds or upgrades.
 
 ### 8.4. Enemy Scaling
@@ -846,15 +846,15 @@ Each cycle of waves follows this escalation pattern:
   9.2.6. A Gateway being **actively closed** by Blackwall Towers does **not spawn enemies**.  
   9.2.7. If all assigned Blackwall Towers are destroyed, the Gateway **immediately reopens**.  
   9.2.8. A **permanently closed** Gateway is removed from the map entirely and cannot reopen.
-  9.2.9. A **Blackwall Gateway** has 10000 HP. Each adjacent Blackwall Tower reduces the Gateway's HP by 1000 HP/2Min. When the Gateway's HP reaches 0, it is permanently closed and removed from the map.
+  9.2.9. A **Blackwall Gateway** has 10000 HP. Each adjacent Blackwall Tower reduces the Gateway's HP by 1000 HP/7200 ticks (≈0.139 HP/tick). When the Gateway's HP reaches 0, it is permanently closed and removed from the map.
 
 ### 9.3. Closing Gateways (Summary)
 
 | Configuration                              | Time to Close (Gateway HP = 10,000) |
 | ------------------------------------------ | ----------------------------------- |
-| 1 Blackwall Tower (1,000 HP/2min)          | 20 minutes                          |
-| 4 Blackwall Towers (4,000 HP/2min)         | 5 minutes                           |
-| 4 Fully Upgraded Level 10 Blackwall Towers | Faster (40,000 HP/2min)             |
+| 1 Blackwall Tower (1,000 HP/7200 ticks)    | 72,000 ticks (20 minutes)           |
+| 4 Blackwall Towers (4,000 HP/7200 ticks)   | 18,000 ticks (5 minutes)            |
+| 4 Fully Upgraded Level 10 Blackwall Towers | Faster (40,000 HP/7200 ticks)       |
 
 ---
 
