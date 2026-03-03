@@ -1,3 +1,4 @@
+DO NOT READ THIS FILE - ITS OUTDATED
 # Idea
 A Cyberpunk 2077 inspired tower defence game set in the Cyberpunk `Net`. You are a `NetWatch` owned core defending against _Rogue AIs_ coming from beyond the `Blackwall`. You can build `Towers` to defend your core, and upgrade them with `Components` to make them more powerful. You can also use `Abilities` to help you in battle. 
 
