@@ -118,7 +118,7 @@
 5.0.4. **Upgrade cost doubles** at each upgrade level (both **Eddies** and **Components**).  
 5.0.5. **Maximum tower level is 10.**  
 5.0.6. Towers **unlock an Ability at level 5**. Abilities are **tower-instance specific** — unlocking on one tower does not unlock it on others of the same type.  
-5.0.7. Abilities can be further upgraded with **Components** up to a **maximum ability level of 5**.
+5.0.7. Abilities can be further upgraded with **Components** up to a **maximum ability level of 5**.  
 5.0.8. All Damages are applied every tick. For example, a tower with 10 DPS applies 10/60 ≈ 0.167 damage per tick to enemies within range, distributed according to the tower's targeting rules (e.g. single-target, multi-target, area damage, etc.).
 
 ---
@@ -186,7 +186,7 @@
 | 10    | -      | 896        | +500 HP per tower, +10 damage/sec                |
 
 5.2.1. Placed as a **pair** — two towers with exactly 1 tile gap between them forming a "gateway."  
-5.2.2. Damages and **stuns** (fully stops, see §7.0.7) enemies that pass through the gap.  
+5.2.2. Damages and **stuns** (fully stops, see §7.0.7) enemies that pass through the gap. Except **Firewall Breacher** enemies, which are immune to the stun effect but still take damage. 
 5.2.3. Can be oriented **horizontally, vertically, or diagonally**.  
 5.2.4. If **either tower is destroyed**, both towers are destroyed simultaneously.  
 5.2.5. On destruction of one tower, deals **the tower's current damage value** to all enemies in adjoining tiles of the other tower (same damage as its active DPS, applied once as a burst to all enemies on 8 surrounding tiles).  
@@ -251,7 +251,7 @@
 | Range         | 1 tile (level 1)                                                                   |
 | Damage        | 10 damage/daemon (level 1); applied to **each enemy** on the tile the daemon hits. |
 | Fire Rate     | 1 daemon every 120 ticks (2 seconds, level 1)                                      |
-| Rotation      | Slow at level 1; faster at higher levels                                           |
+| Rotation      | 0.5 degree/tick (level 1)                                                          |
 | Unlocks (Lv5) | Overclock (see §6.2)                                                               |
 
 **Cost & Upgrade Path**
@@ -259,15 +259,15 @@
 | Level | Eddies | Components | Effect                                |
 | ----- | ------ | ---------- | ------------------------------------- |
 | 1     | -      | 5          | Basic turret                          |
-| 2     | -      | 9          | +100 HP, +5 damage/daemon             |
-| 3     | -      | 21         | +100 HP, +5 damage/daemon             |
-| 4     | -      | 42         | +100 HP, +5 damage/daemon             |
-| 5     | -      | 84         | +100 HP, Unlocks Overclock (see §6.2) |
-| 6     | -      | 168        | 1 Daemon/108 ticks (1.8 sec)          |
-| 7     | -      | 336        | 1 Daemon/96 ticks (1.6 sec)           |
-| 8     | -      | 672        | 1 Daemon/84 ticks (1.4 sec)           |
-| 9     | -      | 1344       | 1 Daemon/72 ticks (1.2 sec)           |
-| 10    | -      | 2688       | 1 Daemon/60 ticks (1 sec)             |
+| 2     | -      | 10         | +100 HP, +5 damage/daemon             |
+| 3     | -      | 20         | +100 HP, +5 damage/daemon             |
+| 4     | -      | 40         | +100 HP, +5 damage/daemon             |
+| 5     | -      | 80         | +100 HP, 1 degree/tick Rotation, Unlocks Overclock (see §6.2) |
+| 6     | -      | 160        | 1 Daemon/108 ticks (1.8 sec)          |
+| 7     | -      | 320        | 1 Daemon/96 ticks (1.6 sec)           |
+| 8     | -      | 640        | 1 Daemon/84 ticks (1.4 sec)           |
+| 9     | -      | 1280       | 1 Daemon/72 ticks (1.2 sec)           |
+| 10    | -      | 2560       | 1 Daemon/60 ticks (1 sec)             |
 
 5.4.1. **Rotates** to face enemies — rotation speed increases with upgrades.  
 5.4.2. Can target **multiple enemies simultaneously**; deals 10 damage/daemon to every enemy on the impacted tile (not split — each enemy takes the full amount). Player selects targetting mode.
@@ -291,7 +291,7 @@
 | Targets       | 1 enemy at a time                           |
 | Fire Rate     | 1 shot every 180 ticks (3 seconds)          |
 | On-hit Effect | Slow 20% for 120 ticks (2 seconds, level 1) |
-| Rotation      | Can rotate to face target                   |
+| Rotation      | 0.5 degree/tick (level 1)                   |
 | Unlocks (Lv5) | Overclock (see §6.2)                        |
 
 **Cost & Upgrade Path**
@@ -303,11 +303,11 @@
 | 3     | -      | 30         | +100 HP, +10 damage/shot               |
 | 4     | -      | 60         | +100 HP, +10 damage/shot               |
 | 5     | -      | 120        | Unlocks Overclock (see §6.2)           |
-| 6     | -      | 240        | 30% slow, 1 Daemon/168 ticks (2.8 sec) |
+| 6     | -      | 240        | 30% slow, 1 Daemon/168 ticks (2.8 sec), 1 degree/tick Rotation |
 | 7     | -      | 480        | 40% slow, 1 Daemon/156 ticks (2.6 sec) |
 | 8     | -      | 960        | 50% slow, 1 Daemon/144 ticks (2.4 sec) |
 | 9     | -      | 1920       | 60% slow, 1 Daemon/132 ticks (2.2 sec) |
-| 10    | -      | 3840       | 70% slow, 1 Daemon/120 ticks (2 sec)   |
+| 10    | -      | 3840       | 70% slow, 1 Daemon/120 ticks (2 sec), 2 degree/tick Rotation |
 
 5.5.1. Fires in **one direction** but can rotate to track targets.  
 5.5.2. Has a **minimum range of 3 tiles** — does not attack enemies closer than 3 tiles.  
@@ -582,7 +582,7 @@
 7.0.5. Each enemy type has specific **resistances, immunities, and vulnerabilities** that must be accounted for strategically.
 7.0.6. During a wave, exactly one enemy is spawned per tick globally. Active Gateways are iterated in deterministic round-robin order. Each tick spawns one enemy from the next Gateway until the wave’s total enemy count is exhausted. If a Gateway is closed or destroyed, it is removed from the Active Gateways immediately.
 7.0.7. Enemies drop **Eddies** and **Components** equivalent to their value when defeated. The player collects these resources by placing **Ping Towers** within range of the drops. Enemies that reach the Core do not drop resources.
-7.0.8. Values are calculated as: **Enemy Value = (Damage + Health) x Speed x Tier Multiplier x Level**
+7.0.8. Values are calculated as: **Enemy Value = (Damage + Health) x Speed x Tier Multiplier x Level**, if the value has X multiples of 100 Eddies, replace it with X components (e.g. 150 Eddies becomes 1 Component and 50 Eddies (1 Component = 100 Eddies)).  
 7.0.9. Enemies can be affected by **status effects** that modify their behavior temporarily, such as slowing or stunning them.
 
 **Status Effect Definitions:**  
