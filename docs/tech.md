@@ -383,6 +383,49 @@ export function canPlaceTower(
 5.5.4. `computeBFSScratch()` reuses a module-level `Uint16Array(GRID_SIZE * GRID_SIZE)` scratch buffer — **zero allocations per call**.  
 5.5.5. The same function is called by `commandSystem` during tick processing to validate queued `PLACE_TOWER` commands. This guards against race conditions where the grid changed between the preview hover and the next tick.
 
+### 5.6. `canPlaceFirewallPair()` — Firewall-Specific Placement Query
+
+5.6.1. Firewall placement occupies **three tiles in a line**: the two tower tiles (`t1`, `t2`) and the gap tile between them (`gap`). All three must be empty and non-edge before running the BFS.  
+5.6.2. The **gap tile is walkable** — enemies path through it to receive the stun. It is never added to the blocked set for the BFS. Only the two tower tiles block pathfinding.  
+5.6.3. A **single scratch BFS** blocks both tower tiles simultaneously. Calling `canPlaceTower` twice independently is incorrect — a path may survive one tower but not both.
+
+```typescript
+/**
+ * Firewall pair placement validation — no state mutation.
+ * Checks all 3 tiles are clear, then runs one BFS blocking both tower tiles.
+ *
+ * Rulebook §5.2.1
+ *
+ * @param t1   First tower tile
+ * @param gap  Gap tile between the two towers (must be empty, stays walkable)
+ * @param t2   Second tower tile
+ */
+export function canPlaceFirewallPair(
+  grid: ReadonlyGrid,
+  gateways: readonly GatewayPos[],
+  t1:  { x: number; y: number },
+  gap: { x: number; y: number },
+  t2:  { x: number; y: number }
+): boolean {
+  // All three tiles must be unoccupied and inside the playfield
+  for (const tile of [t1, gap, t2]) {
+    if (grid.isOccupied(tile.x, tile.y)) return false;
+    if (grid.isEdgeTile(tile.x, tile.y)) return false;
+  }
+
+  // Single BFS blocking BOTH tower tiles (gap stays open — enemies walk through it)
+  const scratchCost = computeBFSScratch(grid, [t1, t2]);
+  for (const gw of gateways) {
+    if (scratchCost[idx(gw.x, gw.y)] === 0xFFFF) return false;
+  }
+  return true;
+}
+```
+
+5.6.4. `computeBFSScratch` is overloaded to accept either a single tile `{ x, y }` or an array of tiles — both reuse the same pre-allocated scratch buffer.  
+5.6.5. `commandSystem` calls `canPlaceFirewallPair` when processing a queued `PLACE_FIREWALL` command, for the same race-condition guard as §5.5.5.  
+5.6.6. The gap tile coordinates are derived from the orientation selected by the player (§6.6.3) — the renderer computes `gap` before calling this function.
+
 ---
 
 ## 6. Rendering (PixiJS)
@@ -482,7 +525,7 @@ The ghost preview is a **renderer-only** visual that never touches the simulatio
 
 6.6.1. The ghost sprite is acquired from the **existing sprite pool** at 50% alpha.  
 6.6.2. Validation (`canPlaceTower`) runs **at most once per tile change**, not every frame. Cache the last-validated tile and result.  
-6.6.3. For **Firewall pairs** (Rulebook §5.2.1): show **2 ghost sprites** for the tower positions + a highlighted gap tile between them. The player rotates orientation with `R` key (horizontal → vertical → diagonal).  
+6.6.3. For **Firewall pairs** (Rulebook §5.2.1): show **2 ghost sprites** for the tower positions + a highlighted gap tile between them. The player rotates orientation with `R` key (horizontal → vertical → diagonal). Validation calls `canPlaceFirewallPair(grid, gateways, t1, gap, t2)` (§5.6) instead of `canPlaceTower` — all three tiles (t1, gap, t2) must be empty, but only t1 and t2 block the BFS. All three ghost sprites share the same green/red tint.  
 6.6.4. For **Data Spike** (Rulebook §5.3.1): additionally show the **facing direction arc** as a semi-transparent overlay. The player rotates facing with `R` key before confirming.  
 6.6.5. For **Blackwall Tower** (Rulebook §5.6.1): highlight adjacent Gateway tiles to indicate which Gateway the tower will be assigned to.  
 6.6.6. Ghost preview is hidden when `ui.store.selectedTowerType` is `null` (no tower selected).
