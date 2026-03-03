@@ -70,6 +70,67 @@
   2.8 All ranges are measured in **tiles**. Use **Chebyshev Distance** for Ranges.
   2.9 The Core occupies the tile at position (26, 26).
 
+  2.10. **Spawning and movement rules:**
+
+- 2.10.1. Enemies spawn at center of each active **Blackwall Gateway** tile. At the start of their spawn, they are completely immune to everything for 30 ticks (they are only used for rendering/animation). Then we mark their per-tile progress as 0.5. This is when they are considered to have entered the tile. Then they need to make 0.5 tile movement instead of 1 tile movement to reach next tile. This depends on their speed.
+- 2.10.2. Per-Tile Progress: Enemies move from tile to tile based on their speed. For example, an enemy with speed 1 tile/60 ticks = 0.0167 tiles/tick, so it moves 0.5 tiles every 30 ticks. When its per-tile progress reaches 1, it moves to the next tile and resets progress to 0. This also corresponds to tile entered event. This allows for smooth movement and accurate timing of when enemies enter new tiles, which is important for tower targeting and damage application. At tile boundaries, the progress is 0, at the center of the tile, the progress is 0.5, and just before leaving the tile, the progress is close to 1.
+- 2.10.3. Enemies are animated to move smoothly across tiles based on their speed and per-tile progress, but for all game logic purposes (tower targeting, damage application, status effects), they are considered to be on the tile they last entered until they enter the next tile.
+- 2.10.4. **Edge-to-Edge Movement (render only):** For rendering, enemies move between **tile edges** rather than tile centers. The edge point between two adjacent tiles is the midpoint of their shared boundary. The only exception is the destination (Core) tile, where the exit point is the tile center. This means the visual path goes: spawn center → first edge → second edge → … → Core center.
+
+- 2.10.5. **Orientation:** Each tile on the flowfield has a **path direction** (N, S, E, W). Enemies face the direction they are currently travelling. When moving straight (no direction change), the enemy faces the path direction for the entire segment.
+
+- 2.10.6. **Direction Changes:** When an enemy transitions between tiles, the direction change is classified as one of four types:
+
+  | Change         | Condition                             | Angle Delta |
+  | -------------- | ------------------------------------- | ----------- |
+  | **None**       | Same direction as previous tile       | 0°          |
+  | **TurnRight**  | 90° clockwise from previous direction | +90°        |
+  | **TurnLeft**   | 90° counter-clockwise from previous   | −90°        |
+  | **TurnAround** | 180° reversal (e.g. path changed)     | ±180°       |
+
+- 2.10.7. **Curving Motion at Turns (render only):** When turning right or left, enemies follow a **quarter-circle arc** instead of a straight line. The arc's center is the **corner point** shared by the From-tile, To-tile, and the diagonal tile between them, on the same edge the enemy entered from. The arc radius is **0.5 tiles** (half a tile width). The enemy's position is computed by rotating around this pivot point, and the facing angle is interpolated linearly from the entry angle to the exit angle over the segment's progress. When going straight (None), the enemy interpolates position linearly between edges. When turning around, the enemy pivots in place (no positional interpolation, only rotation).
+
+```
+  Example: Path (1,1) → (1,2) → (2,2)  —  going North, then turning East
+
+  Direction change: TurnRight (+90°)
+  Arc center: corner between (1,1), (1,2), (2,2) = top-right corner of (1,1)
+
+       (1,3)          (2,3)
+    ┌──────────┬──────────┐
+    │          │          │
+    │          │          │
+    │  (1,2)   │  (2,2)   │
+    │          │          │
+    │     ╭────┤←exit     │   exit edge: midpoint of (1,2)↔(2,2)
+    │     │  ◯ │          │   ◯ = arc center (corner point)
+    ├─────┤────┼──────────┤
+    │     │    │          │
+    │     ↑    │          │
+    │  (1,1)   │  (2,1)   │   ↑ = entry edge: midpoint of (1,1)↔(1,2)
+    │  entry   │          │
+    │          │          │
+    └──────────┴──────────┘
+
+  The enemy follows the quarter-circle arc (╭) from the entry edge
+  to the exit edge, rotating from facing North (↑) to facing East (→).
+```
+
+- 2.10.8. **Constant Speed:** The enemy's speed is expressed in **tiles per second** (e.g. 0.5 tiles/sec). To maintain constant visual speed across different movement states, the per-tick progress increment is adjusted by a **progress factor** that accounts for the actual distance covered in each state:
+
+  | State          | Distance Covered                    | Progress Factor                                  |
+  | -------------- | ----------------------------------- | ------------------------------------------------ |
+  | **Intro**      | 0.5 tiles (center to edge)          | `2 × speed` (half the distance, double the rate) |
+  | **Forward**    | 1 tile (edge to edge)               | `speed` (baseline)                               |
+  | **TurnRight**  | ¼ circle, radius 0.5 = π/4 ≈ 0.785  | `speed / (π × 0.25)` ≈ `speed / 0.785`           |
+  | **TurnLeft**   | ¼ circle, radius 0.5 = π/4 ≈ 0.785  | `speed / (π × 0.25)` ≈ `speed / 0.785`           |
+  | **TurnAround** | ½ circle, radius 0 (pivot in place) | `2 × speed` (fast pivot, ≤ 0.5 sec at speed 1)   |
+  | **Outro**      | 0.5 tiles (edge to Core center)     | `2 × speed` (half the distance, double the rate) |
+
+  When transitioning between states, leftover progress must be **normalized** before applying the new factor: `progress = (progress - 1) / oldFactor; progress *= newFactor;`
+
+- 2.10.9. **Rendering vs Simulation Boundary:** All of §2.10.4–2.10.8 are **rendering-only** concerns. The simulation (tick pipeline §1.10) uses only the discrete tile position from §2.10.3 — the enemy is "on" the tile it last entered. Edge-to-edge interpolation, arc curves, orientation, and progress factors exist solely for smooth visual presentation and do not affect game logic.
+
 ---
 
 ## 3. Core
@@ -100,13 +161,15 @@
 4.2.2. Acquired by: spending **Eddies**, or collecting drops via **Ping Towers** (see §5.7).  
 4.2.3. **Components** dropped by defeated enemies or dismantled towers exist on the map as **pickups**.  
 4.2.4. Pickups within range of a **Ping Tower** are automatically collected.  
-4.2.7. Pickups **outside** Ping Tower range will **decay at (5/60) ≈ 0.083% of their initial value per tick, floored to integer values** and are fully lost when they reach 0.
+4.2.5. Pickups **outside** Ping Tower range will **decay at (5/60) ≈ 0.083% of their initial value per tick** and are fully lost when they reach 0.
 4.2.6. Towers dismantled **within** Ping Tower range return **100% of their **Components\***\*.  
 4.2.7. Towers dismantled **outside** Ping Tower range return **0% of their **Components\*\*** (left to decay).  
 4.2.8. Decaying **Components** can be saved by building a new Ping Tower near them before they expire.
 4.2.9. 100 **Eddies** can be converted into 1 **Component** at any time from the player's **Eddie** pool.
 
----
+### 4.3. **Initial Resources**
+
+## 4.3.1. The player starts with **400 Eddies** and **3 Components** at the beginning of the game.
 
 ## 5. Towers
 
@@ -160,22 +223,22 @@
 
 ### 5.2. Firewall
 
-| Stat          | Value                                                                           |
-| ------------- | ------------------------------------------------------------------------------- |
-| Role          | Trap / Area Denial                                                              |
-| Health        | 500 HP per tower (level 1)                                                      |
-| Placement     | Pair of towers occupying 3 tiles (horizontal, vertical, or diagonal)            |
-| Range         | 1 tile between the two towers                                                   |
-| Damage        | 10/60 ≈ 0.167 damage/tick to enemies passing between them                       |
-| Effect        | Stuns enemies (full stop) for 60 ticks while in the gateway, applied every tick |
-| Unlocks (Lv5) | Tuned (see §6.3)                                                                |
+| Stat          | Value                                                                                         |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| Role          | Trap / Area Denial                                                                            |
+| Health        | 500 HP per tower (level 1)                                                                    |
+| Placement     | Pair of towers occupying 3 tiles (horizontal, vertical, or diagonal)                          |
+| Range         | 1 tile between the two towers                                                                 |
+| Damage        | 10/60 ≈ 0.167 damage/tick to enemies passing between them                                     |
+| Effect        | Stuns enemies (full stop) for 60 ticks while in the gateway, applied every tick (Stun-locked) |
+| Unlocks (Lv5) | Tuned (see §6.3)                                                                              |
 
 **Cost & Upgrade Path**
 
 | Level | Eddies | Components | Effect                                           |
 | ----- | ------ | ---------- | ------------------------------------------------ |
 | 1     | 75     | 1          | Basic Firewall                                   |
-| 2     | 150    | 2          | +500 HP per tower, +10 damage/sec                |
+| 2     | 50     | 3          | +500 HP per tower, +10 damage/sec                |
 | 3     | -      | 7          | +500 HP per tower, +10 damage/sec                |
 | 4     | -      | 14         | +500 HP per tower, +10 damage/sec                |
 | 5     | -      | 28         | +500 HP per tower, +10 damage/sec, Unlocks Tuned |
@@ -186,7 +249,7 @@
 | 10    | -      | 896        | +500 HP per tower, +10 damage/sec                |
 
 5.2.1. Placed as a **pair** — two towers with exactly 1 tile gap between them forming a "gateway."  
-5.2.2. Damages and **stuns** (fully stops, see §7.0.7) enemies that pass through the gap. Except **Firewall Breacher** enemies, which are immune to the stun effect but still take damage. 
+5.2.2. Damages and **stuns** (fully stops, see §7.0.7) enemies that pass through the gap. Except **Firewall Breacher** enemies, which are immune to the stun effect but still take damage.
 5.2.3. Can be oriented **horizontally, vertically, or diagonally**.  
 5.2.4. If **either tower is destroyed**, both towers are destroyed simultaneously.  
 5.2.5. On destruction of one tower, deals **the tower's current damage value** to all enemies in adjoining tiles of the other tower (same damage as its active DPS, applied once as a burst to all enemies on 8 surrounding tiles).  
@@ -256,18 +319,18 @@
 
 **Cost & Upgrade Path**
 
-| Level | Eddies | Components | Effect                                |
-| ----- | ------ | ---------- | ------------------------------------- |
-| 1     | -      | 5          | Basic turret                          |
-| 2     | -      | 10         | +100 HP, +5 damage/daemon             |
-| 3     | -      | 20         | +100 HP, +5 damage/daemon             |
-| 4     | -      | 40         | +100 HP, +5 damage/daemon             |
+| Level | Eddies | Components | Effect                                                        |
+| ----- | ------ | ---------- | ------------------------------------------------------------- |
+| 1     | -      | 5          | Basic turret                                                  |
+| 2     | -      | 10         | +100 HP, +5 damage/daemon                                     |
+| 3     | -      | 20         | +100 HP, +5 damage/daemon                                     |
+| 4     | -      | 40         | +100 HP, +5 damage/daemon                                     |
 | 5     | -      | 80         | +100 HP, 1 degree/tick Rotation, Unlocks Overclock (see §6.2) |
-| 6     | -      | 160        | 1 Daemon/108 ticks (1.8 sec)          |
-| 7     | -      | 320        | 1 Daemon/96 ticks (1.6 sec)           |
-| 8     | -      | 640        | 1 Daemon/84 ticks (1.4 sec)           |
-| 9     | -      | 1280       | 1 Daemon/72 ticks (1.2 sec)           |
-| 10    | -      | 2560       | 1 Daemon/60 ticks (1 sec)             |
+| 6     | -      | 160        | 1 daemon/108 ticks (1.8 sec)                                  |
+| 7     | -      | 320        | 1 daemon/96 ticks (1.6 sec)                                   |
+| 8     | -      | 640        | 1 daemon/84 ticks (1.4 sec)                                   |
+| 9     | -      | 1280       | 1 daemon/72 ticks (1.2 sec)                                   |
+| 10    | -      | 2560       | 1 daemon/60 ticks (1 sec)                                     |
 
 5.4.1. **Rotates** to face enemies — rotation speed increases with upgrades.  
 5.4.2. Can target **multiple enemies simultaneously**; deals 10 damage/daemon to every enemy on the impacted tile (not split — each enemy takes the full amount). Player selects targetting mode.
@@ -296,18 +359,18 @@
 
 **Cost & Upgrade Path**
 
-| Level | Eddies | Components | Effect                                 |
-| ----- | ------ | ---------- | -------------------------------------- |
-| 1     | -      | 10         | Basic sniper                           |
-| 2     | -      | 15         | +100 HP, +10 damage/shot               |
-| 3     | -      | 30         | +100 HP, +10 damage/shot               |
-| 4     | -      | 60         | +100 HP, +10 damage/shot               |
-| 5     | -      | 120        | Unlocks Overclock (see §6.2)           |
-| 6     | -      | 240        | 30% slow, 1 Daemon/168 ticks (2.8 sec), 1 degree/tick Rotation |
-| 7     | -      | 480        | 40% slow, 1 Daemon/156 ticks (2.6 sec) |
-| 8     | -      | 960        | 50% slow, 1 Daemon/144 ticks (2.4 sec) |
-| 9     | -      | 1920       | 60% slow, 1 Daemon/132 ticks (2.2 sec) |
-| 10    | -      | 3840       | 70% slow, 1 Daemon/120 ticks (2 sec), 2 degree/tick Rotation |
+| Level | Eddies | Components | Effect                                                         |
+| ----- | ------ | ---------- | -------------------------------------------------------------- |
+| 1     | -      | 10         | Basic sniper                                                   |
+| 2     | -      | 15         | +100 HP, +10 damage/daemon                                     |
+| 3     | -      | 30         | +100 HP, +10 damage/daemon                                     |
+| 4     | -      | 60         | +100 HP, +10 damage/daemon                                     |
+| 5     | -      | 120        | Unlocks Overclock (see §6.2)                                   |
+| 6     | -      | 240        | 30% slow, 1 daemon/168 ticks (2.8 sec), 1 degree/tick Rotation |
+| 7     | -      | 480        | 40% slow, 1 daemon/156 ticks (2.6 sec)                         |
+| 8     | -      | 960        | 50% slow, 1 daemon/144 ticks (2.4 sec)                         |
+| 9     | -      | 1920       | 60% slow, 1 daemon/132 ticks (2.2 sec)                         |
+| 10    | -      | 3840       | 70% slow, 1 daemon/120 ticks (2 sec), 2 degree/tick Rotation   |
 
 5.5.1. Fires in **one direction** but can rotate to track targets.  
 5.5.2. Has a **minimum range of 3 tiles** — does not attack enemies closer than 3 tiles.  
@@ -640,7 +703,7 @@
 | Damage          | 20                                             |
 | Health          | 50                                             |
 | Speed           | 0.5/60 ≈ 0.0083 tiles/tick                     |
-| Immune To       | ICE Wall slow, Firewall slow                   |
+| Immune To       | ICE Wall slow, Firewall stun                   |
 | Vulnerable To   | Daemon Turret                                  |
 | Tier Multiplier | 3 (level 1)                                    |
 | Value           | (20 + 50) x 0.5 x 3 = 105 **Eddies** (level 1) |
@@ -698,7 +761,7 @@
 | Speed           | 0.5/60 ≈ 0.0083 tiles/tick                                        |
 | Special         | Deals 30 damage (level 1) to all towers within 1 tile as it moves |
 | Tier Multiplier | 6 (level 1)                                                       |
-| Value           | (30 + 750) x 0.5 x 6 = 465 **Eddies** (level 1)                   |
+| Value           | (30 + 750) x 0.5 x 6 = 2340 **Eddies** (level 1)                  |
 
 7.6.1. A **mini-boss** that deals damage to towers, not just the Core.  
 7.6.2. Deals its **base damage value** (30 at level 1, scaled by wave multiplier) to all towers within **1 tile** as it enters each tile every tick.  
