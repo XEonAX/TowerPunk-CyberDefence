@@ -26,6 +26,14 @@ export function statusExpireSystem(world: World): void {
 
     // --- Enemy status effects ---
     if ((mask & C.ENEMY) !== 0) {
+      // §2.10.1 — Spawn immunity countdown
+      if ((mask & C.SPAWN_IMMUNITY) !== 0) {
+        world.spawnImmunityTicks[eid]--
+        if (world.spawnImmunityTicks[eid] <= 0) {
+          world.bitmask[eid] &= ~C.SPAWN_IMMUNITY
+        }
+      }
+
       // §7.0.15 — Slow countdown
       if (world.slowTicks[eid] > 0) {
         world.slowTicks[eid]--

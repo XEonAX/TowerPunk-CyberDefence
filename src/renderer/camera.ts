@@ -136,11 +136,12 @@ export function createCamera(app: Application, cameraContainer: Container): Came
   }
 
   camera.clamp = function (this: Camera): void {
+    // Keep at least 3 tiles of the grid visible on each edge so it can't be
+    // panned completely off-screen, but otherwise allow free movement.
     const gridPixelSize = GRID_SIZE * TILE_SIZE * this.zoom
-    const minPanX = app.screen.width - gridPixelSize - TILE_SIZE * this.zoom
-    const minPanY = app.screen.height - gridPixelSize - TILE_SIZE * this.zoom
-    this.panX = Math.max(minPanX, Math.min(TILE_SIZE * this.zoom, this.panX))
-    this.panY = Math.max(minPanY, Math.min(TILE_SIZE * this.zoom, this.panY))
+    const minVisible = 3 * TILE_SIZE * this.zoom
+    this.panX = Math.max(minVisible - gridPixelSize, Math.min(app.screen.width - minVisible, this.panX))
+    this.panY = Math.max(minVisible - gridPixelSize, Math.min(app.screen.height - minVisible, this.panY))
   }.bind(camera)
 
   return camera
