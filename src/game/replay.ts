@@ -5,14 +5,14 @@
  * Given identical seed + command sequence → identical world state hash.
  */
 
-import { type World, createWorld } from './ecs/world'
+import { type World, type Command, createWorld } from './ecs/world'
 import { ENEMY } from './ecs/component'
 
 export interface ReplayEntry {
   /** Tick at which this command was submitted */
   tick: number
-  /** Serialized command (JSON-compatible) */
-  command: Record<string, unknown>
+  /** The command to inject at this tick */
+  command: Command
 }
 
 export interface Replay {
@@ -37,7 +37,7 @@ export function createReplay(seed: number): Replay {
 export function recordCommand(
   replay: Replay,
   tick: number,
-  command: Record<string, unknown>,
+  command: Command,
 ): void {
   replay.entries.push({ tick, command })
 }
@@ -123,9 +123,7 @@ export function runReplay(
   for (let t = 0; t < tickCount; t++) {
     for (const entry of replay.entries) {
       if (entry.tick === t) {
-        world.commandQueue.push(
-          entry.command as Parameters<typeof world.commandQueue.push>[0],
-        )
+        world.commandQueue.push(entry.command)
       }
     }
     tick(world)

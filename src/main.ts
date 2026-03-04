@@ -92,8 +92,8 @@ if (container) {
 
     // Handle commands dispatched from Vue UI
     window.addEventListener('game:command', (e) => {
-      const cmd = (e as CustomEvent<Record<string, unknown>>).detail
-      simulation.getWorld().commandQueue.push(cmd as Command)
+      const cmd = (e as CustomEvent<Command>).detail
+      simulation.getWorld().commandQueue.push(cmd)
     })
 
     // Handle restart — reload the page
