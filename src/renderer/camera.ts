@@ -36,6 +36,8 @@ export interface Camera {
   apply(): void
   /** Convert screen position to world tile coordinates */
   screenToTile(screenX: number, screenY: number): { x: number; y: number }
+  /** Clamp pan to grid bounds */
+  clamp(): void
 }
 
 let isDragging = false

@@ -12,6 +12,7 @@
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "useDefineForClassFields": true,
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
       "@game/*": ["src/game/*"],
@@ -19,5 +20,6 @@
       "@ui/*": ["src/ui/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.vue"],
+  "exclude": ["src/**/__tests__/**/*"]
 }

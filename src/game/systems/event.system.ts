@@ -14,7 +14,7 @@
 import { GamePhase, spawnInteriorGateway, type World } from '../ecs/world'
 import * as C from '../ecs/component'
 import { getWaveData, SPAWN_INTERVAL_TICKS } from '../wave'
-import { breakDuration, GATEWAY_HP, GRID_SIZE, AI_OVERLORD_PHASE_DURATION_TICKS } from '../constants'
+import { breakDuration, GRID_SIZE, AI_OVERLORD_PHASE_DURATION_TICKS } from '../constants'
 import { rngRange } from '../rng'
 
 export function eventSystem(world: World): void {

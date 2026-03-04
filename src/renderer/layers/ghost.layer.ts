@@ -8,7 +8,6 @@
 
 import { Graphics, Container } from 'pixi.js'
 import type { World } from '@game/ecs/world'
-import * as C from '@game/ecs/component'
 import { TILE_SIZE } from '../camera'
 import { canPlaceTower } from '@game/pathfinding/placement'
 import { GRID_SIZE } from '@game/constants'

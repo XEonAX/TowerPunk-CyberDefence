@@ -36,9 +36,6 @@ export function pickupCollectSystem(world: World): void {
       // §2.8 — Chebyshev distance
       const dx   = world.posX[pickupEid] - px
       const dy   = world.posY[pickupEid] - py
-      const dist = dx < 0 ? (dy < 0 ? (dx < dy ? -dx : -dy) : (dx < -dy ? -dx : dy)) :
-                            (dy < 0 ? (dy < -dx ? -dy : dx) : (dx > dy ? dx : dy))
-      // simpler: Math.max(Math.abs(dx), Math.abs(dy))
       const chebyDist = Math.max(Math.abs(dx), Math.abs(dy))
 
       if (chebyDist <= range) {
