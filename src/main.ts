@@ -89,7 +89,7 @@ if (container) {
       },
     }
 
-    startGameLoop(simulation, renderer)
+    startGameLoop(simulation, renderer, () => uiStore.gameSpeed)
 
     // Handle commands dispatched from Vue UI
     window.addEventListener('game:command', (e) => {
@@ -108,14 +108,20 @@ if (container) {
       if (tile.x < 0 || tile.x >= 51 || tile.y < 0 || tile.y >= 51) return
 
       if (uiStore.selectedTowerType !== null) {
-        // Placing a new tower
-        simulation.getWorld().commandQueue.push({
-          type: 0, // CommandType.PLACE_TOWER
-          towerType: uiStore.selectedTowerType,
-          x: tile.x,
-          y: tile.y,
-          facing: uiStore.placementFacing,
-        } as Command)
+        // Check if an existing tower occupies this tile — if so, inspect it instead of placing
+        const existingEid = towerAtTile(simulation.getWorld(), tile.x, tile.y)
+        if (existingEid !== null) {
+          uiStore.selectTowerInstance(existingEid)
+        } else {
+          // Placing a new tower
+          simulation.getWorld().commandQueue.push({
+            type: 0, // CommandType.PLACE_TOWER
+            towerType: uiStore.selectedTowerType,
+            x: tile.x,
+            y: tile.y,
+            facing: uiStore.placementFacing,
+          } as Command)
+        }
       } else {
         // Inspect / select an existing tower at this tile
         const world = simulation.getWorld()

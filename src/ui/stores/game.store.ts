@@ -9,6 +9,7 @@ import { ref, computed } from 'vue'
 import type { World } from '@game/ecs/world'
 import { GamePhase } from '@game/ecs/world'
 import * as C from '@game/ecs/component'
+import { CORE_STARTING_HP, INITIAL_EDDIES, INITIAL_COMPONENTS, TICK_RATE } from '@game/constants'
 
 export interface SelectedTowerInfo {
   eid: number
@@ -23,10 +24,10 @@ export interface SelectedTowerInfo {
 
 export const useGameStore = defineStore('game', () => {
   // Core state (synced from simulation)
-  const coreHp = ref(100)
-  const coreHpMax = ref(100)
-  const eddies = ref(400)
-  const components = ref(3)
+  const coreHp = ref(CORE_STARTING_HP)
+  const coreHpMax = ref(CORE_STARTING_HP)
+  const eddies = ref(INITIAL_EDDIES)
+  const components = ref(INITIAL_COMPONENTS)
   const currentWave = ref(0)
   const phase = ref<number>(GamePhase.PRE_GAME)
   const breakTicksRemaining = ref(0)
@@ -44,7 +45,7 @@ export const useGameStore = defineStore('game', () => {
   const isGameOver = computed(() => phase.value === GamePhase.GAME_OVER)
   const isVictory = computed(() => phase.value === GamePhase.VICTORY)
   const coreHpPercent = computed(() => coreHpMax.value > 0 ? coreHp.value / coreHpMax.value : 0)
-  const breakSecondsRemaining = computed(() => Math.ceil(breakTicksRemaining.value / 60))
+  const breakSecondsRemaining = computed(() => Math.ceil(breakTicksRemaining.value / TICK_RATE))
 
   /**
    * Sync from ECS world — called once per render frame (Tech.md §8).

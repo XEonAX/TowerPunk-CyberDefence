@@ -18,13 +18,16 @@
       <span v-else-if="gameStore.isVictory" class="victory">BLACKWALL RESTORED — VICTORY!</span>
       <span v-else-if="gameStore.isGameOver" class="game-over">CORE COMPROMISED</span>
     </div>
+    <button class="speed-btn" @click="uiStore.cycleSpeed()">⏩ {{ uiStore.gameSpeed }}×</button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useGameStore } from '../stores/game.store'
+import { useUiStore } from '../stores/ui.store'
 
 const gameStore = useGameStore()
+const uiStore = useUiStore()
 </script>
 
 <style scoped>
@@ -68,4 +71,17 @@ const gameStore = useGameStore()
 .hud-wave { color: #aaff88; }
 .victory { color: #00ff88; font-weight: bold; }
 .game-over { color: #ff2244; font-weight: bold; }
+.speed-btn {
+  pointer-events: all;
+  background: #001833;
+  border: 1px solid #0044aa;
+  color: #00ccff;
+  font-family: monospace;
+  font-size: 13px;
+  padding: 3px 10px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+.speed-btn:hover { background: #002855; }
 </style>

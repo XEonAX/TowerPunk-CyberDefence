@@ -15,6 +15,15 @@ export const useUiStore = defineStore('ui', () => {
   /** Placement facing direction (0=N,1=S,2=E,3=W) — used for Data Spike (§5.3) */
   const placementFacing = ref(0)
 
+  /** Game speed multiplier — 1×, 2×, or 4× */
+  const gameSpeed = ref<1 | 2 | 4>(1)
+
+  function cycleSpeed(): void {
+    if (gameSpeed.value === 1) gameSpeed.value = 2
+    else if (gameSpeed.value === 2) gameSpeed.value = 4
+    else gameSpeed.value = 1
+  }
+
   function selectTowerType(type: number | null): void {
     selectedTowerType.value = type
     selectedTowerEid.value = null // deselect placed tower instance
@@ -37,7 +46,7 @@ export const useUiStore = defineStore('ui', () => {
   return {
     selectedTowerType, selectedTowerEid,
     hoveredTileX, hoveredTileY,
-    isPanelOpen, placementFacing,
-    selectTowerType, selectTowerInstance, setHoveredTile, rotatePlacementFacing,
+    isPanelOpen, placementFacing, gameSpeed,
+    selectTowerType, selectTowerInstance, setHoveredTile, rotatePlacementFacing, cycleSpeed,
   }
 })

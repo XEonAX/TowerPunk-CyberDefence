@@ -8,6 +8,20 @@
       {{ towerTypeName }} <span class="ab-level">LVL {{ gameStore.selectedTowerInfo.towerLevel }}</span>
     </div>
 
+    <!-- Upgrade Tower button (§5.0.5) -->
+    <button
+      v-if="upgradeTowerCost !== null"
+      class="ab-upgrade-btn ab-upgrade-tower-btn"
+      :disabled="!canAffordTowerUpgrade"
+      @click="upgradeTower"
+      :title="`Upgrade tower to level ${(gameStore.selectedTowerInfo?.towerLevel ?? 0) + 1}`"
+    >
+      UPGRADE
+      <span v-if="upgradeTowerCost[0] > 0">€{{ upgradeTowerCost[0] }}</span>
+      <span v-if="upgradeTowerCost[1] > 0">🔩{{ upgradeTowerCost[1] }}</span>
+    </button>
+    <div v-else class="ab-maxlevel">MAX LEVEL</div>
+
     <!-- Ability locked: show level requirement -->
     <div v-if="!gameStore.selectedTowerInfo.hasAbility" class="ab-locked">
       ABILITY LOCKED — REACH LEVEL 5
@@ -46,6 +60,9 @@
     >
       UPGRADE ABILITY (🔩{{ upgradeAbilityCost }})
     </button>
+
+    <!-- Dismantle button (§4.2.6) -->
+    <button class="ab-dismantle-btn" @click="dismantleTower">DISMANTLE</button>
   </div>
 </template>
 
@@ -54,13 +71,36 @@ import { computed } from 'vue'
 import { useGameStore } from '../stores/game.store'
 import { useUiStore } from '../stores/ui.store'
 import * as C from '@game/ecs/component'
-import { ABILITY_UPGRADE_COST } from '@game/constants'
+import {
+  ABILITY_UPGRADE_COST,
+  MAX_TOWER_LEVEL,
+  ICE_WALL_COST,
+  FIREWALL_COST,
+  DATA_SPIKE_COST,
+  DAEMON_TURRET_COST,
+  ICE_SNIPER_COST,
+  BLACKWALL_TOWER_COST,
+  PING_TOWER_COST,
+  HARVESTER_COST,
+} from '@game/constants'
 import { CommandType } from '@game/ecs/world'
 
 const emit = defineEmits<{ command: [cmd: object] }>()
 
 const gameStore = useGameStore()
 const uiStore = useUiStore()
+
+/** Cost tables indexed by TowerType — mirrors command.system.ts §5 */
+const TOWER_COST_TABLES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
+  ICE_WALL_COST,
+  FIREWALL_COST,
+  DATA_SPIKE_COST,
+  DAEMON_TURRET_COST,
+  ICE_SNIPER_COST,
+  BLACKWALL_TOWER_COST,
+  PING_TOWER_COST,
+  HARVESTER_COST,
+]
 
 const TOWER_TYPE_NAMES: Record<number, string> = {
   [C.TowerType.ICE_WALL]:      'ICE Wall',
@@ -122,6 +162,20 @@ const upgradeAbilityCost = computed(() => {
   return ABILITY_UPGRADE_COST[level] ?? 99
 })
 
+/** [eddies, components] cost to upgrade to next tower level, or null if at max. */
+const upgradeTowerCost = computed((): readonly [number, number] | null => {
+  const info = gameStore.selectedTowerInfo
+  if (!info) return null
+  if (info.towerLevel >= MAX_TOWER_LEVEL) return null
+  return TOWER_COST_TABLES[info.towerType]?.[info.towerLevel] ?? null
+})
+
+const canAffordTowerUpgrade = computed(() => {
+  const cost = upgradeTowerCost.value
+  if (!cost) return false
+  return gameStore.eddies >= cost[0] && gameStore.components >= cost[1]
+})
+
 function activateAbility(): void {
   const eid = uiStore.selectedTowerEid
   if (eid === null) return
@@ -132,6 +186,19 @@ function upgradeAbility(): void {
   const eid = uiStore.selectedTowerEid
   if (eid === null) return
   emit('command', { type: CommandType.UPGRADE_ABILITY as number, eid })
+}
+
+function upgradeTower(): void {
+  const eid = uiStore.selectedTowerEid
+  if (eid === null) return
+  emit('command', { type: CommandType.UPGRADE_TOWER as number, eid })
+}
+
+function dismantleTower(): void {
+  const eid = uiStore.selectedTowerEid
+  if (eid === null) return
+  emit('command', { type: CommandType.DISMANTLE_TOWER as number, eid })
+  uiStore.selectTowerInstance(null)
 }
 </script>
 
@@ -231,4 +298,31 @@ function upgradeAbility(): void {
 }
 .ab-upgrade-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .ab-upgrade-btn:not(:disabled):hover { background: #122015; }
+.ab-upgrade-tower-btn {
+  background: #0a1020;
+  border-color: #2266cc;
+  color: #44aaff;
+  margin-bottom: 4px;
+}
+.ab-upgrade-tower-btn:not(:disabled):hover { background: #101830; }
+.ab-maxlevel {
+  text-align: center;
+  font-size: 9px;
+  color: #ffaa00;
+  letter-spacing: 1px;
+  padding: 2px 0 4px;
+}
+.ab-dismantle-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px;
+  background: #1a0008;
+  border: 1px solid #660022;
+  color: #ff4466;
+  font-family: monospace;
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.ab-dismantle-btn:hover { background: #220010; border-color: #880033; }
 </style>

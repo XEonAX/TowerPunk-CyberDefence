@@ -12,17 +12,23 @@ export interface Renderer {
 
 let rafHandle: number | null = null
 
-export function startGameLoop(simulation: Simulation, renderer: Renderer): void {
+export function startGameLoop(
+  simulation: Simulation,
+  renderer: Renderer,
+  getSpeed: () => number = () => 1,
+): void {
   let lastTime = performance.now()
   let accumulator = 0
 
   function loop(now: number): void {
-    const delta = Math.min(now - lastTime, TICK_DURATION * MAX_TICKS_PER_FRAME)
+    const speed = getSpeed()
+    const maxTicks = MAX_TICKS_PER_FRAME * speed
+    const delta = Math.min(now - lastTime, TICK_DURATION * maxTicks)
     lastTime = now
-    accumulator += delta
+    accumulator += delta * speed
 
     let ticks = 0
-    while (accumulator >= TICK_DURATION && ticks < MAX_TICKS_PER_FRAME) {
+    while (accumulator >= TICK_DURATION && ticks < maxTicks) {
       // Performance instrumentation (dev only) — budget: 4ms per tick (Tech.md §14)
       if (import.meta.env.DEV) {
         const t0 = performance.now()
@@ -37,6 +43,8 @@ export function startGameLoop(simulation: Simulation, renderer: Renderer): void 
       accumulator -= TICK_DURATION
       ticks++
     }
+    // Cap leftover accumulator to avoid spiral of death when resuming after pause
+    if (accumulator > TICK_DURATION * maxTicks) accumulator = 0
 
     const alpha = accumulator / TICK_DURATION
     renderer.draw(alpha)
