@@ -1,5 +1,5 @@
 <template>
-  <div class="wave-timer" :class="{ warning: isBossNextWave && gameStore.isWaveBreak }">
+  <div class="wave-timer game-panel" :class="{ warning: isBossNextWave && gameStore.isWaveBreak }">
     <!-- Wave active: show enemy count + progress bar -->
     <template v-if="gameStore.isWaveActive">
       <div class="wt-label">WAVE {{ gameStore.currentWave }}</div>
@@ -54,20 +54,12 @@ const breakProgress = computed(() => {
 
 <style scoped>
 .wave-timer {
-  position: fixed;
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 4, 20, 0.88);
-  border: 1px solid #003366;
-  padding: 8px 20px;
-  font-family: monospace;
-  color: #00ccff;
   text-align: center;
   min-width: 200px;
-  z-index: 100;
   pointer-events: none;
-  border-radius: 2px;
   transition: border-color 0.3s;
 }
 .wave-timer.warning {

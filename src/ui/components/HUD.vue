@@ -1,8 +1,8 @@
 <template>
-  <div class="hud">
+  <div class="hud game-panel">
     <div class="hud-resources">
       <span class="resource eddies">€$ {{ gameStore.eddies }}</span>
-      <span class="resource components">🔩 {{ gameStore.components }}</span>
+      <span class="resource components">🔋 {{ gameStore.components }}</span>
     </div>
     <div class="hud-core">
       <div class="core-label">CORE</div>
@@ -32,7 +32,6 @@ const uiStore = useUiStore()
 
 <style scoped>
 .hud {
-  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -40,12 +39,10 @@ const uiStore = useUiStore()
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.8);
+  border: none;
   border-bottom: 1px solid #0044aa;
-  font-family: monospace;
+  border-radius: 0;
   font-size: 14px;
-  color: #00ccff;
-  z-index: 100;
   pointer-events: none;
 }
 .hud-resources { display: flex; gap: 16px; }

@@ -1,5 +1,5 @@
 <template>
-  <div class="tower-panel">
+  <div class="tower-panel game-panel">
     <div class="panel-header">BUILD</div>
 
     <!-- Tower type selector grid -->
@@ -98,7 +98,7 @@ function canAfford(t: TowerInfo): boolean {
 function formatCost(t: TowerInfo): string {
   const parts: string[] = []
   if (t.baseEddieCost > 0) parts.push(`€${t.baseEddieCost}`)
-  if (t.baseCompCost > 0) parts.push(`🔩${t.baseCompCost}`)
+  if (t.baseCompCost > 0) parts.push(`🔋${t.baseCompCost}`)
   return parts.join(' ') || 'Free'
 }
 
@@ -113,18 +113,14 @@ function selectTower(type: number): void {
 
 <style scoped>
 .tower-panel {
-  position: fixed;
-  top: 40px;
+  top: 42px;
   right: 0;
   width: 180px;
-  background: rgba(0, 4, 20, 0.92);
+  /* flush to right edge — override global border */
+  border: none;
   border-left: 1px solid #0044aa;
-  padding: 8px;
-  font-family: monospace;
-  color: #00ccff;
-  font-size: 12px;
-  z-index: 100;
-  user-select: none;
+  border-bottom: 1px solid #0044aa;
+  border-radius: 0;
 }
 .panel-header {
   font-size: 11px;

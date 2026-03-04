@@ -33,4 +33,18 @@ function handleRestart(): void {
 body { background: #0a0a0f; overflow: hidden; }
 #app-root { width: 100vw; height: 100vh; position: relative; }
 #pixi-container { position: absolute; inset: 0; }
+
+/** Shared panel chrome — applied to every floating UI panel */
+.game-panel {
+  position: fixed;
+  background: rgba(0, 4, 20, 0.92);
+  border: 1px solid #0044aa;
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #00ccff;
+  padding: 8px;
+  z-index: 100;
+  user-select: none;
+}
 </style>

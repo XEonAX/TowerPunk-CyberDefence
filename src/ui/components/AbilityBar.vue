@@ -2,7 +2,7 @@
   <!-- Only shown when a tower instance is selected -->
   <div
     v-if="uiStore.selectedTowerEid !== null && gameStore.selectedTowerInfo"
-    class="ability-bar"
+    class="ability-bar game-panel"
   >
     <div class="ab-header">
       {{ towerTypeName }} <span class="ab-level">LVL {{ gameStore.selectedTowerInfo.towerLevel }}</span>
@@ -17,8 +17,8 @@
       :title="`Upgrade tower to level ${(gameStore.selectedTowerInfo?.towerLevel ?? 0) + 1}`"
     >
       UPGRADE
-      <span v-if="upgradeTowerCost[0] > 0">€{{ upgradeTowerCost[0] }}</span>
-      <span v-if="upgradeTowerCost[1] > 0">🔩{{ upgradeTowerCost[1] }}</span>
+      <span v-if="upgradeTowerCost[0] > 0">€${{ upgradeTowerCost[0] }}</span>
+      <span v-if="upgradeTowerCost[1] > 0">🔋{{ upgradeTowerCost[1] }}</span>
     </button>
     <div v-else class="ab-maxlevel">MAX LEVEL</div>
 
@@ -58,7 +58,7 @@
       @click="upgradeAbility"
       :title="`Upgrade ability — costs ${upgradeAbilityCost} components`"
     >
-      UPGRADE ABILITY (🔩{{ upgradeAbilityCost }})
+      UPGRADE ABILITY (🔋{{ upgradeAbilityCost }})
     </button>
 
     <!-- Dismantle button (§4.2.6) -->
@@ -204,19 +204,9 @@ function dismantleTower(): void {
 
 <style scoped>
 .ability-bar {
-  position: fixed;
   bottom: 16px;
   left: 16px;
-  background: rgba(0, 4, 20, 0.92);
-  border: 1px solid #003366;
-  padding: 8px 12px;
-  font-family: monospace;
-  color: #00ccff;
-  font-size: 11px;
-  z-index: 100;
   min-width: 180px;
-  border-radius: 2px;
-  user-select: none;
 }
 .ab-header {
   font-size: 12px;

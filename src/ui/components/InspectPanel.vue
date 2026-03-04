@@ -1,6 +1,6 @@
 <template>
   <!-- Shown when any entity is being inspected -->
-  <div v-if="uiStore.inspectedKind !== null" class="inspect-panel">
+  <div v-if="uiStore.inspectedKind !== null" class="inspect-panel game-panel">
 
     <!-- ── TOWER ── -->
     <template v-if="uiStore.inspectedKind === 'tower' && info">
@@ -87,8 +87,6 @@
         </div>
       </div>
     </template>
-
-    <button class="ip-close-btn" @click="uiStore.clearInspection()">✕</button>
   </div>
 </template>
 
@@ -222,18 +220,9 @@ const gatewayHpPct = computed(() => {
 
 <style scoped>
 .inspect-panel {
-  position: fixed;
-  bottom: 80px;
-  right: 8px;
+  bottom: 16px;
+  right: 16px;
   width: 200px;
-  background: rgba(0, 4, 20, 0.92);
-  border: 1px solid #0044aa;
-  padding: 8px 10px 10px;
-  font-family: monospace;
-  color: #00ccff;
-  font-size: 12px;
-  z-index: 100;
-  user-select: none;
 }
 .ip-header {
   display: flex;
@@ -312,18 +301,4 @@ const gatewayHpPct = computed(() => {
 .ip-closing { color: #00ff88; }
 .ip-open    { color: #ff4444; }
 
-/* Close button */
-.ip-close-btn {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: transparent;
-  border: none;
-  color: #336688;
-  font-size: 11px;
-  cursor: pointer;
-  padding: 0 2px;
-  line-height: 1;
-}
-.ip-close-btn:hover { color: #ff4466; }
 </style>
