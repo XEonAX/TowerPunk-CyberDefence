@@ -12,6 +12,18 @@
 - **Rulebook cross-references** (§) indicate which game rules must be satisfied.
 - **Check the box** (`[x]`) when a task is fully implemented and tested.
 
+### TDD Workflow: Red → Green → Refactor
+
+All simulation, ECS, pathfinding, and game-logic tasks follow **test-driven development**:
+
+1. **Red** — Write a failing test that asserts the expected behavior (derived from the rulebook or tech spec).
+2. **Green** — Write the minimum implementation to make the test pass.
+3. **Refactor** — Clean up while keeping tests green. Verify zero-allocation constraints, naming, etc.
+
+Within each task, **test steps come before implementation steps**. Create the test file first, watch it fail (or not compile), then build the implementation to satisfy it.
+
+**Phases marked with ⚡** (renderer, UI, audio, visual polish) are **implementation-first** — visual output is the primary feedback loop, not unit tests. These are verified through visual inspection and later by E2E tests in Phase 18.
+
 ---
 
 ## Phase 0: Project Scaffolding
@@ -75,88 +87,111 @@
 ## Phase 1: ECS Core & World
 
 > Build the entity-component-system foundation. No game logic yet — just the data structures and system runner.
+>
+> **TDD:** Define types/interfaces → write failing tests → implement → refactor.
 
 ### 1.1. Entity ID Manager — `src/game/ecs/entity.ts`
 
 _Tech.md §4.1.3_
 
-- [ ] Implement entity ID pool: unsigned 32-bit integers with free-list recycling
-- [ ] `create(): EntityId` — returns next available ID
-- [ ] `destroy(eid: EntityId): void` — returns ID to free list
-- [ ] `isAlive(eid: EntityId): boolean`
-- [ ] Pre-allocate pool for at least 4096 entities
-- [ ] Write unit tests: create, destroy, recycle, overflow behavior
+- [ ] Define `EntityId` type and function signatures: `create()`, `destroy()`, `isAlive()`
+- [ ] **Write failing tests** (`src/game/ecs/__tests__/entity.test.ts`):
+  - `create()` returns a valid numeric ID
+  - `destroy()` + `create()` recycles the same ID
+  - `isAlive()` returns `false` after `destroy()`
+  - Pool handles 4096+ entities without extra allocation
+- [ ] Implement: free-list pool with unsigned 32-bit integer IDs, pre-allocated for 4096 entities
+- [ ] Refactor: confirm zero allocations after initial setup, all tests green
 
-**DoD:** All entity tests pass. Zero allocations after initial pool setup.
+**DoD:** All tests pass. Zero allocations after initial pool setup.
 
 ### 1.2. Component Registry — `src/game/ecs/component.ts`
 
 _Tech.md §4.2, §4.1.4–4.1.5_
 
+> _No TDD for this task — pure type definitions with no runtime behavior._
+
 - [ ] Define `ComponentFlag` const enum — one bit per component type (Position, Health, TilePos, TileProgress, PathState, SpawnImmunity, Tower, Targeting, Rotation, Enemy, Immunity, Slow, Stun, Pickup, Harvester, PingRange, Ability, FirewallLink, Gateway, BlackwallTower)
 - [ ] For each component, document which rulebook section it implements
 - [ ] Export type definitions for each component's fields and their typed array backing
 
-**DoD:** All component flags defined. Each has a doc comment citing its rulebook §.
+**DoD:** All component flags defined. Each has a doc comment citing its rulebook §. Code compiles with `strict: true`.
 
 ### 1.3. World — `src/game/ecs/world.ts`
 
 _Tech.md §4.1, §4.4_
 
-- [ ] Create `World` type/interface holding:
+- [ ] Define `World` type/interface holding:
   - Entity bitmask array (`Uint32Array`)
   - All component typed arrays (one per component field)
   - Entity pool reference
   - Game-level state: tick counter, RNG state, resource pools, command queue
-- [ ] `createWorld(seed: number): World` — pre-allocates all arrays for max entity count
-- [ ] Entity creation helpers by archetype: `createEnemy()`, `createTower()`, `createPickup()`, `createGateway()`, `createCore()`
-- [ ] Entity destruction: `markForRemoval(eid)` sets a flag; actual cleanup deferred
-- [ ] Write unit tests: world creation, entity creation per archetype, bitmask correctness
+- [ ] **Write failing tests** (`src/game/ecs/__tests__/world.test.ts`):
+  - `createWorld()` returns a world with all arrays pre-allocated
+  - `createEnemy()` sets correct component bitmask
+  - `createTower()` sets correct component bitmask
+  - `createPickup()`, `createGateway()`, `createCore()` — bitmask correctness
+  - `markForRemoval()` flags entity but does not destroy it yet
+- [ ] Implement `createWorld(seed: number)`: pre-allocate all arrays for max entity count
+- [ ] Implement archetype creation helpers: `createEnemy()`, `createTower()`, `createPickup()`, `createGateway()`, `createCore()`
+- [ ] Implement `markForRemoval(eid)` — sets a flag; actual cleanup deferred
+- [ ] Refactor: verify all tests green, zero allocations after `createWorld()`
 
-**DoD:** Can create a world, spawn entities of each archetype, query by bitmask, mark for removal. All tests pass.
+**DoD:** All tests pass. Can create a world, spawn entities of each archetype, query by bitmask, mark for removal.
 
 ### 1.4. System Runner — `src/game/ecs/system.ts`
 
 _Tech.md §3.2_
 
 - [ ] Define `System` type: `(world: World) => void`
-- [ ] Create `TICK_PIPELINE` array (empty stubs for now — `noopSystem` placeholders)
-- [ ] `runTick(world: World): void` — iterates `TICK_PIPELINE` and calls each system
+- [ ] **Write failing test** (`src/game/ecs/__tests__/system.test.ts`):
+  - `runTick()` calls each pipeline slot in order (use spies / mutation tracking)
+  - Pipeline has exactly 14 slots matching §1.10 order
+- [ ] Implement `TICK_PIPELINE` array (empty stubs for now — `noopSystem` placeholders)
+- [ ] Implement `runTick(world: World): void` — iterates `TICK_PIPELINE` and calls each system
 
-**DoD:** `runTick()` calls each pipeline slot. A test confirms the order of execution.
+**DoD:** Tests confirm `runTick()` calls each pipeline slot in the correct order.
 
 ### 1.5. Seeded PRNG — `src/game/rng.ts`
 
 _Tech.md §9.4.5, Rulebook §1.9_
 
-- [ ] Implement xorshift128 PRNG: `createRng(seed: number)` → `{ next(): number, nextFloat(): number, nextRange(min, max): number }`
-- [ ] State is 4 × uint32 — stored in `World`
-- [ ] Write tests: determinism (same seed → same sequence), distribution sanity check
+- [ ] Define `Rng` interface: `{ next(): number, nextFloat(): number, nextRange(min, max): number }`
+- [ ] **Write failing tests** (`src/game/__tests__/rng.test.ts`):
+  - Same seed produces identical sequence (call `next()` 1000× with two instances)
+  - Different seeds produce different sequences
+  - `nextFloat()` returns values in `[0, 1)`
+  - `nextRange(min, max)` returns values in `[min, max)`
+  - Distribution sanity: no degenerate output (e.g. all zeros)
+- [ ] Implement xorshift128: state is 4 × uint32, stored in `World`
+- [ ] Refactor: verify all determinism tests green
 
-**DoD:** RNG is deterministic. Tests prove identical outputs for identical seeds.
+**DoD:** All tests pass. Same seed → identical output. Determinism proven.
 
 ---
 
 ## Phase 2: Constants & Grid
 
 > Define all rulebook constants and the core grid data structure.
+>
+> **TDD:** Write assertion tests for every rulebook constant before defining them. Grid operations get tests before implementation.
 
 ### 2.1. Game Constants — `src/game/constants.ts`
 
 _Rulebook §1–§10_
 
+- [ ] **Write failing tests** (`src/game/__tests__/constants.test.ts`) asserting every key value from the rulebook:
+  - `TICK_RATE === 60` (§1.8)
+  - `GRID_SIZE === 51` (§2.1)
+  - `CORE_X === 25`, `CORE_Y === 25` (§2.9)
+  - `SPAWN_IMMUNITY_TICKS === 30` (§2.10.1)
+  - `CORE_STARTING_HP === 100` (§3.3)
+  - `INITIAL_EDDIES === 400`, `INITIAL_COMPONENTS === 3` (§4.3.1)
+  - Tower cost tables, enemy stat tables, ability stat tables match rulebook values
 - [ ] Define all constants with rulebook cross-reference comments:
   ```typescript
   /** Rulebook §1.8 */ export const TICK_RATE = 60;
   /** Rulebook §2.1 */ export const GRID_SIZE = 51;
-  /** Rulebook §2.9 */ export const CORE_X = 25; // 0-indexed
-  /** Rulebook §2.9 */ export const CORE_Y = 25;
-  /** Rulebook §2.10.1 */ export const SPAWN_IMMUNITY_TICKS = 30;
-  /** Rulebook §3.3 */ export const CORE_STARTING_HP = 100;
-  /** Rulebook §4.3.1 */ export const INITIAL_EDDIES = 400;
-  /** Rulebook §4.3.1 */ export const INITIAL_COMPONENTS = 3;
-  /** Rulebook §4.2.9 */ export const EDDIES_PER_COMPONENT = 100;
-  /** Rulebook §3.1.3 */ export const MAX_TICKS_PER_FRAME = 4;
   // ... all tower costs, enemy stats, wave formula params, etc.
   ```
 - [ ] Define tower stat tables (cost arrays, HP per level, damage per level)
@@ -164,105 +199,113 @@ _Rulebook §1–§10_
 - [ ] Define ability stat tables (cooldowns, durations, boost percentages)
 - [ ] Define wave formula constants (break duration scaling, enemy scaling multiplier)
 
-**DoD:** Every numeric value from the rulebook has a named constant. Tests assert key values match the rulebook.
+**DoD:** Every numeric value from the rulebook has a named constant. Tests assert and verify all values.
 
 ### 2.2. Grid State — `src/game/pathfinding/grid.ts`
 
 _Tech.md §5.4, Rulebook §2.1–2.6_
 
-- [ ] `Grid` type: `{ blocked: Uint8Array, towerType: Uint8Array }` (both `GRID_SIZE × GRID_SIZE`)
-- [ ] `createGrid(): Grid` — all tiles empty, Core tile marked
-- [ ] `isOccupied(grid, x, y): boolean`
-- [ ] `isEdgeTile(x, y): boolean` — §2.6.3
-- [ ] `setBlocked(grid, x, y, towerType): void`
-- [ ] `clearBlocked(grid, x, y): void`
-- [ ] `idx(x, y): number` — flat index helper
-- [ ] Write unit tests: edge tiles, occupied tiles, Core tile
+- [ ] Define `Grid` type: `{ blocked: Uint8Array, towerType: Uint8Array }` (both `GRID_SIZE × GRID_SIZE`)
+- [ ] **Write failing tests** (`src/game/pathfinding/__tests__/grid.test.ts`):
+  - `createGrid()` returns a grid with all tiles empty
+  - `isEdgeTile(0, y)`, `isEdgeTile(50, y)`, etc. return `true` (§2.6.3)
+  - `isEdgeTile(25, 25)` returns `false`
+  - `setBlocked()` → `isOccupied()` returns `true`
+  - `clearBlocked()` → `isOccupied()` returns `false`
+  - `idx(x, y)` returns `y * GRID_SIZE + x`
+- [ ] Implement: `createGrid()`, `isOccupied()`, `isEdgeTile()`, `setBlocked()`, `clearBlocked()`, `idx()`
+- [ ] Refactor: verify all tests green
 
-**DoD:** Grid correctly identifies edge tiles, occupied tiles, and Core position. Tests pass.
+**DoD:** All tests pass. Grid correctly identifies edge tiles, occupied tiles, and Core position.
 
 ---
 
 ## Phase 3: Pathfinding
 
 > Implement BFS flowfield, dual fields for Glitch, and placement validation.
+>
+> **TDD:** Write expected output tests for known grid configurations → implement BFS → verify.
 
 ### 3.1. BFS Flowfield — `src/game/pathfinding/flowfield.ts`
 
 _Tech.md §5.1–5.2_
 
-- [ ] `computeFlowfield(grid, blockedSet): { cost: Uint16Array, dir: Uint8Array }`
-- [ ] BFS from Core tile (25, 25 in 0-indexed)
-- [ ] 4-directional only (N, S, E, W) — no diagonals (§7.0.2)
-- [ ] Unreachable tiles: cost = `0xFFFF`, dir = `0xFF`
 - [ ] Define `Dir` const enum: N=0, S=1, E=2, W=3, NONE=0xFF
 - [ ] Define `DirChange` const enum: NONE=0, TURN_RIGHT=1, TURN_LEFT=2, TURN_AROUND=3
-- [ ] Write tests:
-  - [ ] Empty grid: all tiles reachable, cost increases outward
-  - [ ] Single blocked tile: paths route around it
-  - [ ] Corridor: correct direction field
-  - [ ] Core tile: cost=0, dir=NONE
+- [ ] Define function signature: `computeFlowfield(grid, blockedSet): { cost: Uint16Array, dir: Uint8Array }`
+- [ ] **Write failing tests** (`src/game/pathfinding/__tests__/flowfield.test.ts`):
+  - Empty grid: all tiles reachable, cost increases outward from Core
+  - Core tile (25, 25): cost = 0, dir = NONE
+  - Single blocked tile: paths route around it, cost adjusts
+  - Corridor: correct direction field along the corridor
+  - Unreachable tile (fully walled off): cost = `0xFFFF`, dir = `0xFF`
+  - 4-directional only — no diagonal costs (§7.0.2)
+- [ ] Implement BFS flood-fill from Core tile (25, 25), 4-directional
+- [ ] Refactor: verify all tests green
 
-**DoD:** BFS produces correct cost and direction fields for various grid configurations. Tests pass.
+**DoD:** All tests pass. BFS produces correct cost and direction fields for various grid configurations.
 
 ### 3.2. Dual Flowfields
 
 _Tech.md §5.2_
 
-- [ ] `computeDualFlowfields(grid)` → `{ standard: Flowfield, glitch: Flowfield }`
-- [ ] Standard: all tower tiles blocked
-- [ ] Glitch: ICE Wall and Firewall tiles passable, all others blocked (§7.4.1)
-- [ ] Both recomputed together on grid change
-- [ ] Write tests:
-  - [ ] Glitch field allows path through ICE Wall tiles
-  - [ ] Glitch field still blocked by Data Spike, Daemon Turret, etc.
-  - [ ] Standard field blocked by all tower types
+- [ ] **Write failing tests** (`src/game/pathfinding/__tests__/flowfield.test.ts`):
+  - Standard field: blocked by all tower types
+  - Glitch field: allows path through ICE Wall and Firewall tiles (§7.4.1)
+  - Glitch field: still blocked by Data Spike, Daemon Turret, etc.
+  - Both fields update together on grid change
+- [ ] Implement `computeDualFlowfields(grid)` → `{ standard: Flowfield, glitch: Flowfield }`
+- [ ] Refactor: verify all tests green
 
-**DoD:** Both flowfields computed correctly. Glitch field allows passage through ICE Wall + Firewall only.
+**DoD:** All tests pass. Glitch field allows passage through ICE Wall + Firewall only.
 
 ### 3.3. Placement Validation — `canPlaceTower()` and `canPlaceFirewallPair()`
 
 _Tech.md §5.3, §5.5–5.6, Rulebook §2.6_
 
+- [ ] **Write failing tests** (`src/game/pathfinding/__tests__/placement.test.ts`):
+  - Valid placement on empty tile: accepted
+  - Placement on occupied tile: rejected (§2.6.1)
+  - Placement on edge tile: rejected (§2.6.3)
+  - Placement that would block all paths to Core: rejected (§2.6.4)
+  - Firewall pair: both tower tiles blocked, gap stays walkable
+  - Firewall pair: rejected if any of the 3 tiles occupied or on edge
+  - Zero allocations during validation (scratch buffer reused)
 - [ ] Pre-allocate scratch `Uint16Array(GRID_SIZE * GRID_SIZE)` — module-level, reused
-- [ ] `canPlaceTower(grid, gateways, x, y): boolean`
-  - Check occupied (§2.6.1), edge tile (§2.6.3)
-  - Run scratch BFS with (x,y) temporarily blocked
-  - Verify all gateway tiles reachable (§2.6.4)
-- [ ] `canPlaceFirewallPair(grid, gateways, t1, gap, t2): boolean`
-  - All 3 tiles unoccupied and non-edge
-  - Single scratch BFS blocking both t1 and t2 (gap stays walkable)
-  - Verify all gateway tiles reachable
-- [ ] Write tests:
-  - [ ] Valid placements accepted
-  - [ ] Placement on occupied tile rejected
-  - [ ] Placement on edge tile rejected
-  - [ ] Placement that would block all paths rejected
-  - [ ] Firewall pair blocks both tower tiles but not gap
-  - [ ] Zero allocations during validation
+- [ ] Implement `canPlaceTower(grid, gateways, x, y): boolean`
+- [ ] Implement `canPlaceFirewallPair(grid, gateways, t1, gap, t2): boolean`
+- [ ] Refactor: verify all tests green, zero allocations confirmed
 
-**DoD:** Placement validation works correctly for all edge cases. Scratch buffer reused (zero alloc). Tests pass.
+**DoD:** All tests pass. Placement validation correct for all edge cases. Scratch buffer reused (zero alloc).
 
 ---
 
 ## Phase 4: Game Loop & Simulation Shell
 
 > Wire up the fixed-timestep game loop and tick pipeline with stub systems.
+>
+> **TDD:** Simulation driver and tick counting are testable. Game loop (RAF) is integration — verified visually.
 
 ### 4.1. Simulation Driver — `src/game/simulation.ts`
 
 _Tech.md §3.1_
 
-- [ ] `createSimulation(seed: number)` → `{ world, tick(), getWorld() }`
-- [ ] `tick()` runs all systems in `TICK_PIPELINE` order, increments `world.tickCount`
-- [ ] Export `TICK_RATE`, `TICK_DURATION` constants
-- [ ] Command queue: `world.commandQueue: Command[]` — flushed at tick start
+- [ ] **Write failing tests** (`src/game/__tests__/simulation.test.ts`):
+  - `tick()` increments `world.tickCount` by 1
+  - Calling `tick()` N times advances `world.tickCount` to N
+  - `tick()` runs pipeline systems in §1.10 order (verify via side effects)
+  - Command queue is flushed at tick start
+- [ ] Implement `createSimulation(seed: number)` → `{ world, tick(), getWorld() }`
+- [ ] Implement `tick()`: run all systems in `TICK_PIPELINE` order, increment `world.tickCount`
+- [ ] Wire command queue: `world.commandQueue: Command[]` — flushed at tick start
 
-**DoD:** Calling `tick()` N times advances `world.tickCount` to N. Pipeline runs in order.
+**DoD:** All tests pass. Calling `tick()` N times advances `world.tickCount` to N.
 
-### 4.2. Game Loop (RAF) — `src/game/gameLoop.ts`
+### 4.2. Game Loop (RAF) — `src/game/gameLoop.ts` ⚡
 
 _Tech.md §3.1_
+
+> _Implementation-first: RAF loop is browser-dependent, verified through visual integration._
 
 - [ ] `startGameLoop(simulation, renderer)` — requestAnimationFrame loop
 - [ ] Accumulator pattern: `while (acc >= TICK_DURATION) { sim.tick(); acc -= TICK_DURATION; }`
@@ -297,9 +340,11 @@ _Tech.md §3.1_
 
 ---
 
-## Phase 5: Core Renderer
+## Phase 5: Core Renderer ⚡
 
 > Get the grid, Core, and camera rendering on screen. No gameplay yet — just the visual scaffold.
+>
+> **Implementation-first:** Renderer work is verified visually, not via TDD.
 
 ### 5.1. PixiJS Application Setup — `src/renderer/pixiApp.ts`
 
@@ -354,475 +399,539 @@ _Tech.md §6.4_
 ## Phase 6: Core Simulation Systems (Minimum Playable)
 
 > Implement the minimum systems needed to have enemies spawn, move, and reach the Core. This is the first "playable" milestone — enemies walk to the Core and damage it.
+>
+> **TDD:** For each system — write tests asserting rulebook behavior → implement system → verify tests green.
 
 ### 6.1. Command System — `src/game/systems/command.system.ts`
 
 _Tech.md §3.2, §8.2_
 
-- [ ] Flush `world.commandQueue` each tick
-- [ ] Process command types: `START_WAVE`, `PLACE_TOWER` (others as stubs)
-- [ ] `PLACE_TOWER`: validate with `canPlaceTower()`, create tower entity, recompute flowfields
-- [ ] `START_WAVE`: trigger wave start in event system state
+- [ ] **Write failing tests** (`src/game/systems/__tests__/command.system.test.ts`):
+  - Queue is empty after system runs
+  - `PLACE_TOWER` on valid tile: tower entity created, flowfields recomputed
+  - `PLACE_TOWER` on invalid tile: rejected, no entity created
+  - `START_WAVE`: triggers wave start in event state
+- [ ] Implement: flush `world.commandQueue`, process `START_WAVE` and `PLACE_TOWER` (others as stubs)
+- [ ] Refactor: verify all tests green
 
-**DoD:** Player commands are processed. Tower placement validated and executed. Flowfields recomputed.
+**DoD:** All tests pass. Player commands are processed. Tower placement validated and executed.
 
 ### 6.2. Event System — `src/game/systems/event.system.ts`
 
 _Rulebook §1.10.1, §8.2, §9.2_
 
-- [ ] Track game phase: `PRE_GAME`, `WAVE_BREAK`, `WAVE_ACTIVE`, `GAME_OVER`
-- [ ] Schedule wave triggers: wave start, wave end detection (all enemies dead or reached Core)
-- [ ] Schedule Blackwall degradation: new Gateway every 5 waves starting from wave 1 (§8.5.1)
-- [ ] Gateway HP reduction tick processing (Blackwall Tower damage to Gateways)
-- [ ] Phase transition: `WAVE_BREAK` → `WAVE_ACTIVE` on start trigger
+- [ ] **Write failing tests** (`src/game/systems/__tests__/event.system.test.ts`):
+  - Initial phase is `PRE_GAME`
+  - Phase transitions: `WAVE_BREAK` → `WAVE_ACTIVE` on start trigger
+  - Wave end detected: all enemies dead or reached Core
+  - New Gateway spawns every 5 waves starting wave 1 (§8.5.1)
+- [ ] Implement: phase tracking, wave scheduling, Blackwall degradation schedule
+- [ ] Refactor: verify all tests green
 
-**DoD:** Game phases transition correctly. Waves start and end. Blackwall degrades on schedule.
+**DoD:** All tests pass. Phases transition correctly. Waves start and end. Blackwall degrades on schedule.
 
 ### 6.3. Spawn System — `src/game/systems/spawn.system.ts`
 
 _Rulebook §1.10.2, §2.10.1, §7.0.6, Tech.md §3.3_
 
-- [ ] Read wave definition to determine enemy composition for current wave
-- [ ] Round-robin spawning: one enemy per tick across active Gateways
-- [ ] On spawn:
-  - Create enemy entity with correct archetype components
-  - Set `TilePos` to Gateway tile
-  - Set `SpawnImmunity.remainingTicks = 30`
-  - Set `TileProgress.progress = 0`
-  - Set stats from constants (scaled by wave multiplier §8.4.1)
-- [ ] Maintain `nextGatewayIndex` counter for deterministic round-robin
-- [ ] Skip closed/closing Gateways
-- [ ] Write tests:
-  - [ ] Enemy spawns at Gateway tile
-  - [ ] Spawn immunity set to 30 ticks
-  - [ ] Round-robin across multiple Gateways
-  - [ ] Wave scaling applied correctly
+- [ ] **Write failing tests** (`src/game/systems/__tests__/spawn.system.test.ts`):
+  - Enemy spawns at Gateway tile with correct `TilePos`
+  - `SpawnImmunity.remainingTicks = 30` on spawn (§2.10.1)
+  - `TileProgress.progress = 0` on spawn
+  - Round-robin: 2 Gateways → alternating spawns
+  - Closed/closing Gateways skipped
+  - Wave 5 enemy stats = base × `(1 + 0.1 × 4)` (§8.4.1)
+- [ ] Implement: read wave definition, round-robin spawning, entity creation with scaled stats
+- [ ] Refactor: verify all tests green
 
-**DoD:** Enemies spawn from Gateways in round-robin. Stats scaled by wave. Immunity set. Tests pass.
+**DoD:** All tests pass. Enemies spawn from Gateways in round-robin. Stats scaled by wave. Immunity set.
 
 ### 6.4. Status Expire System — `src/game/systems/statusExpire.system.ts`
 
 _Rulebook §1.10.4, §2.10.1_
 
-- [ ] Decrement `SpawnImmunity.remainingTicks` for all immune enemies
-- [ ] When immunity reaches 0:
-  - Set `TileProgress.progress = 0.5` (center of tile)
-  - Initialize `PathState` from flowfield (Tech.md §3.3.3)
-  - Set `progressFactor = 2 × speed` (Intro state)
-- [ ] Decrement `Slow.remainingTicks`, clear slow when expired
-- [ ] Decrement `Stun.remainingTicks`, clear stun when expired
-- [ ] Write tests:
-  - [ ] Immunity countdown and expiry initialization
-  - [ ] Slow expiry clears magnitude
-  - [ ] Stun expiry clears remaining ticks
+- [ ] **Write failing tests** (`src/game/systems/__tests__/statusExpire.system.test.ts`):
+  - `SpawnImmunity.remainingTicks` decrements by 1 each tick
+  - When immunity reaches 0: `TileProgress.progress = 0.5`, `PathState` initialized, `progressFactor = 2 × speed`
+  - `Slow.remainingTicks` decrements; clears magnitude at 0
+  - `Stun.remainingTicks` decrements; clears at 0
+- [ ] Implement: decrement counters, handle expiry transitions
+- [ ] Refactor: verify all tests green
 
-**DoD:** Status effects expire correctly. Spawn immunity initializes PathState on expiry. Tests pass.
+**DoD:** All tests pass. Status effects expire correctly. Spawn immunity initializes PathState on expiry.
 
 ### 6.5. Movement System — `src/game/systems/movement.system.ts`
 
 _Rulebook §1.10.5, §2.10.2–2.10.3, Tech.md §3.4_
 
-- [ ] For each enemy with `SpawnImmunity.remainingTicks == 0`:
-  - If stunned: skip (freeze progress)
-  - Compute effective speed: `baseSpeed × (1 - slowMagnitude)` if slowed
-  - Increment `TileProgress.progress` by `effectiveSpeed / TICK_RATE × progressFactor`
-- [ ] On tile transition (`progress >= 1.0`):
-  - Normalize leftover progress
-  - Update `TilePos` to `PathState.toX/toY` (tile-entered event)
-  - Look up next direction from flowfield
-  - Compute `directionChange` by comparing old vs new direction
-  - Compute new `progressFactor` from movement state table (§2.10.8)
-  - Apply new factor to progress
-- [ ] Core entry detection: if `toX/toY == Core`, set Outro state; if arrived, apply damage + mark removal
-- [ ] Write tests:
-  - [ ] Progress advances correctly per tick
-  - [ ] Tile transition fires at progress >= 1.0
-  - [ ] Direction change classification (None, TurnRight, TurnLeft, TurnAround)
-  - [ ] Progress factor adjustment for each movement state
-  - [ ] Stun freezes movement
-  - [ ] Slow reduces speed
-  - [ ] Core entry applies damage and removes enemy
+- [ ] **Write failing tests** (`src/game/systems/__tests__/movement.system.test.ts`):
+  - Progress advances by `speed / TICK_RATE × progressFactor` per tick
+  - Tile transition fires when `progress >= 1.0`; `TilePos` updated to `PathState.toX/toY`
+  - Direction change classified: None, TurnRight, TurnLeft, TurnAround
+  - Progress factor adjusts per movement state table (§2.10.8)
+  - Stun: progress does not advance
+  - Slow: effective speed = `baseSpeed × (1 - slowMagnitude)`
+  - Core entry: damage applied to Core HP, enemy marked for removal
+  - Leftover progress normalized on tile transition
+- [ ] Implement movement:
+  - Each enemy with `SpawnImmunity.remainingTicks == 0`: compute effective speed, advance progress
+  - On tile transition: update TilePos, look up flowfield, compute directionChange and progressFactor
+  - Core entry: set Outro state → apply damage → mark removal
+- [ ] Refactor: verify all tests green
 
-**DoD:** Enemies move along flowfield. Tile transitions update position and PathState. Core damage works. Tests pass.
+**DoD:** All tests pass. Enemies move along flowfield. Tile transitions update position and PathState. Core damage works.
 
 ### 6.6. Cleanup System — `src/game/systems/cleanup.system.ts`
 
 _Rulebook §1.10.12_
 
-- [ ] Iterate all entities marked for removal
-- [ ] For enemies: create Pickup entity at their position (Eddie + Component drops per §7.0.8)
-- [ ] For towers: handle Firewall death cascade (§5.2.4), create Component pickup if applicable
-- [ ] Actually destroy entities (return IDs to pool, clear bitmasks)
-- [ ] Write tests:
-  - [ ] Dead enemy creates pickup with correct value
-  - [ ] Dead tower cleaned up and entity recycled
-  - [ ] Firewall partner destruction cascade
+- [ ] **Write failing tests** (`src/game/systems/__tests__/cleanup.system.test.ts`):
+  - Dead enemy creates Pickup entity with correct Eddie/Component value (§7.0.8)
+  - Dead tower: entity recycled, bitmask cleared
+  - Firewall partner destruction cascade: one dies → both die (§5.2.4)
+  - Entity ID returned to pool after cleanup
+- [ ] Implement: iterate marked entities, create pickups, handle Firewall cascade, destroy entities
+- [ ] Refactor: verify all tests green
 
-**DoD:** Dead entities removed. Pickups created from enemy drops. Firewall cascade works. Tests pass.
+**DoD:** All tests pass. Dead entities removed. Pickups created from enemy drops. Firewall cascade works.
 
 ### 6.7. Wave Definitions — `src/game/wave.ts`
 
 _Rulebook §8_
 
-- [ ] Define wave compositions for at least waves 1–10 (§8.7 table)
-- [ ] Wave scaling formula: `stat × (1 + 0.1 × (waveNumber - 1))` (§8.4.1)
-- [ ] Break duration formula: `1800 - ((wave - 10) × (1740 / 30))` ticks, floored at 60 (§8.2.3)
-- [ ] Boss wave flag: AI Overlord every 10 waves from wave 50 (§8.6.1)
-- [ ] Write tests:
-  - [ ] Wave 1 composition matches rulebook
-  - [ ] Scaling produces correct stats at wave 10
-  - [ ] Break duration at wave 10 = 1800, wave 40 = 60
+- [ ] **Write failing tests** (`src/game/__tests__/wave.test.ts`):
+  - Wave 1 composition matches rulebook §8.7 table
+  - Scaling: wave 10 stat = `base × (1 + 0.1 × 9)` (§8.4.1)
+  - Break duration: wave 10 = 1800 ticks, wave 40 = 60 ticks (§8.2.3)
+  - Boss flag: AI Overlord at wave 50, 60, 70... (§8.6.1)
+- [ ] Define wave compositions for waves 1–10+ (§8.7 table)
+- [ ] Implement scaling formula and break duration formula
+- [ ] Refactor: verify all tests green
 
-**DoD:** Wave data matches rulebook exactly. Scaling formula verified by tests.
+**DoD:** All tests pass. Wave data matches rulebook exactly.
 
 ---
 
 ## Phase 7: Basic Tower Systems
 
 > Implement tower placement, targeting, and damage. Player can build ICE Walls and see enemies interact with them.
+>
+> **TDD:** Write tests for each tower behavior and status effect rule → implement → verify.
 
 ### 7.1. ICE Wall Tower
 
 _Rulebook §5.1_
 
-- [ ] Placement: `PLACE_TOWER` command creates ICE Wall entity at specified tile
-- [ ] Grid update: mark tile blocked, recompute both flowfields
-- [ ] Slow aura: apply 20% slow to all enemies on adjacent tiles (§5.1.1)
-- [ ] DoT: 1/60 damage/tick to adjacent enemies (§5.1.2, applies to Glitches passing through too §5.1)
-- [ ] Health: 200 HP at level 1
-- [ ] Write tests for slow application, DoT, pathfinding update
+- [ ] **Write failing tests** (`src/game/systems/__tests__/iceWall.test.ts`):
+  - Placement: tile becomes blocked, both flowfields recomputed
+  - Slow aura: adjacent enemies receive 20% slow (§5.1.1)
+  - DoT: adjacent enemies take 1/60 damage/tick (§5.1.2)
+  - Glitches passing through adjacent tiles still take DoT (§5.1)
+  - Level 1 HP = 200
+- [ ] Implement: `PLACE_TOWER` creates ICE Wall entity, grid update, slow aura, DoT
+- [ ] Refactor: verify all tests green
 
-**DoD:** ICE Wall placed, blocks pathing, slows and damages adjacent enemies. Tests pass.
+**DoD:** All tests pass. ICE Wall blocks pathing, slows and damages adjacent enemies.
 
 ### 7.2. Targeting System — `src/game/systems/targeting.system.ts`
 
 _Rulebook §1.10.7_
 
-- [ ] For each tower entity with Targeting component:
-  - Skip if disabled (Saboteur effect)
-  - Check cooldown: if `cooldownRemaining > 0`, decrement and skip
-  - Find valid targets within range (Chebyshev distance from tower Position)
-  - Apply targeting mode: Closest (default), Highest HP, Lowest HP
-  - Mark target(s) for damage system
-  - Reset cooldown
-- [ ] ICE Wall special: always-on aura, no cooldown (targets all adjacent enemies)
-- [ ] Handle rotation for Daemon Turret, ICE Sniper: only fire if facing target within tolerance
-- [ ] Write tests:
-  - [ ] Tower targets enemy in range
-  - [ ] Tower ignores enemy out of range
-  - [ ] Cooldown prevents firing
-  - [ ] Targeting modes select correct enemy
-  - [ ] ICE Sniper respects minimum range (§5.5.2)
+- [ ] **Write failing tests** (`src/game/systems/__tests__/targeting.system.test.ts`):
+  - Tower targets enemy within range
+  - Tower ignores enemy outside range
+  - Cooldown > 0: tower skips firing, decrements cooldown
+  - Targeting mode "Closest": selects nearest enemy
+  - Targeting mode "Highest HP" / "Lowest HP": correct selection
+  - ICE Sniper minimum range: ignores enemies within 3 tiles (§5.5.2)
+  - Disabled tower (Saboteur): skipped entirely
+- [ ] Implement: iterate tower entities, find targets (Chebyshev distance), apply targeting mode, mark for damage, handle cooldowns and rotation
+- [ ] Refactor: verify all tests green
 
-**DoD:** Towers acquire targets correctly. Cooldowns work. Targeting modes functional. Tests pass.
+**DoD:** All tests pass. Towers acquire targets correctly. Cooldowns work. Targeting modes functional.
 
 ### 7.3. Damage System — `src/game/systems/damage.system.ts`
 
 _Rulebook §1.10.8–9_
 
-- [ ] Apply tower damage to targeted enemies
-  - Per-tick DPS towers (ICE Wall, Firewall): damage each tick to in-range enemies
-  - Projectile towers (Data Spike, Daemon Turret, ICE Sniper): damage on fire event
-- [ ] Apply enemy damage to towers (VDB Netrunner aura — §7.6.2)
-- [ ] Mark entities for removal when HP <= 0
-- [ ] Respect enemy immunities (§7.0–7.8):
+- [ ] **Write failing tests** (`src/game/systems/__tests__/damage.system.test.ts`):
+  - DPS tower (ICE Wall): damage applied each tick to in-range enemies
+  - Projectile tower (Data Spike): damage applied on fire event only
+  - Enemy HP reaches 0: marked for removal
+  - VDB Netrunner aura: tower takes damage (§7.6.2)
   - Orchestrator immune to ICE Wall DoT and Firewall damage (§7.5.2)
-  - All damage types check immunity bitmask
-- [ ] Write tests:
-  - [ ] DPS damage applied correctly per tick
-  - [ ] Projectile damage on fire only
-  - [ ] Enemy dies at 0 HP
-  - [ ] Immunity prevents specific damage types
+  - Immunity bitmask prevents specific damage types
+- [ ] Implement: apply tower → enemy damage, enemy → tower damage, mark removal at HP ≤ 0, check immunities
+- [ ] Refactor: verify all tests green
 
-**DoD:** Damage applied correctly. Immunities respected. Entities die at 0 HP. Tests pass.
+**DoD:** All tests pass. Damage applied correctly. Immunities respected. Entities die at 0 HP.
 
 ### 7.4. Status Apply System — `src/game/systems/statusApply.system.ts`
 
 _Rulebook §1.10.3, §7.0.10–7.0.16_
 
-- [ ] Apply queued status effects from previous tick:
-  - **Slow**: check current slow — replace only if new magnitude > current (§7.0.15)
-  - **Stun**: check current stun — replace only if new duration > remaining (§7.0.16)
+- [ ] **Write failing tests** (`src/game/systems/__tests__/statusApply.system.test.ts`) — one test per interaction rule:
+  - Stronger slow replaces weaker (§7.0.15)
+  - Weaker slow ignored (§7.0.15)
   - Stun clears active slow (§7.0.12)
-  - Cannot apply slow to stunned enemy (§7.0.13)
-  - Check immunity bitmask before applying (§7.0.14)
-- [ ] Write tests for every interaction rule:
-  - [ ] Stronger slow replaces weaker
-  - [ ] Weaker slow ignored
-  - [ ] Stun clears slow
-  - [ ] Slow cannot apply during stun
-  - [ ] Stun-immune enemy ignores stun
-  - [ ] Slow-immune enemy ignores slow
+  - Slow cannot apply to stunned enemy (§7.0.13)
+  - Stun-immune enemy ignores stun (§7.0.14)
+  - Slow-immune enemy ignores slow (§7.0.14)
+  - Longer stun replaces shorter remaining (§7.0.16)
+- [ ] Implement: apply queued status effects with full interaction rules
+- [ ] Refactor: verify all tests green
 
-**DoD:** All status effect interaction rules from §7.0.10–7.0.16 implemented and tested.
+**DoD:** All tests pass. Every status effect interaction rule from §7.0.10–7.0.16 implemented.
 
 ### 7.5. Status Queue System — `src/game/systems/statusQueue.system.ts`
 
 _Rulebook §1.10.10_
 
-- [ ] Queue slow/stun effects produced this tick (from tower hits, Firewall gap, ICE Wall aura)
-- [ ] These are applied next tick by statusApplySystem
-- [ ] Write tests: effects queued correctly, applied on next tick
+- [ ] **Write failing tests** (`src/game/systems/__tests__/statusQueue.system.test.ts`):
+  - Effects from tower hits are queued (not applied immediately)
+  - Queued effects are applied by statusApplySystem on the next tick
+- [ ] Implement: queue slow/stun effects from tower hits, Firewall gap, ICE Wall aura
+- [ ] Refactor: verify all tests green
 
-**DoD:** Status effects queued and deferred to next tick. Tests pass.
+**DoD:** All tests pass. Status effects queued and deferred to next tick.
 
 ---
 
 ## Phase 8: All Tower Types
 
 > Implement remaining towers one at a time. Each tower is a focused task.
+>
+> **TDD:** For each tower — write tests for its unique behaviors from the rulebook → implement → verify.
 
 ### 8.1. Firewall — _Rulebook §5.2_
 
-- [ ] Pair placement: 2 entities linked via `FirewallLink` component
-- [ ] Gap tile stun: enemies on gap tile stunned for 60 ticks every tick (stun-locked)
-- [ ] DPS to enemies in gap
-- [ ] Firewall Breacher immunity to stun (still takes damage) — §5.2.2
-- [ ] Death cascade: destroying either tower destroys both (§5.2.4)
-- [ ] Death burst damage to enemies on adjacent tiles of partner (§5.2.5)
-- [ ] Placement validation via `canPlaceFirewallPair()` — §5.6
-- [ ] Orientation: horizontal, vertical, diagonal
-- [ ] Tests for all behaviors
+- [ ] **Write failing tests:**
+  - Pair placement: 2 linked entities, gap tile walkable
+  - Gap stun: enemies on gap tile stunned for 60 ticks every tick (stun-locked)
+  - Gap DPS: enemies on gap tile take damage
+  - Firewall Breacher: immune to Firewall stun, still takes damage (§5.2.2)
+  - Death cascade: destroying one tower destroys both (§5.2.4)
+  - Death burst: enemies on adjacent tiles of partner take damage (§5.2.5)
+  - Placement validation: `canPlaceFirewallPair()` rejects invalid configs (§5.6)
+- [ ] Implement: pair entities with `FirewallLink`, gap stun/DPS, death cascade, burst, orientation
+- [ ] Refactor: verify all tests green
 
 ### 8.2. Data Spike — _Rulebook §5.3_
 
-- [ ] Fixed facing direction (set at placement, immutable)
-- [ ] 90° cone targeting (3 tiles wide at each range distance)
-- [ ] Piercing: hits all enemies in path
-- [ ] Fire rate: 1 spike / 120 ticks
-- [ ] Range increases with level
-- [ ] Tests for cone shape, piercing, facing directions
+- [ ] **Write failing tests:**
+  - Fixed facing: direction set at placement, immutable
+  - 90° cone: correct tiles included at each range level
+  - Piercing: hits all enemies in the cone path
+  - Fire rate: 1 spike / 120 ticks cooldown
+  - Range scales with level
+- [ ] Implement: placement with facing, cone targeting, piercing damage, cooldown
+- [ ] Refactor: verify all tests green
 
 ### 8.3. Daemon Turret — _Rulebook §5.4_
 
-- [ ] Rotation component: rotates toward target at 0.5 deg/tick (level 1)
-- [ ] Fires only when facing target (within tolerance)
-- [ ] Multi-target: damages all enemies on target tile
-- [ ] Targeting modes: Closest, Highest HP, Lowest HP
-- [ ] Fire rate improves with upgrades
-- [ ] Tests for rotation, targeting modes, multi-target damage
+- [ ] **Write failing tests:**
+  - Rotation: rotates toward target at 0.5 deg/tick (level 1)
+  - Fires only when facing target (within angle tolerance)
+  - Multi-target: damages all enemies on target tile
+  - Targeting modes: Closest, Highest HP, Lowest HP — each selects correct target
+  - Fire rate improves with upgrades
+- [ ] Implement: rotation component, facing check, multi-target damage, targeting modes
+- [ ] Refactor: verify all tests green
 
 ### 8.4. ICE Sniper — _Rulebook §5.5_
 
-- [ ] Minimum range (3 tiles) — skip close enemies
-- [ ] Single-target, high damage
-- [ ] On-hit slow (20% for 120 ticks at level 1)
-- [ ] Rotation: tracks targets
-- [ ] Targeting modes: Closest, Highest HP, Lowest HP
-- [ ] Tests for min range, on-hit slow, single-target
+- [ ] **Write failing tests:**
+  - Minimum range: ignores enemies within 3 tiles (§5.5.2)
+  - Single-target: only one enemy hit per shot
+  - On-hit slow: 20% for 120 ticks at level 1
+  - Rotation: tracks targets
+  - Targeting modes each select correct target
+- [ ] Implement: min range check, single-target damage, on-hit slow, rotation
+- [ ] Refactor: verify all tests green
 
 ### 8.5. Ping Tower — _Rulebook §5.7_
 
-- [ ] Collection range (3 tiles at level 1, Chebyshev distance)
-- [ ] Auto-collect pickups within range
-- [ ] Enable Harvester Eddie generation for Harvesters within range (§5.7.2)
-- [ ] Tests for pickup collection, Harvester enabling
+- [ ] **Write failing tests:**
+  - Collection range: 3 tiles at level 1 (Chebyshev distance)
+  - Auto-collect: pickups within range collected
+  - Harvester enabling: only Harvesters within Ping range generate Eddies (§5.7.2)
+- [ ] Implement: range check, auto-collect, Harvester activation
+- [ ] Refactor: verify all tests green
 
 ### 8.6. Harvester — _Rulebook §5.8_
 
-- [ ] Generates Eddies per tick (only if within Ping Tower range)
-- [ ] Component generation from level 3
-- [ ] Tests for generation rate, Ping Tower dependency
+- [ ] **Write failing tests:**
+  - Generates Eddies per tick only when within Ping Tower range
+  - No generation when outside Ping range
+  - Component generation unlocks at level 3
+- [ ] Implement: Eddie generation, Ping Tower dependency, Component generation at level 3
+- [ ] Refactor: verify all tests green
 
 ### 8.7. Blackwall Tower — _Rulebook §5.6_
 
-- [ ] Must be adjacent to a Gateway
-- [ ] Reduces Gateway HP per tick (§5.6.2, §9.2.9)
-- [ ] Takes passive damage from adjacent open Gateway (§5.6.6)
-- [ ] Auto-repair consumes Components (§5.6.7)
-- [ ] Gateway closes when HP reaches 0 (§5.6.5)
-- [ ] Tests for Gateway HP reduction, passive damage, auto-repair, Gateway closing
+- [ ] **Write failing tests:**
+  - Must be adjacent to a Gateway (placement rejected otherwise)
+  - Reduces Gateway HP per tick (§5.6.2, §9.2.9)
+  - Takes passive damage from adjacent open Gateway (§5.6.6)
+  - Auto-repair consumes Components (§5.6.7)
+  - Gateway closes (HP reaches 0) → permanently shut (§5.6.5)
+- [ ] Implement: adjacency check, Gateway HP reduction, passive damage, auto-repair, closure
+- [ ] Refactor: verify all tests green
 
 ---
 
 ## Phase 9: Tower Upgrades & Abilities
 
 > Implement the upgrade system and all 5 ability types.
+>
+> **TDD:** Write tests for upgrade costs, stat changes, and ability behaviors → implement → verify.
 
 ### 9.1. Upgrade System
 
 _Rulebook §5.0.3–5.0.7_
 
-- [ ] `UPGRADE_TOWER` command: validate cost (Eddies + Components), deduct resources
-- [ ] Apply stat changes per tower's upgrade table
-- [ ] Max level 10 cap
-- [ ] Ability unlock at level 5
-- [ ] Tests for cost doubling, stat changes, max level, ability unlock
+- [ ] **Write failing tests:**
+  - Cost validation: deducts correct Eddies + Components per upgrade table
+  - Stat changes: match tower's upgrade table per level
+  - Max level: upgrade rejected at level 10
+  - Ability unlock at level 5
+  - Insufficient resources: upgrade rejected, nothing deducted
+- [ ] Implement: `UPGRADE_TOWER` command processing, cost validation, stat application, level cap
+- [ ] Refactor: verify all tests green
 
 ### 9.2. EMP Blast — _Rulebook §6.1_
 
-- [ ] Unlocked by ICE Wall at level 5
-- [ ] Stuns all enemies in tower's range for duration
-- [ ] Data Leech immune (§6.1.3)
-- [ ] Cooldown: 600 ticks (base)
-- [ ] Tests for stun, immunity, cooldown
+- [ ] **Write failing tests:**
+  - Stuns all enemies in tower's range for ability duration
+  - Data Leech immune to EMP stun (§6.1.3)
+  - Cooldown: 600 ticks (base), ability rejected during cooldown
+  - Only available when ICE Wall reaches level 5
+- [ ] Implement: area stun, immunity check, cooldown management, unlock condition
+- [ ] Refactor: verify all tests green
 
 ### 9.3. Overclock — _Rulebook §6.2_
 
-- [ ] Unlocked by Data Spike, Daemon Turret, ICE Sniper, Harvester at level 5
-- [ ] +50% fire rate (base) for 300 ticks
-- [ ] Harvester variant: +50% Eddie generation rate
-- [ ] Cooldown: 1200 ticks
-- [ ] Tests for fire rate boost, Harvester variant, cooldown
+- [ ] **Write failing tests:**
+  - +50% fire rate for 300 ticks (base)
+  - Harvester variant: +50% Eddie generation rate
+  - Cooldown: 1200 ticks, rejected during cooldown
+  - Unlocked by Data Spike, Daemon Turret, ICE Sniper, Harvester at level 5
+- [ ] Implement: fire rate boost, Harvester variant, cooldown management, unlock conditions
+- [ ] Refactor: verify all tests green
 
 ### 9.4. Tuned — _Rulebook §6.3_
 
-- [ ] Unlocked by Firewall at level 5
-- [ ] Bonus damage vs selected enemy type
-- [ ] Player can switch target type (cooldown: 1200 ticks base)
-- [ ] Tests for damage bonus, type switching, cooldown
+- [ ] **Write failing tests:**
+  - Bonus damage applied against selected enemy type
+  - Player can switch target type (cooldown: 1200 ticks base)
+  - Unlocked by Firewall at level 5
+- [ ] Implement: enemy type selection, bonus damage application, cooldown for switching
+- [ ] Refactor: verify all tests green
 
 ### 9.5. Boosted — _Rulebook §6.4_
 
-- [ ] Unlocked by Ping Tower at level 5 (mutually exclusive with Oracle)
-- [ ] Permanently +50% Eddie generation for Harvesters in range
-- [ ] Tests for permanent buff, mutual exclusivity
+- [ ] **Write failing tests:**
+  - Permanently +50% Eddie generation for Harvesters in range
+  - Mutually exclusive with Oracle (cannot have both)
+  - Unlocked by Ping Tower at level 5
+- [ ] Implement: permanent buff application, mutual exclusivity guard
+- [ ] Refactor: verify all tests green
 
 ### 9.6. Oracle — _Rulebook §6.5_
 
-- [ ] Unlocked by Ping Tower at level 5 (mutually exclusive with Boosted)
-- [ ] Permanently +50% collection range
-- [ ] Tests for range increase, mutual exclusivity
+- [ ] **Write failing tests:**
+  - Permanently +50% collection range
+  - Mutually exclusive with Boosted (cannot have both)
+  - Unlocked by Ping Tower at level 5
+- [ ] Implement: permanent range increase, mutual exclusivity guard
+- [ ] Refactor: verify all tests green
 
 ---
 
 ## Phase 10: All Enemy Types
 
 > Implement enemy-specific behaviors. Base enemy movement already works from Phase 6.
+>
+> **TDD:** Write tests for each enemy's immunities and special behaviors → implement → verify.
 
 ### 10.1. Data Leech — _Rulebook §7.1_
 
-- [ ] Stun immune, slow immune (already at minimum speed)
-- [ ] Tests for immunities
+- [ ] **Write failing tests:**
+  - Stun immune: stun effect ignored
+  - Slow immune: already at minimum speed (§7.1.3)
+- [ ] Implement: immunity bitmask for Data Leech archetype
+- [ ] Refactor: verify all tests green
 
 ### 10.2. Code Runner — _Rulebook §7.2_
 
-- [ ] Fast, fragile — verify speed scaling
-- [ ] Can be stunned and slowed
-- [ ] Tests for speed, stun/slow susceptibility
+- [ ] **Write failing tests:**
+  - Speed matches rulebook value (fast) with correct wave scaling
+  - Can be stunned: stun effect applies normally
+  - Can be slowed: slow effect applies normally
+- [ ] Implement: Code Runner archetype with correct stats
+- [ ] Refactor: verify all tests green
 
 ### 10.3. Firewall Breacher — _Rulebook §7.3_
 
-- [ ] Immune to ICE Wall slow, Firewall stun
-- [ ] Can be stunned by EMP Blast (not Firewall)
-- [ ] Tests for specific immunities
+- [ ] **Write failing tests:**
+  - Immune to ICE Wall slow
+  - Immune to Firewall stun (but still takes Firewall damage)
+  - Can be stunned by EMP Blast (§7.3 — not Firewall-specific)
+- [ ] Implement: selective immunity bitmask
+- [ ] Refactor: verify all tests green
 
 ### 10.4. Glitch — _Rulebook §7.4_
 
-- [ ] Phases through ICE Wall and Firewall tiles (uses Glitch flowfield)
-- [ ] Still takes ICE Wall DoT when passing through adjacent tile (§7.4.4)
-- [ ] Tests for phasing, Glitch flowfield usage, DoT
+- [ ] **Write failing tests:**
+  - Uses Glitch flowfield: phases through ICE Wall and Firewall tiles (§7.4.1)
+  - Still takes ICE Wall DoT when adjacent (§7.4.4)
+  - Standard flowfield is NOT used
+- [ ] Implement: Glitch archetype uses Glitch flowfield for movement
+- [ ] Refactor: verify all tests green
 
 ### 10.5. Orchestrator — _Rulebook §7.5_
 
-- [ ] Spawns Gateway on death at death location
-- [ ] Immune to ICE Wall DoT and Firewall damage
-- [ ] Tests for death Gateway spawn, immunities
+- [ ] **Write failing tests:**
+  - Spawns interior Gateway at death tile on death
+  - Immune to ICE Wall DoT and Firewall damage (§7.5.2)
+  - Other damage types apply normally
+- [ ] Implement: death handler spawns Gateway, immunity bitmask
+- [ ] Refactor: verify all tests green
 
 ### 10.6. VDB Netrunner — _Rulebook §7.6_
 
-- [ ] Tower damage aura: deals damage to all towers within 1 tile as it enters each tile
-- [ ] Implement in `enemyAura.system.ts` (§1.10.6)
-- [ ] Tests for tower damage on tile entry
+- [ ] **Write failing tests:**
+  - On tile entry: all towers within 1 tile take damage (§7.6.2)
+  - Damage amount matches rulebook value
+  - No damage between tile entries (only on the entry event)
+- [ ] Implement in `enemyAura.system.ts` (§1.10.6): tower damage aura on tile entry
+- [ ] Refactor: verify all tests green
 
 ### 10.7. Saboteur — _Rulebook §7.7_
 
-- [ ] Disables towers within 1-tile radius for 300 ticks every 600 ticks
-- [ ] Disabled towers cannot attack but still block movement
-- [ ] Tests for disable pulse, timing, tower blocking still works
+- [ ] **Write failing tests:**
+  - Disables towers within 1 tile for 300 ticks every 600 ticks
+  - Disabled towers cannot attack (targeting system skips them)
+  - Disabled towers still block movement (grid unchanged)
+- [ ] Implement: disable pulse timer, tower disable flag, targeting skip
+- [ ] Refactor: verify all tests green
 
 ### 10.8. AI Overlord (Boss) — _Rulebook §7.8_
 
-- [ ] 3 phases with automatic transitions (1800 ticks each)
-- [ ] Phase 1: immune to all damage, spawns Gateways every 5 tiles walked
-- [ ] Phase 2: vulnerable, spawns Glitches every 5 tiles walked
-- [ ] Phase 3: +50% damage taken, spawns Orchestrators every 5 tiles walked
-- [ ] Can be slowed and stunned in all phases
-- [ ] Tests for phase transitions, immunity, spawning behaviors
+- [ ] **Write failing tests:**
+  - Phase 1 (ticks 0–1800): immune to all damage, spawns Gateway every 5 tiles walked
+  - Phase 2 (ticks 1801–3600): vulnerable, spawns Glitch every 5 tiles walked
+  - Phase 3 (ticks 3601+): +50% damage taken, spawns Orchestrator every 5 tiles walked
+  - Phase transitions are automatic at 1800-tick intervals
+  - Can be slowed and stunned in all phases
+- [ ] Implement: phase state machine, damage immunity/vulnerability, spawn-on-walk, slow/stun susceptibility
+- [ ] Refactor: verify all tests green
 
 ---
 
 ## Phase 11: Economy & Resources
 
 > Wire up the full resource flow: Eddies, Components, pickups, conversion.
+>
+> **TDD:** Write tests for exact rates, decay formulas, and conversion rules → implement → verify.
 
 ### 11.1. Pickup Decay System — `src/game/systems/pickupDecay.system.ts`
 
 _Rulebook §1.10.11, §4.2.5_
 
-- [ ] Pickups outside Ping range: decay at 5/60 ≈ 0.083% of initial value per tick
-- [ ] Remove pickup when value reaches 0
-- [ ] Tests for decay rate, removal at 0
+- [ ] **Write failing tests:**
+  - Pickup outside Ping range: decays at 5/60 ≈ 0.083% of initial value per tick
+  - Pickup within Ping range: does NOT decay
+  - Pickup removed when value reaches 0
+- [ ] Implement: decay calculation, Ping range check, removal at zero
+- [ ] Refactor: verify all tests green
 
 ### 11.2. Pickup Collect System — `src/game/systems/pickupCollect.system.ts`
 
 _Rulebook §1.10.13, §5.7.1_
 
-- [ ] Ping Towers auto-collect pickups within range
-- [ ] Add collected Eddies/Components to player pool
-- [ ] Tests for collection, range check
+- [ ] **Write failing tests:**
+  - Ping Tower auto-collects pickups within range
+  - Collected Eddies/Components added to player resource pool
+  - Pickups outside Ping range: not collected
+- [ ] Implement: range check, auto-collection, resource addition
+- [ ] Refactor: verify all tests green
 
 ### 11.3. Resource System — `src/game/systems/resource.system.ts`
 
 _Rulebook §1.10.14_
 
-- [ ] Harvester Eddie generation (only if Ping-connected)
-- [ ] Harvester Component generation (level 3+)
-- [ ] Blackwall Tower auto-repair (consume Components)
-- [ ] Tests for all generation and consumption rates
+- [ ] **Write failing tests:**
+  - Harvester generates Eddies per tick at correct rate (only if Ping-connected)
+  - Harvester generates Components at level 3+
+  - Blackwall Tower auto-repair consumes Components at correct rate (§5.6.7)
+- [ ] Implement: Harvester generation, Blackwall auto-repair, Ping dependency checks
+- [ ] Refactor: verify all tests green
 
 ### 11.4. Component Conversion
 
 _Rulebook §4.2.9_
 
-- [ ] `CONVERT_EDDIES` command: 100 Eddies → 1 Component
-- [ ] Validate player has enough Eddies
-- [ ] Tests for conversion
+- [ ] **Write failing tests:**
+  - 100 Eddies → 1 Component conversion
+  - Insufficient Eddies: conversion rejected, nothing deducted
+- [ ] Implement: `CONVERT_EDDIES` command, validation, resource mutation
+- [ ] Refactor: verify all tests green
 
 ### 11.5. Tower Dismantling
 
 _Rulebook §4.2.6–4.2.7_
 
-- [ ] `DISMANTLE_TOWER` command
-- [ ] Within Ping range: return 100% Components
-- [ ] Outside Ping range: 0% (left to decay)
-- [ ] Recompute flowfields on removal
-- [ ] Tests for Component return with/without Ping
+- [ ] **Write failing tests:**
+  - Within Ping range: returns 100% Components
+  - Outside Ping range: returns 0% (left to decay)
+  - Flowfields recomputed after removal
+  - Grid tile unblocked after dismantling
+- [ ] Implement: `DISMANTLE_TOWER` command, Ping range check, resource return, grid/flowfield update
+- [ ] Refactor: verify all tests green
 
 ---
 
 ## Phase 12: Blackwall & Gateways
 
 > Implement Gateway mechanics, Blackwall degradation, and the closing loop.
+>
+> **TDD:** Write tests for Gateway lifecycle, HP reduction rates, and closure → implement → verify.
 
 ### 12.1. Gateway Entity & Spawning
 
 _Rulebook §9.2_
 
-- [ ] `createGateway(x, y)` with 10000 HP (§9.2.9)
-- [ ] Boundary Gateways: placed on edge tiles via seeded RNG (§9.2.2)
-- [ ] Interior Gateways: created by Orchestrator death or AI Overlord Phase 1
-- [ ] Gateway tracks: HP, isClosing status, assigned Blackwall Towers
-- [ ] Tests for creation, HP, boundary vs interior
+- [ ] **Write failing tests:**
+  - `createGateway(x, y)` produces entity with 10000 HP (§9.2.9)
+  - Boundary Gateways placed on edge tiles (seeded RNG deterministic)
+  - Interior Gateways created at correct positions (Orchestrator death, AI Overlord Phase 1)
+  - Gateway tracks HP, isClosing status, assigned Blackwall Towers
+- [ ] Implement: `createGateway()`, boundary vs interior creation, state tracking
+- [ ] Refactor: verify all tests green
 
 ### 12.2. Blackwall Degradation Schedule
 
 _Rulebook §8.5.1_
 
-- [ ] New boundary Gateway every 5 waves starting wave 1
-- [ ] Random (seedable) edge tile selection for new Gateways
-- [ ] Tests for degradation timing, correct wave triggers
+- [ ] **Write failing tests:**
+  - New boundary Gateway appears at wave 1, 6, 11, 16, ...
+  - Edge tile selection is deterministic with seeded RNG
+- [ ] Implement: degradation schedule, seeded edge tile selection
+- [ ] Refactor: verify all tests green
 
 ### 12.3. Gateway Closing Mechanic
 
 _Rulebook §5.6, §9.2.6–9.2.9_
 
-- [ ] Blackwall Tower reduces assigned Gateway HP by ~0.139 HP/tick (1000/7200)
-- [ ] Multiple towers stack additively
-- [ ] Closing Gateway stops spawning (§9.2.6)
-- [ ] All Blackwall Towers destroyed → Gateway immediately reopens (§9.2.7)
-- [ ] HP reaches 0 → permanently closed, removed from map (§9.2.8)
-- [ ] Tests for HP reduction rate, stacking, reopening, permanent closure
+- [ ] **Write failing tests:**
+  - Blackwall Tower reduces Gateway HP by ~0.139 HP/tick (1000/7200)
+  - Multiple Blackwall Towers stack additively
+  - Closing Gateway stops spawning enemies (§9.2.6)
+  - All Blackwall Towers destroyed → Gateway immediately reopens (§9.2.7)
+  - HP reaches 0 → permanently closed, removed from map (§9.2.8)
+- [ ] Implement: HP reduction per tick, stacking, closure detection, reopen logic, permanent closure
+- [ ] Refactor: verify all tests green
 
 ---
 
@@ -830,48 +939,58 @@ _Rulebook §5.6, §9.2.6–9.2.9_
 
 _Rulebook §10_
 
+> **TDD:** Write tests for exact trigger conditions → implement → verify.
+
 ### 13.1. Lose Condition
 
-- [ ] Monitor Core HP each tick
-- [ ] When Core HP reaches 0, set game phase to `GAME_OVER_LOSS`
-- [ ] Tests: enemy reaching Core deals damage, Core HP 0 triggers loss
+- [ ] **Write failing tests:**
+  - Enemy reaching Core deals damage to Core HP
+  - Core HP reaches 0 → game phase becomes `GAME_OVER_LOSS`
+  - Core HP > 0 → game does NOT end
+- [ ] Implement: Core HP monitoring, phase transition on HP ≤ 0
+- [ ] Refactor: verify all tests green
 
 ### 13.2. Win Condition
 
-- [ ] All Gateways permanently closed AND no Orchestrators/AI Overlords alive (§10.1.2)
-- [ ] Set game phase to `GAME_OVER_WIN`
-- [ ] Tests: win triggers with correct conditions, does not trigger prematurely
+- [ ] **Write failing tests:**
+  - All Gateways permanently closed AND no Orchestrators/AI Overlords alive → `GAME_OVER_WIN`
+  - Open Gateways remain → win NOT triggered
+  - Orchestrators still alive → win NOT triggered
+- [ ] Implement: Gateway + enemy status check, phase transition
+- [ ] Refactor: verify all tests green
 
 ---
 
 ## Phase 14: Enemy Movement Renderer
 
 > Implement the complex visual movement system (edge-to-edge, arcs, constant speed).
+>
+> **TDD:** Enemy motion is a pure math function — ideal for test-driven development with exact expected positions.
 
 ### 14.1. Enemy Motion Module — `src/renderer/enemyMotion.ts`
 
 _Rulebook §2.10.4–2.10.8, Tech.md §6.3_
 
-- [ ] Pure function: `(TilePos, TileProgress, PathState, SpawnImmunity, gridSize)` → `{ renderX, renderY, angleDeg }`
-- [ ] **Intro state**: lerp from tile center to first edge
-- [ ] **Forward state**: lerp from entry edge to exit edge
-- [ ] **TurnRight/TurnLeft**: quarter-circle arc (radius 0.5) around corner pivot
-- [ ] **TurnAround**: pivot in place (rotation only)
-- [ ] **Outro**: lerp from last edge to Core center
-- [ ] Inter-tick smoothing with `alpha` value
-- [ ] Spawn immunity: pulsing transparency at Gateway center
-- [ ] Write extensive tests:
-  - [ ] Edge midpoint positions for Forward
-  - [ ] Arc positions for TurnRight/TurnLeft
-  - [ ] Pivot-only for TurnAround
-  - [ ] Core center for Outro
-  - [ ] Progress factor calculations match §2.10.8
+- [ ] Define function signature: `(TilePos, TileProgress, PathState, SpawnImmunity, gridSize)` → `{ renderX, renderY, angleDeg }`
+- [ ] **Write failing tests** (`src/renderer/__tests__/enemyMotion.test.ts`):
+  - **Forward**: lerp from entry edge midpoint to exit edge midpoint; assert positions at progress 0, 0.5, 1.0
+  - **TurnRight/TurnLeft**: quarter-circle arc (radius 0.5); assert arc positions at progress 0, 0.25, 0.5, 0.75, 1.0
+  - **TurnAround**: pivot in place, no position change, only angle changes
+  - **Intro**: lerp from tile center to first edge midpoint
+  - **Outro**: lerp from last edge midpoint to Core center
+  - **Inter-tick smoothing**: alpha = 0.5 produces halfway interpolation
+  - **Progress factor**: calculations match §2.10.8 table
+  - Spawn immunity: position is Gateway center, alpha pulses
+- [ ] Implement: all movement states, arc math, lerp, alpha smoothing
+- [ ] Refactor: verify all tests green, positions mathematically exact
 
-**DoD:** Visual positions mathematically correct for all movement states. Tests pass.
+**DoD:** All tests pass. Visual positions mathematically correct for all movement states.
 
-### 14.2. Enemy Render Layer — `src/renderer/layers/enemy.layer.ts`
+### 14.2. Enemy Render Layer — `src/renderer/layers/enemy.layer.ts` ⚡
 
 _Tech.md §6.2_
+
+> _Implementation-first: visual rendering verified by inspection._
 
 - [ ] Acquire sprites from pool for live enemies
 - [ ] Call `enemyMotion()` each frame for each enemy
@@ -884,7 +1003,9 @@ _Tech.md §6.2_
 
 ---
 
-## Phase 15: Tower & Pickup Renderers
+## Phase 15: Tower & Pickup Renderers ⚡
+
+> **Implementation-first:** Renderer work is verified visually, not via TDD.
 
 ### 15.1. Tower Render Layer — `src/renderer/layers/tower.layer.ts`
 
@@ -922,18 +1043,22 @@ _Tech.md §6.6_
 
 ---
 
-## Phase 16: UI Layer (Vue + Pinia)
+## Phase 16: UI Layer (Vue + Pinia) ⚡
 
 > Build the complete UI overlay.
+>
+> **Mostly implementation-first** for visual components. State bridge sync is testable via TDD.
 
 ### 16.1. State Bridge — `src/ui/stores/game.store.ts`
 
 _Tech.md §8_
 
-- [ ] `syncGameStore(world, gameStore)` — runs once per render frame
-- [ ] Sync: resources (Eddies, Components), Core HP, wave info, tower list, enemy count
-- [ ] Dirty flags: only copy changed data
-- [ ] Tests for sync correctness
+- [ ] **Write failing tests:**
+  - `syncGameStore()` copies resources, Core HP, wave info, tower list, enemy count to Pinia store
+  - Dirty flags: unchanged data is NOT re-copied
+  - Synced values match ECS world state exactly
+- [ ] Implement: `syncGameStore(world, gameStore)` — runs once per render frame, dirty flag optimization
+- [ ] Refactor: verify all tests green
 
 ### 16.2. UI Store — `src/ui/stores/ui.store.ts`
 
@@ -981,6 +1106,8 @@ _Tech.md §8_
 ## Phase 17: Integration & Polish
 
 > Connect all systems. First full playable build.
+>
+> **Mixed:** Replay system and wave skip use TDD. Integration testing and profiling are manual.
 
 ### 17.1. Full Pipeline Integration
 
@@ -992,12 +1119,16 @@ _Tech.md §8_
 
 _Tech.md §10.2_
 
-- [ ] Record: capture `{ tick, command }[]` + RNG seed on every playthrough
-- [ ] Replay: feed recorded commands, assert final world state hash matches
+- [ ] **Write failing tests:**
+  - Record + replay with same seed produces identical final world state hash
+  - Different command sequence produces different hash
+- [ ] Implement: record `{ tick, command }[]` + RNG seed; replay by feeding commands
 - [ ] Create baseline replay fixtures:
   - `smoke.replay` — waves 1–5
   - `boss.replay` — wave 50 AI Overlord
   - `glitch-path.replay` — Glitch phasing
+  - `gateway-close.replay` — full Gateway closure
+- [ ] Refactor: verify all replay tests green
   - `gateway-close.replay` — full Gateway closure
 
 ### 17.3. Performance Profiling
@@ -1012,8 +1143,11 @@ _Tech.md §10.2_
 
 _Rulebook §8.3_
 
-- [ ] `SKIP_BREAK` command grants 2× Eddie generation for 600 ticks
-- [ ] Tests: bonus applied, duration correct
+- [ ] **Write failing tests:**
+  - `SKIP_BREAK` command grants 2× Eddie generation for 600 ticks
+  - Bonus expires after 600 ticks (returns to 1×)
+- [ ] Implement: `SKIP_BREAK` command processing, temporary generation multiplier
+- [ ] Refactor: verify all tests green
 
 ### 17.5. Input Polish
 
@@ -1040,9 +1174,11 @@ _Tech.md §10.3_
 
 ---
 
-## Phase 19: Audio (TBD)
+## Phase 19: Audio (TBD) ⚡
 
 > Placeholder phase for sound effects and music.
+>
+> **Implementation-first:** Audio is verified by ear.
 
 ### 19.1. Audio System
 
@@ -1058,9 +1194,11 @@ _Tech.md §10.3_
 
 ---
 
-## Phase 20: Visual Polish & Assets
+## Phase 20: Visual Polish & Assets ⚡
 
 > Replace placeholder graphics with final cyberpunk-themed assets.
+>
+> **Implementation-first:** Visual assets verified by inspection.
 
 ### 20.1. Sprite Assets
 
@@ -1085,25 +1223,25 @@ _Tech.md §10.3_
 
 ## Milestone Summary
 
-| Milestone              | Phase | What's Playable                                          |
-| ---------------------- | ----- | -------------------------------------------------------- |
-| **Project Boots**      | 0     | Dev server runs, tests run                               |
-| **ECS Foundation**     | 1–2   | World creates entities, constants defined                |
-| **Pathfinding Works**  | 3     | BFS produces correct flowfields                          |
-| **Game Loop Runs**     | 4     | Tick pipeline executes at 60Hz                           |
-| **Grid Visible**       | 5     | Grid, Core, and camera render on screen                  |
-| **Enemies Walk**       | 6     | Enemies spawn, move to Core, deal damage                 |
-| **First Tower**        | 7     | ICE Wall placeable, slows/damages enemies                |
-| **All Towers**         | 8     | All 8 tower types functional                             |
-| **Abilities Work**     | 9     | All 5 abilities functional with upgrades                 |
-| **All Enemies**        | 10    | All 8 enemy types with special behaviors                 |
-| **Economy Flows**      | 11    | Full resource loop: earn, spend, collect, convert        |
-| **Blackwall Closable** | 12    | Gateways can be permanently closed                       |
+| Milestone              | Phase | What's Playable                                           |
+| ---------------------- | ----- | --------------------------------------------------------- |
+| **Project Boots**      | 0     | Dev server runs, tests run                                |
+| **ECS Foundation**     | 1–2   | World creates entities, constants defined                 |
+| **Pathfinding Works**  | 3     | BFS produces correct flowfields                           |
+| **Game Loop Runs**     | 4     | Tick pipeline executes at 60Hz                            |
+| **Grid Visible**       | 5     | Grid, Core, and camera render on screen                   |
+| **Enemies Walk**       | 6     | Enemies spawn, move to Core, deal damage                  |
+| **First Tower**        | 7     | ICE Wall placeable, slows/damages enemies                 |
+| **All Towers**         | 8     | All 8 tower types functional                              |
+| **Abilities Work**     | 9     | All 5 abilities functional with upgrades                  |
+| **All Enemies**        | 10    | All 8 enemy types with special behaviors                  |
+| **Economy Flows**      | 11    | Full resource loop: earn, spend, collect, convert         |
+| **Blackwall Closable** | 12    | Gateways can be permanently closed                        |
 | **Winnable Game**      | 13    | Win and lose conditions trigger correctly                 |
 | **Smooth Visuals**     | 14    | Enemies render with arcs and constant-speed interpolation |
-| **Full Rendering**     | 15    | Towers, pickups, ghost preview, FX all render            |
-| **Full UI**            | 16    | Complete HUD, panels, ability bar, wave timer            |
-| **Release Candidate**  | 17–18 | Performance verified, replays, E2E tests, polish         |
+| **Full Rendering**     | 15    | Towers, pickups, ghost preview, FX all render             |
+| **Full UI**            | 16    | Complete HUD, panels, ability bar, wave timer             |
+| **Release Candidate**  | 17–18 | Performance verified, replays, E2E tests, polish          |
 | **Final Game**         | 19–20 | Audio, visual assets, full cyberpunk aesthetic            |
 
 ---
