@@ -14,6 +14,7 @@ import {
   DAEMON_TURRET_RANGE,
   ICE_SNIPER_MIN_RANGE,
   ICE_SNIPER_MAX_RANGE,
+  PING_TOWER_RANGE,
 } from '@game/constants'
 
 /** Rulebook §5 — placeholder colors per tower type */
@@ -59,9 +60,10 @@ function getTowerRange(world: World, eid: number): number | [number, number] | n
   const towerType = world.towerType[eid]
   const level = Math.max(0, Math.min(9, (world.towerLevel[eid] ?? 1) - 1))
   switch (towerType) {
-    case C.TowerType.DATA_SPIKE:   return DATA_SPIKE_RANGE[level] ?? 2
+    case C.TowerType.DATA_SPIKE:    return DATA_SPIKE_RANGE[level] ?? 2
     case C.TowerType.DAEMON_TURRET: return DAEMON_TURRET_RANGE[level] ?? 1
-    case C.TowerType.ICE_SNIPER:   return [ICE_SNIPER_MIN_RANGE, ICE_SNIPER_MAX_RANGE]
+    case C.TowerType.ICE_SNIPER:    return [ICE_SNIPER_MIN_RANGE, ICE_SNIPER_MAX_RANGE]
+    case C.TowerType.PING:          return PING_TOWER_RANGE[level] ?? 3
     default: return null
   }
 }

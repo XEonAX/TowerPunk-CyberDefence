@@ -499,6 +499,20 @@ export function markForRemoval(world: World, eid: EntityId): void {
 }
 
 /**
+ * Return the entity ID of the tower occupying the given tile, or null if empty.
+ */
+export function towerAtTile(world: World, tileX: number, tileY: number): EntityId | null {
+  const N = world.bitmask.length
+  for (let eid = 1; eid < N; eid++) {
+    const mask = world.bitmask[eid]
+    if (!(mask & C.TOWER)) continue
+    if (mask & C.PENDING_REMOVAL) continue
+    if ((world.posX[eid] | 0) === tileX && (world.posY[eid] | 0) === tileY) return eid
+  }
+  return null
+}
+
+/**
  * Create an enemy entity with given type and return its ID.
  * Caller must set TilePos, TileProgress, PathState, SpawnImmunity, and stats.
  */

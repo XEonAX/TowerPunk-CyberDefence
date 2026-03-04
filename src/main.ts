@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './ui/App.vue'
 import type { Command } from './game/ecs/world'
+import { towerAtTile } from './game/ecs/world'
 import { initPixi, getCameraContainer } from './renderer/pixiApp'
 import { createGridLayer } from './renderer/layers/grid.layer'
 import { updateEnemyLayer } from './renderer/layers/enemy.layer'
@@ -101,18 +102,25 @@ if (container) {
       window.location.reload()
     })
 
-    // Tower placement on canvas click
+    // Tower placement / selection on canvas click
     pixiApp.stage.on('click', (e) => {
-      if (uiStore.selectedTowerType === null) return
       const tile = camera.screenToTile(e.globalX, e.globalY)
       if (tile.x < 0 || tile.x >= 51 || tile.y < 0 || tile.y >= 51) return
-      simulation.getWorld().commandQueue.push({
-        type: 0, // CommandType.PLACE_TOWER
-        towerType: uiStore.selectedTowerType,
-        x: tile.x,
-        y: tile.y,
-        facing: uiStore.placementFacing,
-      } as Command)
+
+      if (uiStore.selectedTowerType !== null) {
+        // Placing a new tower
+        simulation.getWorld().commandQueue.push({
+          type: 0, // CommandType.PLACE_TOWER
+          towerType: uiStore.selectedTowerType,
+          x: tile.x,
+          y: tile.y,
+          facing: uiStore.placementFacing,
+        } as Command)
+      } else {
+        // Inspect / select an existing tower at this tile
+        const world = simulation.getWorld()
+        uiStore.selectTowerInstance(towerAtTile(world, tile.x, tile.y))
+      }
     })
   })
 }
