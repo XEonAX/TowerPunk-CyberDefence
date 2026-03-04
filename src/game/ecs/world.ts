@@ -27,6 +27,8 @@ export const enum CommandType {
   START_WAVE = 6,
   /** §6.0.2 — Spend Components to upgrade an unlocked ability by one level. */
   UPGRADE_ABILITY = 7,
+  /** §4.2.9 — Convert 100 Eddies into 1 Component. */
+  CONVERT_EDDIES = 8,
 }
 
 export interface PlaceTowerCommand {
@@ -74,6 +76,11 @@ export interface StartWaveCommand {
   type: CommandType.START_WAVE
 }
 
+/** §4.2.9 — Convert 100 Eddies into 1 Component. */
+export interface ConvertEddiesCommand {
+  type: CommandType.CONVERT_EDDIES
+}
+
 export type Command =
   | PlaceTowerCommand
   | PlaceFirewallCommand
@@ -83,6 +90,7 @@ export type Command =
   | SkipBreakCommand
   | StartWaveCommand
   | UpgradeAbilityCommand
+  | ConvertEddiesCommand
 
 // ---------------------------------------------------------------------------
 // Game phase enum

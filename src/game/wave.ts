@@ -36,168 +36,95 @@ export interface WaveData {
 // Wave compositions — Rulebook §8.7
 // ---------------------------------------------------------------------------
 
+/** Module-init helper: build a repeating enemy-type array. Not in hot path. */
+function rpt(type: EnemyType, n: number): number[] {
+  const arr: number[] = []
+  for (let i = 0; i < n; i++) arr.push(type as number)
+  return arr
+}
+
 /**
  * Canonical wave definitions for waves 1–10.
  * Index 0 = wave 1, index 9 = wave 10.
  *
- * Compositions derived from the task spec (which itself references §8.7
- * with the structured 10-wave progression table).
+ * Compositions match Rulebook §8.7 exactly.
  */
 export const WAVE_DEFINITIONS: readonly WaveData[] = [
-  // Wave 1 — 5× DATA_LEECH
+  // Wave 1 — 5× DATA_LEECH (§8.7)
   {
     waveNumber: 1,
-    enemies: [
-      EnemyType.DATA_LEECH,
-      EnemyType.DATA_LEECH,
-      EnemyType.DATA_LEECH,
-      EnemyType.DATA_LEECH,
-      EnemyType.DATA_LEECH,
-    ],
+    enemies: rpt(EnemyType.DATA_LEECH, 5),
     hasBoss: false,
   },
-  // Wave 2 — 4× DATA_LEECH, 3× CODE_RUNNER
+  // Wave 2 — 10× DATA_LEECH (§8.7)
   {
     waveNumber: 2,
-    enemies: [
-      EnemyType.DATA_LEECH,
-      EnemyType.DATA_LEECH,
-      EnemyType.DATA_LEECH,
-      EnemyType.DATA_LEECH,
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-    ],
+    enemies: rpt(EnemyType.DATA_LEECH, 10),
     hasBoss: false,
   },
-  // Wave 3 — 5× CODE_RUNNER, 2× FIREWALL_BREACHER
+  // Wave 3 — 5× DATA_LEECH, 5× CODE_RUNNER (§8.7)
   {
     waveNumber: 3,
     enemies: [
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
+      ...rpt(EnemyType.DATA_LEECH, 5),
+      ...rpt(EnemyType.CODE_RUNNER, 5),
     ],
     hasBoss: false,
   },
-  // Wave 4 — 4× CODE_RUNNER, 3× FIREWALL_BREACHER, 1× GLITCH
+  // Wave 4 — 10× DATA_LEECH, 10× CODE_RUNNER (§8.7)
   {
     waveNumber: 4,
     enemies: [
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-      EnemyType.CODE_RUNNER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.GLITCH,
+      ...rpt(EnemyType.DATA_LEECH, 10),
+      ...rpt(EnemyType.CODE_RUNNER, 10),
     ],
     hasBoss: false,
   },
-  // Wave 5 — 6× FIREWALL_BREACHER, 2× GLITCH, 2× ORCHESTRATOR (MINI_BOSS)
+  // Wave 5 — 20× DATA_LEECH, 20× CODE_RUNNER, 1× FIREWALL_BREACHER (§8.7)
   {
     waveNumber: 5,
     enemies: [
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.GLITCH,
-      EnemyType.GLITCH,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.ORCHESTRATOR,
+      ...rpt(EnemyType.DATA_LEECH, 20),
+      ...rpt(EnemyType.CODE_RUNNER, 20),
+      EnemyType.FIREWALL_BREACHER as number,
     ],
-    hasBoss: true,
+    hasBoss: false,
   },
-  // Wave 6 — 4× FIREWALL_BREACHER, 3× GLITCH, 3× VDB_NETRUNNER
+  // Wave 6 — 5× FIREWALL_BREACHER (§8.7)
   {
     waveNumber: 6,
-    enemies: [
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.FIREWALL_BREACHER,
-      EnemyType.GLITCH,
-      EnemyType.GLITCH,
-      EnemyType.GLITCH,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.VDB_NETRUNNER,
-    ],
+    enemies: rpt(EnemyType.FIREWALL_BREACHER, 5),
     hasBoss: false,
   },
-  // Wave 7 — 5× GLITCH, 3× VDB_NETRUNNER, 2× SABOTEUR
+  // Wave 7 — 50× DATA_LEECH (§8.7)
   {
     waveNumber: 7,
-    enemies: [
-      EnemyType.GLITCH,
-      EnemyType.GLITCH,
-      EnemyType.GLITCH,
-      EnemyType.GLITCH,
-      EnemyType.GLITCH,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.SABOTEUR,
-      EnemyType.SABOTEUR,
-    ],
+    enemies: rpt(EnemyType.DATA_LEECH, 50),
     hasBoss: false,
   },
-  // Wave 8 — 4× VDB_NETRUNNER, 3× SABOTEUR, 2× ORCHESTRATOR (BOSS at end)
+  // Wave 8 — 20× CODE_RUNNER, 20× FIREWALL_BREACHER (§8.7)
   {
     waveNumber: 8,
     enemies: [
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.SABOTEUR,
-      EnemyType.SABOTEUR,
-      EnemyType.SABOTEUR,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.ORCHESTRATOR,
-    ],
-    hasBoss: true,
-  },
-  // Wave 9 — 4× SABOTEUR, 3× ORCHESTRATOR, 2× VDB_NETRUNNER, 1× AI_OVERLORD
-  {
-    waveNumber: 9,
-    enemies: [
-      EnemyType.SABOTEUR,
-      EnemyType.SABOTEUR,
-      EnemyType.SABOTEUR,
-      EnemyType.SABOTEUR,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.VDB_NETRUNNER,
-      EnemyType.AI_OVERLORD,
+      ...rpt(EnemyType.CODE_RUNNER, 20),
+      ...rpt(EnemyType.FIREWALL_BREACHER, 20),
     ],
     hasBoss: false,
   },
-  // Wave 10 — 5× ORCHESTRATOR, 2× SABOTEUR, 3× AI_OVERLORD (BOSS: AI_OVERLORD at end)
+  // Wave 9 — 10× CODE_RUNNER, 10× FIREWALL_BREACHER, 1× GLITCH (§8.7)
+  {
+    waveNumber: 9,
+    enemies: [
+      ...rpt(EnemyType.CODE_RUNNER, 10),
+      ...rpt(EnemyType.FIREWALL_BREACHER, 10),
+      EnemyType.GLITCH as number,
+    ],
+    hasBoss: false,
+  },
+  // Wave 10 — 1× ORCHESTRATOR (§8.7)
   {
     waveNumber: 10,
-    enemies: [
-      EnemyType.ORCHESTRATOR,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.ORCHESTRATOR,
-      EnemyType.SABOTEUR,
-      EnemyType.SABOTEUR,
-      EnemyType.AI_OVERLORD,
-      EnemyType.AI_OVERLORD,
-      EnemyType.AI_OVERLORD,
-    ],
+    enemies: [EnemyType.ORCHESTRATOR as number],
     hasBoss: true,
   },
 ]

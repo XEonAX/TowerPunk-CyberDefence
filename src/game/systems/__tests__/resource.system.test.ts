@@ -12,6 +12,7 @@ import {
 } from '../../ecs/world'
 import * as C from '../../ecs/component'
 import { resourceSystem } from '../resource.system'
+import { eventSystem } from '../event.system'
 import {
   HARVESTER_EDDIES_PER_TICK,
   HARVESTER_COMPONENTS_PER_TICK,
@@ -258,5 +259,57 @@ describe('Blackwall Tower — auto-repair (§5.6.7)', () => {
     // Should be > 200 (partial repair applied with 5 / 10 = 50% of missing HP)
     expect(world.healthCurrent[bwEid]).toBeGreaterThan(200)
     expect(world.components).toBeCloseTo(0, 1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Skip Break Bonus (§8.3.1)
+// ---------------------------------------------------------------------------
+
+describe('Skip Break bonus 2\u00d7 Eddie generation (§8.3.1)', () => {
+  it('Harvester generates 2\u00d7 eddies when skipBonusTicks > 0', () => {
+    makePingTower(world, 5, 5, 3)
+    makeHarvester(world, 6, 5)
+    world.eddies = 0
+    world.skipBonusTicks = 600
+
+    resourceSystem(world)
+
+    expect(world.eddies).toBeCloseTo(HARVESTER_EDDIES_PER_TICK[0] * 2, 6)
+  })
+
+  it('Harvester generates normal eddies when skipBonusTicks = 0', () => {
+    makePingTower(world, 5, 5, 3)
+    makeHarvester(world, 6, 5)
+    world.eddies = 0
+    world.skipBonusTicks = 0
+
+    resourceSystem(world)
+
+    expect(world.eddies).toBeCloseTo(HARVESTER_EDDIES_PER_TICK[0], 6)
+  })
+
+  it('skipBonusTicks decrements each tick (eventSystem \u00a78.3.1)', () => {
+    world.skipBonusTicks = 10
+
+    eventSystem(world)
+
+    expect(world.skipBonusTicks).toBe(9)
+  })
+
+  it('skipBonusTicks does not go below 0', () => {
+    world.skipBonusTicks = 0
+
+    eventSystem(world)
+
+    expect(world.skipBonusTicks).toBe(0)
+  })
+
+  it('skipBonusTicks decrements to 0 after 600 ticks', () => {
+    world.skipBonusTicks = 600
+    for (let i = 0; i < 600; i++) {
+      eventSystem(world)
+    }
+    expect(world.skipBonusTicks).toBe(0)
   })
 })

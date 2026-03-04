@@ -113,6 +113,11 @@ function _harvestersGenerate(world: World): void {
       eddiesThisTick *= world.overclockMultiplier[harvEid]
     }
 
+    // §8.3.1 — Skip Break bonus: 2× Eddie generation for SKIP_BONUS_TICKS after skipping break
+    if (world.skipBonusTicks > 0) {
+      eddiesThisTick *= 2
+    }
+
     world.eddies     += eddiesThisTick
     world.components += world.harvesterComponentsPerTick[harvEid]
   }

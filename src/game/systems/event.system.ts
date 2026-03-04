@@ -42,6 +42,11 @@ export function eventSystem(world: World): void {
       // PRE_GAME, GAME_OVER, VICTORY — nothing to do
       break
   }
+
+  // §8.3.1 — Decrement skip-break bonus countdown each tick
+  if (world.skipBonusTicks > 0) {
+    world.skipBonusTicks--
+  }
 }
 
 // ---------------------------------------------------------------------------

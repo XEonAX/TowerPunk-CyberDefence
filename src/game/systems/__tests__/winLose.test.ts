@@ -137,3 +137,57 @@ describe('§10.1 — VICTORY when all gateways closed and no bosses alive', () =
     expect(world.currentPhase).toBe(GamePhase.VICTORY)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Additional edge cases
+// ---------------------------------------------------------------------------
+
+describe('§10.2 — GAME_OVER edge cases', () => {
+  it('Core at exactly 1 HP does NOT trigger GAME_OVER', () => {
+    world.currentPhase = GamePhase.WAVE_ACTIVE
+    world.healthCurrent[world.coreEid] = 1
+
+    eventSystem(world)
+
+    expect(world.currentPhase).not.toBe(GamePhase.GAME_OVER)
+  })
+
+  it('GAME_OVER is not overwritten by VICTORY (GAME_OVER is terminal)', () => {
+    world.currentPhase = GamePhase.GAME_OVER
+    world.healthCurrent[world.coreEid] = 0
+
+    eventSystem(world)
+
+    expect(world.currentPhase).toBe(GamePhase.GAME_OVER)
+  })
+})
+
+describe('§10.1 — VICTORY edge cases', () => {
+  it('no VICTORY when totalGatewaysCreated = 0 (no gateway ever spawned)', () => {
+    world.currentPhase = GamePhase.WAVE_BREAK
+    world.activeGatewayCount = 0
+    world.totalGatewaysCreated = 0  // no gateway was ever created
+    world.healthCurrent[world.coreEid] = 100
+    world.breakTicksRemaining = Infinity  // prevent auto-start
+
+    eventSystem(world)
+
+    expect(world.currentPhase).not.toBe(GamePhase.VICTORY)
+  })
+
+  it('VICTORY is not checked during WAVE_ACTIVE phase', () => {
+    world.currentPhase = GamePhase.WAVE_ACTIVE
+    world.activeGatewayCount = 0
+    world.totalGatewaysCreated = 1
+    world.healthCurrent[world.coreEid] = 100
+    world.waveSpawnIndex = 1
+    world.waveEnemyList = [0]
+    world.enemiesAlive = 0
+
+    eventSystem(world)
+
+    // Wave ends, transitions to WAVE_BREAK — not VICTORY
+    // (Victory check happens in handleWaveBreak, not handleWaveActive)
+    expect(world.currentPhase).not.toBe(GamePhase.VICTORY)
+  })
+})

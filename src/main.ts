@@ -6,6 +6,8 @@ import { createGridLayer } from './renderer/layers/grid.layer'
 import { createCamera } from './renderer/camera'
 import { createSimulation } from './game/simulation'
 import { startGameLoop } from './game/gameLoop'
+import { useGameStore } from './ui/stores/game.store'
+import { useUiStore } from './ui/stores/ui.store'
 
 const pinia = createPinia()
 const app = createApp(App)
@@ -40,20 +42,58 @@ if (container) {
 
     // Keyboard pan
     const keysDown = new Set<string>()
-    window.addEventListener('keydown', (e) => keysDown.add(e.code))
+    window.addEventListener('keydown', (e) => {
+      keysDown.add(e.code)
+      if (e.code === 'Escape') {
+        useUiStore().selectTowerType(null)
+      }
+      if (e.code === 'KeyR') {
+        useUiStore().rotatePlacementFacing()
+      }
+    })
     window.addEventListener('keyup', (e) => keysDown.delete(e.code))
 
     // Create simulation
     const simulation = createSimulation(12345)
 
+    // Init Pinia stores after simulation is ready
+    const gameStore = useGameStore()
+    const uiStore = useUiStore()
+
     // Start game loop
     const renderer = {
       draw(_alpha: number): void {
         camera.applyKeyPan(keysDown)
-        // Layer updates will go here as systems are implemented
+        // Sync simulation state to Vue stores (Tech.md §8)
+        gameStore.syncFromWorld(simulation.getWorld())
       },
     }
 
     startGameLoop(simulation, renderer)
+
+    // Handle commands dispatched from Vue UI
+    window.addEventListener('game:command', (e) => {
+      const cmd = (e as CustomEvent<Record<string, unknown>>).detail
+      simulation.getWorld().commandQueue.push(cmd as Parameters<typeof simulation.getWorld().commandQueue.push>[0])
+    })
+
+    // Handle restart — reload the page
+    window.addEventListener('game:restart', () => {
+      window.location.reload()
+    })
+
+    // Tower placement on canvas click
+    pixiApp.stage.on('click', (e) => {
+      if (uiStore.selectedTowerType === null) return
+      const tile = camera.screenToTile(e.globalX, e.globalY)
+      if (tile.x < 0 || tile.x >= 51 || tile.y < 0 || tile.y >= 51) return
+      simulation.getWorld().commandQueue.push({
+        type: 0, // CommandType.PLACE_TOWER
+        towerType: uiStore.selectedTowerType,
+        x: tile.x,
+        y: tile.y,
+        facing: uiStore.placementFacing,
+      } as Parameters<typeof simulation.getWorld().commandQueue.push>[0])
+    })
   })
 }

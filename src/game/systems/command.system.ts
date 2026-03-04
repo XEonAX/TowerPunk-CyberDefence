@@ -78,6 +78,7 @@ import {
   TUNED_COOLDOWN_PER_LEVEL,
   TUNED_COOLDOWN_MIN,
   ORACLE_MULTIPLIER,
+  EDDIES_PER_COMPONENT,
 } from '../constants'
 
 // ---------------------------------------------------------------------------
@@ -141,6 +142,9 @@ export function commandSystem(world: World): void {
         break
       case CommandType.START_WAVE:
         _handleStartWave(world)
+        break
+      case CommandType.CONVERT_EDDIES:
+        _handleConvertEddies(world)
         break
     }
   }
@@ -501,6 +505,13 @@ function _handleStartWave(world: World): void {
   if (world.currentPhase !== GamePhase.PRE_GAME) return
   world.currentPhase        = GamePhase.WAVE_BREAK
   world.breakTicksRemaining = 1800  // 30 s — eventSystem picks this up
+}
+
+/** §4.2.9 — Convert 100 Eddies into 1 Component. */
+function _handleConvertEddies(world: World): void {
+  if (world.eddies < EDDIES_PER_COMPONENT) return
+  world.eddies     -= EDDIES_PER_COMPONENT
+  world.components += 1
 }
 
 // ---------------------------------------------------------------------------

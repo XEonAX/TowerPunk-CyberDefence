@@ -33,27 +33,33 @@ describe('WAVE_DEFINITIONS', () => {
     expect(wave1.hasBoss).toBe(false)
   })
 
-  it('wave 10 has 5× ORCHESTRATOR + 2× SABOTEUR + 3× AI_OVERLORD = 10 enemies', () => {
+  it('wave 10 has 1× ORCHESTRATOR (§8.7)', () => {
     const wave10 = WAVE_DEFINITIONS[9]
     expect(wave10.waveNumber).toBe(10)
-    expect(wave10.enemies.length).toBe(10)
+    expect(wave10.enemies.length).toBe(1)
     const orchestrators = wave10.enemies.filter(t => t === 4).length // EnemyType.ORCHESTRATOR = 4
-    const saboteurs = wave10.enemies.filter(t => t === 6).length     // EnemyType.SABOTEUR = 6
-    const overlords = wave10.enemies.filter(t => t === 7).length     // EnemyType.AI_OVERLORD = 7
-    expect(orchestrators).toBe(5)
-    expect(saboteurs).toBe(2)
-    expect(overlords).toBe(3)
+    expect(orchestrators).toBe(1)
     expect(wave10.hasBoss).toBe(true)
   })
 
-  it('wave 5 has a boss (ORCHESTRATOR mini-boss)', () => {
-    expect(WAVE_DEFINITIONS[4].hasBoss).toBe(true)
+  it('wave 5 has no boss (§8.7: DATA_LEECH + CODE_RUNNER + FIREWALL_BREACHER)', () => {
+    expect(WAVE_DEFINITIONS[4].hasBoss).toBe(false)
   })
 
-  it('wave 8 boss order has ORCHESTRATOR at end', () => {
+  it('wave 7 has 50 DATA_LEECH (§8.7)', () => {
+    const wave7 = WAVE_DEFINITIONS[6]
+    expect(wave7.enemies.length).toBe(50)
+    expect(wave7.enemies.every(t => t === 0)).toBe(true) // EnemyType.DATA_LEECH = 0
+  })
+
+  it('wave 8 has 20 CODE_RUNNER then 20 FIREWALL_BREACHER (§8.7)', () => {
     const wave8 = WAVE_DEFINITIONS[7]
-    const lastTwo = wave8.enemies.slice(-2)
-    expect(lastTwo.every(t => t === 4)).toBe(true) // EnemyType.ORCHESTRATOR = 4
+    expect(wave8.enemies.length).toBe(40)
+    const codeRunners = wave8.enemies.filter(t => t === 1).length   // CODE_RUNNER = 1
+    const breachers  = wave8.enemies.filter(t => t === 2).length    // FIREWALL_BREACHER = 2
+    expect(codeRunners).toBe(20)
+    expect(breachers).toBe(20)
+    expect(wave8.hasBoss).toBe(false)
   })
 })
 
@@ -87,8 +93,8 @@ describe('getTotalEnemiesInWave', () => {
     expect(getTotalEnemiesInWave(1)).toBe(5)
   })
 
-  it('wave 10 has 10 enemies', () => {
-    expect(getTotalEnemiesInWave(10)).toBe(10)
+  it('wave 10 has 1 enemy (1 Orchestrator per §8.7)', () => {
+    expect(getTotalEnemiesInWave(10)).toBe(1)
   })
 
   it('wave 15 (>10) has same count as wave 10', () => {

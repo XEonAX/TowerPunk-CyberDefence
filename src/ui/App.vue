@@ -1,51 +1,30 @@
 <template>
-  <div class="app-container">
-    <div id="pixi-container" class="canvas-container"></div>
-    <div class="hud-overlay">
-      <div class="hud-title">TowerPunk: Cyber Defence</div>
-    </div>
+  <div id="app-root">
+    <div id="pixi-container"></div>
+    <HUD />
+    <TowerPanel @command="handleCommand" />
+    <GameResult @restart="handleRestart" />
   </div>
 </template>
 
 <script setup lang="ts">
-// Root application component
-// Vue overlays sit on top of the PixiJS canvas
+import HUD from './components/HUD.vue'
+import TowerPanel from './components/TowerPanel.vue'
+import GameResult from './components/GameResult.vue'
+
+function handleCommand(cmd: object): void {
+  // Commands are dispatched to the simulation command queue via window event
+  window.dispatchEvent(new CustomEvent('game:command', { detail: cmd }))
+}
+
+function handleRestart(): void {
+  window.dispatchEvent(new CustomEvent('game:restart'))
+}
 </script>
 
-<style scoped>
-.app-container {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  background: #0a0a0f;
-}
-
-.canvas-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.hud-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  display: flex;
-  justify-content: center;
-  padding-top: 20px;
-}
-
-.hud-title {
-  color: #00d4ff;
-  font-family: monospace;
-  font-size: 18px;
-  letter-spacing: 3px;
-  text-shadow: 0 0 10px #00d4ff;
-  pointer-events: none;
-}
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0a0a0f; overflow: hidden; }
+#app-root { width: 100vw; height: 100vh; position: relative; }
+#pixi-container { position: absolute; inset: 0; }
 </style>

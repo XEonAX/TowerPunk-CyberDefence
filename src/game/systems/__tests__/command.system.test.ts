@@ -430,6 +430,58 @@ describe('START_WAVE', () => {
 })
 
 // ---------------------------------------------------------------------------
+// CONVERT_EDDIES
+// ---------------------------------------------------------------------------
+
+describe('CONVERT_EDDIES (§4.2.9)', () => {
+  it('converts 100 eddies into 1 component', () => {
+    world.eddies = 200
+    world.components = 0
+
+    world.commandQueue.push({ type: CommandType.CONVERT_EDDIES })
+    commandSystem(world)
+
+    expect(world.eddies).toBe(100)
+    expect(world.components).toBe(1)
+  })
+
+  it('does nothing when player has fewer than 100 eddies', () => {
+    world.eddies = 99
+    world.components = 5
+
+    world.commandQueue.push({ type: CommandType.CONVERT_EDDIES })
+    commandSystem(world)
+
+    expect(world.eddies).toBe(99)
+    expect(world.components).toBe(5)
+  })
+
+  it('converts exactly 100 eddies when available', () => {
+    world.eddies = 100
+    world.components = 3
+
+    world.commandQueue.push({ type: CommandType.CONVERT_EDDIES })
+    commandSystem(world)
+
+    expect(world.eddies).toBe(0)
+    expect(world.components).toBe(4)
+  })
+
+  it('converts multiple times in sequence (3 conversions)', () => {
+    world.eddies = 300
+    world.components = 0
+
+    world.commandQueue.push({ type: CommandType.CONVERT_EDDIES })
+    world.commandQueue.push({ type: CommandType.CONVERT_EDDIES })
+    world.commandQueue.push({ type: CommandType.CONVERT_EDDIES })
+    commandSystem(world)
+
+    expect(world.eddies).toBe(0)
+    expect(world.components).toBe(3)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------
 
