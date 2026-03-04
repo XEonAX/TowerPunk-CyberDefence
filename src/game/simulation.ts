@@ -2,61 +2,24 @@
  * Simulation Driver — Tech.md §3.1
  *
  * Manages the fixed-timestep game world and tick pipeline.
+ * All 14 systems are wired in §1.10 order.
  */
 
 import { createWorld, type World } from './ecs/world'
-import type { System } from './ecs/system'
-import { noopSystem } from './ecs/system'
-
-// ---------------------------------------------------------------------------
-// Tick pipeline — §1.10
-// Systems will be replaced as they are implemented in later phases.
-// ---------------------------------------------------------------------------
-
-let commandSystem: System = noopSystem
-let eventSystem: System = noopSystem
-let spawnSystem: System = noopSystem
-let statusApplySystem: System = noopSystem
-let statusExpireSystem: System = noopSystem
-let movementSystem: System = noopSystem
-let enemyAuraSystem: System = noopSystem
-let targetingSystem: System = noopSystem
-let damageSystem: System = noopSystem
-let statusQueueSystem: System = noopSystem
-let pickupDecaySystem: System = noopSystem
-let cleanupSystem: System = noopSystem
-let pickupCollectSystem: System = noopSystem
-let resourceSystem: System = noopSystem
-
-/** Replace a pipeline system (used when real systems are wired in). */
-export function registerSystem(
-  slot: keyof typeof PIPELINE_SLOTS,
-  system: System,
-): void {
-  switch (slot) {
-    case 'command': commandSystem = system; break
-    case 'event': eventSystem = system; break
-    case 'spawn': spawnSystem = system; break
-    case 'statusApply': statusApplySystem = system; break
-    case 'statusExpire': statusExpireSystem = system; break
-    case 'movement': movementSystem = system; break
-    case 'enemyAura': enemyAuraSystem = system; break
-    case 'targeting': targetingSystem = system; break
-    case 'damage': damageSystem = system; break
-    case 'statusQueue': statusQueueSystem = system; break
-    case 'pickupDecay': pickupDecaySystem = system; break
-    case 'cleanup': cleanupSystem = system; break
-    case 'pickupCollect': pickupCollectSystem = system; break
-    case 'resource': resourceSystem = system; break
-  }
-}
-
-const PIPELINE_SLOTS = {
-  command: 0, event: 1, spawn: 2, statusApply: 3,
-  statusExpire: 4, movement: 5, enemyAura: 6, targeting: 7,
-  damage: 8, statusQueue: 9, pickupDecay: 10, cleanup: 11,
-  pickupCollect: 12, resource: 13,
-} as const
+import { commandSystem } from './systems/command.system'
+import { eventSystem } from './systems/event.system'
+import { spawnSystem } from './systems/spawn.system'
+import { statusApplySystem } from './systems/statusApply.system'
+import { statusExpireSystem } from './systems/statusExpire.system'
+import { movementSystem } from './systems/movement.system'
+import { enemyAuraSystem } from './systems/enemyAura.system'
+import { targetingSystem } from './systems/targeting.system'
+import { damageSystem } from './systems/damage.system'
+import { statusQueueSystem } from './systems/statusQueue.system'
+import { pickupDecaySystem } from './systems/pickupDecay.system'
+import { cleanupSystem } from './systems/cleanup.system'
+import { pickupCollectSystem } from './systems/pickupCollect.system'
+import { resourceSystem } from './systems/resource.system'
 
 export interface Simulation {
   readonly world: World

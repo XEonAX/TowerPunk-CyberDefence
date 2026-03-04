@@ -3,6 +3,8 @@
     <div id="pixi-container"></div>
     <HUD />
     <TowerPanel @command="handleCommand" />
+    <AbilityBar @command="handleCommand" />
+    <WaveTimer />
     <GameResult @restart="handleRestart" />
   </div>
 </template>
@@ -10,6 +12,8 @@
 <script setup lang="ts">
 import HUD from './components/HUD.vue'
 import TowerPanel from './components/TowerPanel.vue'
+import AbilityBar from './components/AbilityBar.vue'
+import WaveTimer from './components/WaveTimer.vue'
 import GameResult from './components/GameResult.vue'
 
 function handleCommand(cmd: object): void {

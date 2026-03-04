@@ -1,8 +1,14 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './ui/App.vue'
+import type { Command } from './game/ecs/world'
 import { initPixi, getCameraContainer } from './renderer/pixiApp'
 import { createGridLayer } from './renderer/layers/grid.layer'
+import { updateEnemyLayer } from './renderer/layers/enemy.layer'
+import { updateTowerLayer } from './renderer/layers/tower.layer'
+import { updatePickupLayer } from './renderer/layers/pickup.layer'
+import { updateGhostLayer } from './renderer/layers/ghost.layer'
+import { updateFxLayer } from './renderer/layers/fx.layer'
 import { createCamera } from './renderer/camera'
 import { createSimulation } from './game/simulation'
 import { startGameLoop } from './game/gameLoop'
@@ -36,7 +42,12 @@ if (container) {
     pixiApp.stage.eventMode = 'static'
     pixiApp.stage.hitArea = pixiApp.screen
     pixiApp.stage.on('pointerdown', (e) => camera.onPointerDown(e))
-    pixiApp.stage.on('pointermove', (e) => camera.onPointerMove(e))
+    pixiApp.stage.on('pointermove', (e) => {
+      camera.onPointerMove(e)
+      // Update hovered tile for ghost preview
+      const t = camera.screenToTile(e.globalX, e.globalY)
+      uiStore.setHoveredTile(t.x, t.y)
+    })
     pixiApp.stage.on('pointerup', () => camera.onPointerUp())
     pixiApp.stage.on('pointerupoutside', () => camera.onPointerUp())
 
@@ -62,10 +73,18 @@ if (container) {
 
     // Start game loop
     const renderer = {
-      draw(_alpha: number): void {
+      draw(alpha: number): void {
         camera.applyKeyPan(keysDown)
         // Sync simulation state to Vue stores (Tech.md §8)
-        gameStore.syncFromWorld(simulation.getWorld())
+        const world = simulation.getWorld()
+        gameStore.syncFromWorld(world)
+        gameStore.syncSelectedTower(world, uiStore.selectedTowerEid)
+        // Update render layers
+        updateTowerLayer(layers.towers, world, alpha)
+        updateEnemyLayer(layers.enemies, world, alpha)
+        updatePickupLayer(layers.pickups, world, alpha)
+        updateGhostLayer(layers.ghost, world, uiStore.hoveredTileX, uiStore.hoveredTileY, uiStore.selectedTowerType)
+        updateFxLayer(layers.fx, world, alpha)
       },
     }
 
@@ -74,7 +93,7 @@ if (container) {
     // Handle commands dispatched from Vue UI
     window.addEventListener('game:command', (e) => {
       const cmd = (e as CustomEvent<Record<string, unknown>>).detail
-      simulation.getWorld().commandQueue.push(cmd as Parameters<typeof simulation.getWorld().commandQueue.push>[0])
+      simulation.getWorld().commandQueue.push(cmd as Command)
     })
 
     // Handle restart — reload the page
@@ -93,7 +112,7 @@ if (container) {
         x: tile.x,
         y: tile.y,
         facing: uiStore.placementFacing,
-      } as Parameters<typeof simulation.getWorld().commandQueue.push>[0])
+      } as Command)
     })
   })
 }

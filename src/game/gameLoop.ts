@@ -23,7 +23,17 @@ export function startGameLoop(simulation: Simulation, renderer: Renderer): void 
 
     let ticks = 0
     while (accumulator >= TICK_DURATION && ticks < MAX_TICKS_PER_FRAME) {
-      simulation.tick()
+      // Performance instrumentation (dev only) — budget: 4ms per tick (Tech.md §14)
+      if (import.meta.env.DEV) {
+        const t0 = performance.now()
+        simulation.tick()
+        const elapsed = performance.now() - t0
+        if (elapsed > 4) {
+          console.warn(`[TowerPunk] Slow tick: ${elapsed.toFixed(2)}ms (budget: 4ms)`)
+        }
+      } else {
+        simulation.tick()
+      }
       accumulator -= TICK_DURATION
       ticks++
     }

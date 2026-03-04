@@ -8,6 +8,18 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { World } from '@game/ecs/world'
 import { GamePhase } from '@game/ecs/world'
+import * as C from '@game/ecs/component'
+
+export interface SelectedTowerInfo {
+  eid: number
+  towerType: number
+  towerLevel: number
+  hasAbility: boolean
+  abilityType: number
+  abilityLevel: number
+  /** Remaining cooldown in ticks (0 = ready) */
+  abilityCooldownTicks: number
+}
 
 export const useGameStore = defineStore('game', () => {
   // Core state (synced from simulation)
@@ -21,6 +33,9 @@ export const useGameStore = defineStore('game', () => {
   const enemiesAlive = ref(0)
   const activeGatewayCount = ref(0)
   const tickCount = ref(0)
+
+  /** Per-tower ability state for the currently selected tower instance. */
+  const selectedTowerInfo = ref<SelectedTowerInfo | null>(null)
 
   // Derived
   const isWaveActive = computed(() => phase.value === GamePhase.WAVE_ACTIVE)
@@ -52,11 +67,50 @@ export const useGameStore = defineStore('game', () => {
     if (tickCount.value !== world.tickCount) tickCount.value = world.tickCount
   }
 
+  /**
+   * Sync selected tower ability state — called from main.ts once per frame.
+   * Pass null to deselect.
+   */
+  function syncSelectedTower(world: World, eid: number | null): void {
+    if (eid === null) {
+      if (selectedTowerInfo.value !== null) selectedTowerInfo.value = null
+      return
+    }
+    const mask = world.bitmask[eid]
+    if (!(mask & C.TOWER) || (mask & C.PENDING_REMOVAL)) {
+      if (selectedTowerInfo.value !== null) selectedTowerInfo.value = null
+      return
+    }
+    const hasAbility = !!(mask & C.ABILITY)
+    const cooldown = hasAbility ? world.abilityCooldown[eid] : 0
+    // Dirty-flag update to avoid triggering unnecessary reactivity
+    const prev = selectedTowerInfo.value
+    if (
+      !prev ||
+      prev.eid !== eid ||
+      prev.towerLevel !== world.towerLevel[eid] ||
+      prev.hasAbility !== hasAbility ||
+      prev.abilityLevel !== world.abilityLevel[eid] ||
+      Math.abs(prev.abilityCooldownTicks - cooldown) >= 1
+    ) {
+      selectedTowerInfo.value = {
+        eid,
+        towerType: world.towerType[eid],
+        towerLevel: world.towerLevel[eid],
+        hasAbility,
+        abilityType: world.abilityType[eid],
+        abilityLevel: world.abilityLevel[eid],
+        abilityCooldownTicks: cooldown,
+      }
+    }
+  }
+
   return {
     coreHp, coreHpMax, eddies, components, currentWave, phase,
     breakTicksRemaining, enemiesAlive, activeGatewayCount, tickCount,
+    selectedTowerInfo,
     isWaveActive, isWaveBreak, isPreGame, isGameOver, isVictory,
     coreHpPercent, breakSecondsRemaining,
-    syncFromWorld,
+    syncFromWorld, syncSelectedTower,
   }
 })
