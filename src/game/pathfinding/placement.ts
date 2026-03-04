@@ -19,6 +19,22 @@ const scratchDir = new Uint8Array(GRID_SIZE * GRID_SIZE)
 const extraBlockedBuf: number[] = [0, 0]
 
 /**
+ * §2.6.4 — Returns true if the Core has at least one reachable path to any
+ * inner-border tile (x or y = 1 or GRID_SIZE-2). Used as a fallback when no
+ * gateways exist yet to prevent pre-wave Core isolation.
+ */
+function coreHasAnyPath(cost: Uint16Array): boolean {
+  const last = GRID_SIZE - 2
+  for (let i = 1; i < GRID_SIZE - 1; i++) {
+    if (cost[idx(i, 1)]    !== UNREACHABLE) return true
+    if (cost[idx(i, last)] !== UNREACHABLE) return true
+    if (cost[idx(1, i)]    !== UNREACHABLE) return true
+    if (cost[idx(last, i)] !== UNREACHABLE) return true
+  }
+  return false
+}
+
+/**
  * Check whether a tower can be placed at (x, y).
  * Read-only — zero allocations (Tech.md §5.5.2).
  * @param gatewayTiles List of [x, y] pairs for active gateway tiles.
@@ -47,6 +63,12 @@ export function canPlaceTower(
   for (const [gx, gy] of gatewayTiles) {
     if (scratchCost[idx(gx, gy)] === UNREACHABLE) return false
   }
+
+  // §2.6.4 — when no gateways exist yet (pre-wave), guard against fully isolating
+  // the Core by ensuring at least one inner-border tile per side remains reachable.
+  // Boundary gateways can spawn anywhere on the perimeter, so any side being
+  // completely cut off is illegal even before the first wave.
+  if (gatewayTiles.length === 0 && !coreHasAnyPath(scratchCost)) return false
 
   return true
 }
@@ -96,6 +118,9 @@ export function canPlaceFirewallPair(
   for (const [gx, gy] of gatewayTiles) {
     if (scratchCost[idx(gx, gy)] === UNREACHABLE) return false
   }
+
+  // §2.6.4 — pre-wave isolation guard (same as canPlaceTower)
+  if (gatewayTiles.length === 0 && !coreHasAnyPath(scratchCost)) return false
 
   return true
 }

@@ -32,19 +32,37 @@ describe('canPlaceTower — §2.6', () => {
 
   it('rejects placement that blocks all paths to Core (§2.6.4)', () => {
     const grid = createGrid()
-    // Use single gateway at specific location, then wall it off
     const gateways: ReadonlyArray<readonly [number, number]> = [[1, 25]]
-    // Block the corridor from gateway to core
-    for (let x = 2; x < 25; x++) {
-      setBlocked(grid, x, 25, TowerType.ICE_WALL)
+    // Block top, left, right neighbours of Core (25,25)
+    setBlocked(grid, 25, 24, TowerType.ICE_WALL) // top
+    setBlocked(grid, 24, 25, TowerType.ICE_WALL) // left
+    setBlocked(grid, 26, 25, TowerType.ICE_WALL) // right
+    // Placing on the bottom (25,26) would seal Core — must be rejected
+    expect(canPlaceTower(grid, gateways, 25, 26)).toBe(false)
+  })
+
+  it('rejects pre-wave placement that fully isolates Core — no gateways yet (§2.6.4)', () => {
+    const grid = createGrid()
+    const noGateways: ReadonlyArray<readonly [number, number]> = []
+    const mid = 25 // CORE is at (25, 25) 0-indexed
+
+    // Build a complete horizontal wall above Core, leaving no vertical gap
+    for (let x = 1; x < 50; x++) {
+      setBlocked(grid, x, mid - 1, TowerType.ICE_WALL)
     }
-    // This last blocking tile cuts off the only path  
-    // (already blocked up to x=24, so x=25 would cut off)
-    // Let's use a simpler test: clear grid, single gateway, direct path
-    const simpleGrid = createGrid()
-    const singleGateway: ReadonlyArray<readonly [number, number]> = [[1, 1]]
-    // Block a wall that forces a detour — not all paths
-    expect(canPlaceTower(simpleGrid, singleGateway, 10, 10)).toBe(true)
+    // Build a complete horizontal wall below Core
+    for (let x = 1; x < 50; x++) {
+      setBlocked(grid, x, mid + 1, TowerType.ICE_WALL)
+    }
+    // Build left and right walls to fully seal Core tile
+    for (let y = mid - 1; y <= mid + 1; y++) {
+      setBlocked(grid, mid - 1, y, TowerType.ICE_WALL)
+      setBlocked(grid, mid + 1, y, TowerType.ICE_WALL)
+    }
+
+    // Attempting to place anything adjacent to the remaining open tile should be rejected
+    // The Core is sealed — any inner-border tile is isolated from it
+    expect(canPlaceTower(grid, noGateways, 5, 5)).toBe(false)
   })
 })
 
