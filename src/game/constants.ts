@@ -1,0 +1,413 @@
+/**
+ * Game Constants — derived from Rulebook.
+ * Every constant references the rulebook section it implements.
+ * These MUST match the rulebook exactly — do not change without updating tests.
+ */
+
+// ---------------------------------------------------------------------------
+// §1 — Game Overview
+// ---------------------------------------------------------------------------
+
+/** Rulebook §1.8 — fixed simulation rate */
+export const TICK_RATE = 60
+
+/** Rulebook §1.8 — duration of one tick in milliseconds */
+export const TICK_DURATION = 1000 / TICK_RATE
+
+/** Tech.md §3.1.3 — max ticks processed per animation frame */
+export const MAX_TICKS_PER_FRAME = 4
+
+// ---------------------------------------------------------------------------
+// §2 — Map & Grid
+// ---------------------------------------------------------------------------
+
+/** Rulebook §2.1 — grid dimensions */
+export const GRID_SIZE = 51
+
+/** Rulebook §2.9 — Core position (0-indexed) */
+export const CORE_X = 25
+
+/** Rulebook §2.9 — Core position (0-indexed) */
+export const CORE_Y = 25
+
+/** Rulebook §2.10.1 — spawn immunity duration in ticks */
+export const SPAWN_IMMUNITY_TICKS = 30
+
+// ---------------------------------------------------------------------------
+// §3 — Core
+// ---------------------------------------------------------------------------
+
+/** Rulebook §3.3 */
+export const CORE_STARTING_HP = 100
+
+// ---------------------------------------------------------------------------
+// §4 — Resources
+// ---------------------------------------------------------------------------
+
+/** Rulebook §4.3.1 */
+export const INITIAL_EDDIES = 400
+
+/** Rulebook §4.3.1 */
+export const INITIAL_COMPONENTS = 3
+
+/** Rulebook §4.2.5 — decay rate = (5/60) / 100 per tick as fraction of initial value */
+export const PICKUP_DECAY_RATE = 5 / 60 / 100
+
+/** Rulebook §4.2.9 — Eddies conversion rate */
+export const EDDIES_PER_COMPONENT = 100
+
+// ---------------------------------------------------------------------------
+// §5 — Towers (costs, HP, stats per level)
+// ---------------------------------------------------------------------------
+
+/** Rulebook §5.0.5 */
+export const MAX_TOWER_LEVEL = 10
+
+/** Rulebook §5.0.7 */
+export const MAX_ABILITY_LEVEL = 5
+
+/**
+ * ICE Wall cost table — Rulebook §5.1
+ * Index = level-1 (0 = level 1)
+ * Each entry: [eddies, components]
+ */
+export const ICE_WALL_COST: ReadonlyArray<readonly [number, number]> = [
+  [50, 0],   // L1
+  [0, 1],    // L2
+  [0, 2],    // L3
+  [0, 4],    // L4
+  [0, 8],    // L5
+  [0, 16],   // L6
+  [0, 32],   // L7
+  [0, 64],   // L8
+  [0, 128],  // L9
+  [0, 256],  // L10
+]
+
+/** ICE Wall HP per level — Rulebook §5.1 (+200 HP per level) */
+export const ICE_WALL_HP: ReadonlyArray<number> = [
+  200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,
+]
+
+/** ICE Wall DPS per level — Rulebook §5.1 (1 DPS base, +1/level) */
+export const ICE_WALL_DPS: ReadonlyArray<number> = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+]
+
+/** ICE Wall slow magnitude per level — Rulebook §5.1 */
+export const ICE_WALL_SLOW: ReadonlyArray<number> = [
+  0.20, 0.30, 0.39, 0.47, 0.54, 0.60, 0.65, 0.69, 0.72, 0.74,
+]
+
+/**
+ * Firewall cost table — Rulebook §5.2
+ */
+export const FIREWALL_COST: ReadonlyArray<readonly [number, number]> = [
+  [75, 1],    // L1
+  [50, 3],    // L2
+  [0, 7],     // L3
+  [0, 14],    // L4
+  [0, 28],    // L5
+  [0, 56],    // L6
+  [0, 112],   // L7
+  [0, 224],   // L8
+  [0, 448],   // L9
+  [0, 896],   // L10
+]
+
+/** Firewall HP per tower per level — Rulebook §5.2 */
+export const FIREWALL_HP: ReadonlyArray<number> = [
+  500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
+]
+
+/** Firewall DPS per level — Rulebook §5.2 (+10/level) */
+export const FIREWALL_DPS: ReadonlyArray<number> = [
+  10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
+]
+
+/** Firewall stun duration — Rulebook §5.2 */
+export const FIREWALL_STUN_TICKS = 60
+
+/**
+ * Data Spike cost table — Rulebook §5.3
+ */
+export const DATA_SPIKE_COST: ReadonlyArray<readonly [number, number]> = [
+  [150, 2],    // L1
+  [0, 7],      // L2
+  [0, 14],     // L3
+  [0, 28],     // L4
+  [0, 56],     // L5
+  [0, 112],    // L6
+  [0, 224],    // L7
+  [0, 448],    // L8
+  [0, 896],    // L9
+  [0, 1792],   // L10
+]
+
+/** Data Spike HP per level — Rulebook §5.3 */
+export const DATA_SPIKE_HP: ReadonlyArray<number> = [
+  500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
+]
+
+/** Data Spike damage per spike per level — Rulebook §5.3 */
+export const DATA_SPIKE_DAMAGE: ReadonlyArray<number> = [
+  10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
+]
+
+/** Data Spike range per level — Rulebook §5.3 */
+export const DATA_SPIKE_RANGE: ReadonlyArray<number> = [
+  2, 3, 4, 5, 5, 5, 5, 5, 5, 5,
+]
+
+/** Data Spike fire rate — Rulebook §5.3 */
+export const DATA_SPIKE_COOLDOWN_TICKS = 120
+
+/**
+ * Daemon Turret cost table — Rulebook §5.4
+ */
+export const DAEMON_TURRET_COST: ReadonlyArray<readonly [number, number]> = [
+  [0, 5],     // L1
+  [0, 10],    // L2
+  [0, 20],    // L3
+  [0, 40],    // L4
+  [0, 80],    // L5
+  [0, 160],   // L6
+  [0, 320],   // L7
+  [0, 640],   // L8
+  [0, 1280],  // L9
+  [0, 2560],  // L10
+]
+
+/** Daemon Turret fire cooldown per level — Rulebook §5.4 */
+export const DAEMON_TURRET_COOLDOWN: ReadonlyArray<number> = [
+  120, 120, 120, 120, 120, 108, 96, 84, 72, 60,
+]
+
+/** Daemon Turret damage per daemon per level — Rulebook §5.4 */
+export const DAEMON_TURRET_DAMAGE: ReadonlyArray<number> = [
+  10, 15, 20, 25, 30, 30, 30, 30, 30, 30,
+]
+
+/** Daemon Turret rotation speed per level (deg/tick) — Rulebook §5.4 */
+export const DAEMON_TURRET_ROT_SPEED: ReadonlyArray<number> = [
+  0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+]
+
+/**
+ * ICE Sniper cost table — Rulebook §5.5
+ */
+export const ICE_SNIPER_COST: ReadonlyArray<readonly [number, number]> = [
+  [0, 10],    // L1
+  [0, 15],    // L2
+  [0, 30],    // L3
+  [0, 60],    // L4
+  [0, 120],   // L5
+  [0, 240],   // L6
+  [0, 480],   // L7
+  [0, 960],   // L8
+  [0, 1920],  // L9
+  [0, 3840],  // L10
+]
+
+/** ICE Sniper damage per level — Rulebook §5.5 */
+export const ICE_SNIPER_DAMAGE: ReadonlyArray<number> = [
+  50, 60, 70, 80, 90, 90, 90, 90, 90, 90,
+]
+
+/** ICE Sniper slow % per level — Rulebook §5.5 */
+export const ICE_SNIPER_SLOW: ReadonlyArray<number> = [
+  0.20, 0.20, 0.20, 0.20, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70,
+]
+
+/** ICE Sniper fire cooldown per level — Rulebook §5.5 */
+export const ICE_SNIPER_COOLDOWN: ReadonlyArray<number> = [
+  180, 180, 180, 180, 180, 168, 156, 144, 132, 120,
+]
+
+/** ICE Sniper min range — Rulebook §5.5.2 */
+export const ICE_SNIPER_MIN_RANGE = 3
+
+/** ICE Sniper max range — Rulebook §5.5 */
+export const ICE_SNIPER_MAX_RANGE = 5
+
+/** ICE Sniper slow duration ticks — Rulebook §5.5.3 */
+export const ICE_SNIPER_SLOW_TICKS = 120
+
+/**
+ * Blackwall Tower cost table — Rulebook §5.6
+ */
+export const BLACKWALL_TOWER_COST: ReadonlyArray<readonly [number, number]> = [
+  [0, 20],    // L1
+  [0, 40],    // L2
+  [0, 80],    // L3
+  [0, 160],   // L4
+  [0, 320],   // L5
+  [0, 640],   // L6
+  [0, 1280],  // L7
+  [0, 2560],  // L8
+  [0, 5120],  // L9
+  [0, 10240], // L10
+]
+
+/** Blackwall Tower HP per level — Rulebook §5.6 */
+export const BLACKWALL_TOWER_HP: ReadonlyArray<number> = [
+  1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
+]
+
+/** Blackwall Tower damage to gateway per tick per level — Rulebook §5.6.2 */
+export const BLACKWALL_TOWER_DPT: ReadonlyArray<number> = Array.from(
+  { length: 10 },
+  (_, i) => (1000 / 7200) * (i + 1),
+)
+
+/** Blackwall Tower passive damage taken from gateway per tick — Rulebook §5.6.6 */
+export const BLACKWALL_PASSIVE_DPT = 1000 / 7200
+
+/** Blackwall repair cost (full restore) — Rulebook §5.6.7 */
+export const BLACKWALL_REPAIR_COMPONENTS = 10
+
+/**
+ * Ping Tower cost table — Rulebook §5.7
+ */
+export const PING_TOWER_COST: ReadonlyArray<readonly [number, number]> = [
+  [0, 2],     // L1
+  [0, 4],     // L2
+  [0, 8],     // L3
+  [0, 16],    // L4
+  [0, 32],    // L5
+  [0, 64],    // L6
+  [0, 128],   // L7
+  [0, 256],   // L8
+  [0, 512],   // L9
+  [0, 1024],  // L10
+]
+
+/** Ping Tower range per level — Rulebook §5.7 */
+export const PING_TOWER_RANGE: ReadonlyArray<number> = [
+  3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+]
+
+/**
+ * Harvester cost table — Rulebook §5.8
+ */
+export const HARVESTER_COST: ReadonlyArray<readonly [number, number]> = [
+  [0, 2],    // L1
+  [0, 4],    // L2
+  [0, 8],    // L3
+  [0, 16],   // L4
+  [0, 32],   // L5
+  [0, 64],   // L6
+  [0, 128],  // L7
+  [0, 256],  // L8
+  [0, 512],  // L9
+  [0, 1024], // L10
+]
+
+/** Harvester Eddie generation per tick per level — Rulebook §5.8 */
+export const HARVESTER_EDDIES_PER_TICK: ReadonlyArray<number> = [
+  1 / 60, 2 / 60, 3 / 60, 4 / 60, 5 / 60,
+  6 / 60, 7 / 60, 8 / 60, 9 / 60, 10 / 60,
+]
+
+/** Harvester Component generation per tick (from level 3) — Rulebook §5.8.2 */
+export const HARVESTER_COMPONENTS_PER_TICK: ReadonlyArray<number> = [
+  0, 0, 1 / 600, 2 / 600, 3 / 600,
+  4 / 600, 5 / 600, 6 / 600, 7 / 600, 8 / 600,
+]
+
+// ---------------------------------------------------------------------------
+// §7 — Enemies
+// ---------------------------------------------------------------------------
+
+/** Rulebook §7.1 — Data Leech base stats */
+export const ENEMY_DATA_LEECH = {
+  damage: 5,
+  health: 10,
+  speedPerSec: 0.5,
+  tierMultiplier: 1,
+} as const
+
+/** Rulebook §7.2 — Code Runner base stats */
+export const ENEMY_CODE_RUNNER = {
+  damage: 10,
+  health: 5,
+  speedPerSec: 1.0,
+  tierMultiplier: 2,
+} as const
+
+/** Rulebook §7.3 — Firewall Breacher base stats */
+export const ENEMY_FIREWALL_BREACHER = {
+  damage: 20,
+  health: 50,
+  speedPerSec: 0.5,
+  tierMultiplier: 3,
+} as const
+
+/** Rulebook §7.4 — Glitch base stats */
+export const ENEMY_GLITCH = {
+  damage: 20,
+  health: 50,
+  speedPerSec: 0.5,
+  tierMultiplier: 4,
+} as const
+
+/** Rulebook §7.5 — Orchestrator base stats */
+export const ENEMY_ORCHESTRATOR = {
+  damage: 100,
+  health: 200,
+  speedPerSec: 0.5,
+  tierMultiplier: 5,
+} as const
+
+/** Rulebook §7.6 — VDB Netrunner base stats */
+export const ENEMY_VDB_NETRUNNER = {
+  damage: 30,
+  health: 750,
+  speedPerSec: 0.5,
+  tierMultiplier: 6,
+} as const
+
+/** Rulebook §7.7 — Saboteur base stats */
+export const ENEMY_SABOTEUR = {
+  damage: 20,
+  health: 500,
+  speedPerSec: 0.5,
+  tierMultiplier: 7,
+  disableRadius: 1,
+  disableDuration: 300,
+  disableCooldown: 600,
+} as const
+
+/** Rulebook §7.8 — AI Overlord base stats */
+export const ENEMY_AI_OVERLORD = {
+  damage: 50,
+  health: 1000,
+  speedPerSec: 0.5,
+  tierMultiplier: 8,
+  phaseDuration: 1800,
+} as const
+
+/** Rulebook §8.4.1 — wave stat scaling formula */
+export function waveScaling(baseStat: number, wave: number): number {
+  return baseStat * (1 + 0.1 * wave)
+}
+
+// ---------------------------------------------------------------------------
+// §8 — Waves
+// ---------------------------------------------------------------------------
+
+/** Rulebook §8.2.3 — break duration formula */
+export function breakDuration(wave: number): number {
+  if (wave < 10) return Infinity  // manual start (§8.2.1)
+  const raw = 1800 - (wave - 10) * (1740 / 30)
+  return Math.max(60, Math.floor(raw))
+}
+
+/** Rulebook §8.3.1 — skip bonus duration */
+export const SKIP_BONUS_TICKS = 600
+
+/** Rulebook §8.3.1 — skip bonus multiplier */
+export const SKIP_BONUS_MULTIPLIER = 2
+
+/** Rulebook §9.2.9 — Gateway HP */
+export const GATEWAY_HP = 10000
