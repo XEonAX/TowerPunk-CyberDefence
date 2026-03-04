@@ -29,9 +29,16 @@ import {
   GATEWAY_HP,
   SKIP_BONUS_TICKS,
   ICE_SNIPER_MIN_RANGE,
+  ICE_SNIPER_MAX_RANGE,
+  ICE_SNIPER_SLOW_TICKS,
+  ICE_SNIPER_DAMAGE,
+  ICE_SNIPER_SLOW,
+  ICE_SNIPER_COOLDOWN,
   FIREWALL_STUN_TICKS,
   MAX_TOWER_LEVEL,
   MAX_ABILITY_LEVEL,
+  DAEMON_TURRET_RANGE,
+  DAEMON_TURRET_HP,
 } from '../constants'
 
 describe('Rulebook §1.8 — simulation rate', () => {
@@ -126,4 +133,33 @@ describe('Rulebook §8 — wave formulas', () => {
 
 describe('Rulebook §9.2.9 — Gateway HP', () => {
   it('GATEWAY_HP === 10000', () => expect(GATEWAY_HP).toBe(10000))
+})
+
+describe('Rulebook §5.4 — Daemon Turret range', () => {
+  it('DAEMON_TURRET_RANGE has 10 entries (one per level)', () =>
+    expect(DAEMON_TURRET_RANGE.length).toBe(10))
+  it('DAEMON_TURRET_RANGE[0] === 1 (range stays 1 tile at L1)', () =>
+    expect(DAEMON_TURRET_RANGE[0]).toBe(1))
+  it('DAEMON_TURRET_RANGE[9] === 1 (range stays 1 tile at L10)', () =>
+    expect(DAEMON_TURRET_RANGE[9]).toBe(1))
+  it('DAEMON_TURRET_HP[0] === 100 (§5.4: 100 HP at L1)', () =>
+    expect(DAEMON_TURRET_HP[0]).toBe(100))
+})
+
+describe('Rulebook §5.5 — ICE Sniper stats', () => {
+  it('ICE_SNIPER_MAX_RANGE === 5', () => expect(ICE_SNIPER_MAX_RANGE).toBe(5))
+  it('ICE_SNIPER_SLOW_TICKS === 120 (§5.5.3: 2 seconds)', () =>
+    expect(ICE_SNIPER_SLOW_TICKS).toBe(120))
+  it('ICE_SNIPER_DAMAGE[0] === 50 (L1 base damage)', () =>
+    expect(ICE_SNIPER_DAMAGE[0]).toBe(50))
+  it('ICE_SNIPER_DAMAGE[9] === 90 (L10 damage)', () =>
+    expect(ICE_SNIPER_DAMAGE[9]).toBe(90))
+  it('ICE_SNIPER_SLOW[0] === 0.20 (20% at L1)', () =>
+    expect(ICE_SNIPER_SLOW[0]).toBeCloseTo(0.20))
+  it('ICE_SNIPER_SLOW[9] === 0.70 (70% at L10)', () =>
+    expect(ICE_SNIPER_SLOW[9]).toBeCloseTo(0.70))
+  it('ICE_SNIPER_COOLDOWN[0] === 180 (§5.5: 180 ticks at L1)', () =>
+    expect(ICE_SNIPER_COOLDOWN[0]).toBe(180))
+  it('ICE_SNIPER_COOLDOWN[9] === 120 (L10 cooldown)', () =>
+    expect(ICE_SNIPER_COOLDOWN[9]).toBe(120))
 })

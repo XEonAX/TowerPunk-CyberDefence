@@ -154,6 +154,10 @@ export interface World {
   // --- Stun component ---
   stunTicks: Uint32Array        // remaining ticks (0 = no stun)
 
+  // --- Tower disable (§7.7 Saboteur) ---
+  /** Remaining disable ticks per entity. 0 = not disabled. */
+  towerDisableTicks: Uint32Array
+
   // --- Pickup component ---
   pickupEddies: Float32Array
   pickupComponents: Float32Array
@@ -191,6 +195,8 @@ export interface World {
   // --- Grid state ---
   /** Blocked tile map (0 = empty, tower type+1 = occupied). GRID_SIZE×GRID_SIZE. */
   gridBlocked: Uint8Array
+  /** Tower type per tile (0 = empty). Used by flowfield for Glitch passability. */
+  gridTowerType: Uint8Array
 
   // --- Flowfield arrays (Tech.md §5.4) ---
   /** Standard flowfield cost — Uint16Array[GRID_SIZE×GRID_SIZE] */
@@ -324,6 +330,8 @@ export function createWorld(seed: number = 12345): World {
 
     stunTicks: new Uint32Array(N),
 
+    towerDisableTicks: new Uint32Array(N),
+
     pickupEddies: new Float32Array(N),
     pickupComponents: new Float32Array(N),
     pickupDecayPerTick: new Float32Array(N),
@@ -352,6 +360,7 @@ export function createWorld(seed: number = 12345): World {
     blackwallDamagePerTick: new Float32Array(N),
 
     gridBlocked: new Uint8Array(G),
+    gridTowerType: new Uint8Array(G),
 
     flowCost: new Uint16Array(G),
     flowDir: new Uint8Array(G),

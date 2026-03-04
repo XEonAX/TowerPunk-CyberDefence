@@ -178,6 +178,11 @@ export const DAEMON_TURRET_COST: ReadonlyArray<readonly [number, number]> = [
   [0, 2560],  // L10
 ]
 
+/** Daemon Turret HP per level — Rulebook §5.4 (+100 HP per level) */
+export const DAEMON_TURRET_HP: ReadonlyArray<number> = [
+  100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+]
+
 /** Daemon Turret fire cooldown per level — Rulebook §5.4 */
 export const DAEMON_TURRET_COOLDOWN: ReadonlyArray<number> = [
   120, 120, 120, 120, 120, 108, 96, 84, 72, 60,
@@ -194,6 +199,14 @@ export const DAEMON_TURRET_ROT_SPEED: ReadonlyArray<number> = [
 ]
 
 /**
+ * Daemon Turret range per level — Rulebook §5.4
+ * Stays at 1 tile across all levels (upgrade table shows no range increase).
+ */
+export const DAEMON_TURRET_RANGE: ReadonlyArray<number> = [
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+]
+
+/**
  * ICE Sniper cost table — Rulebook §5.5
  */
 export const ICE_SNIPER_COST: ReadonlyArray<readonly [number, number]> = [
@@ -207,6 +220,16 @@ export const ICE_SNIPER_COST: ReadonlyArray<readonly [number, number]> = [
   [0, 960],   // L8
   [0, 1920],  // L9
   [0, 3840],  // L10
+]
+
+/** ICE Sniper HP per level — Rulebook §5.5 (+100 HP per level) */
+export const ICE_SNIPER_HP: ReadonlyArray<number> = [
+  100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+]
+
+/** ICE Sniper rotation speed per level (deg/tick) — Rulebook §5.5 */
+export const ICE_SNIPER_ROT_SPEED: ReadonlyArray<number> = [
+  0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0, 2.0,
 ]
 
 /** ICE Sniper damage per level — Rulebook §5.5 */
@@ -282,6 +305,11 @@ export const PING_TOWER_COST: ReadonlyArray<readonly [number, number]> = [
   [0, 1024],  // L10
 ]
 
+/** Ping Tower HP per level — Rulebook §5.7 (+100 HP per level) */
+export const PING_TOWER_HP: ReadonlyArray<number> = [
+  100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+]
+
 /** Ping Tower range per level — Rulebook §5.7 */
 export const PING_TOWER_RANGE: ReadonlyArray<number> = [
   3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
@@ -301,6 +329,11 @@ export const HARVESTER_COST: ReadonlyArray<readonly [number, number]> = [
   [0, 256],  // L8
   [0, 512],  // L9
   [0, 1024], // L10
+]
+
+/** Harvester HP per level — Rulebook §5.8 (+100 HP per level) */
+export const HARVESTER_HP: ReadonlyArray<number> = [
+  100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
 ]
 
 /** Harvester Eddie generation per tick per level — Rulebook §5.8 */
