@@ -9,6 +9,12 @@ import { Graphics, Container } from 'pixi.js'
 import type { World } from '@game/ecs/world'
 import * as C from '@game/ecs/component'
 import { TILE_SIZE } from '../camera'
+import {
+  DATA_SPIKE_RANGE,
+  DAEMON_TURRET_RANGE,
+  ICE_SNIPER_MIN_RANGE,
+  ICE_SNIPER_MAX_RANGE,
+} from '@game/constants'
 
 /** Rulebook §5 — placeholder colors per tower type */
 const TOWER_COLORS: Record<number, number> = {
@@ -32,6 +38,9 @@ const active = new Map<number, Graphics>() // eid → Graphics
 // Dedicated Graphics for the Core (not a tower, rendered separately)
 let coreGfx: Graphics | null = null
 
+// Dedicated Graphics for range circle overlay
+let rangeGfx: Graphics | null = null
+
 function acquire(): Graphics {
   return pool.pop() ?? new Graphics()
 }
@@ -43,12 +52,28 @@ function release(g: Graphics): void {
 }
 
 /**
- * Update tower layer each render frame.
- * @param container  The PixiJS Container for this layer.
- * @param world      Current ECS world (read-only in renderer).
- * @param _alpha     Interpolation factor — towers don't interpolate position.
+ * Return the attack range in tiles for a tower, or null if it has no range.
+ * ICE_SNIPER returns [min, max] as a tuple.
  */
-export function updateTowerLayer(container: Container, world: World, _alpha: number): void {
+function getTowerRange(world: World, eid: number): number | [number, number] | null {
+  const towerType = world.towerType[eid]
+  const level = Math.max(0, Math.min(9, (world.towerLevel[eid] ?? 1) - 1))
+  switch (towerType) {
+    case C.TowerType.DATA_SPIKE:   return DATA_SPIKE_RANGE[level] ?? 2
+    case C.TowerType.DAEMON_TURRET: return DAEMON_TURRET_RANGE[level] ?? 1
+    case C.TowerType.ICE_SNIPER:   return [ICE_SNIPER_MIN_RANGE, ICE_SNIPER_MAX_RANGE]
+    default: return null
+  }
+}
+
+/**
+ * Update tower layer each render frame.
+ * @param container   The PixiJS Container for this layer.
+ * @param world       Current ECS world (read-only in renderer).
+ * @param _alpha      Interpolation factor — towers don't interpolate position.
+ * @param selectedEid Entity ID of the currently selected tower, or null.
+ */
+export function updateTowerLayer(container: Container, world: World, _alpha: number, selectedEid: number | null = null): void {
   // Release Graphics for removed towers / gateways
   const toRelease: number[] = []
   for (const [eid, g] of active) {
@@ -146,6 +171,52 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
     coreGfx.x = world.posX[ceid] * TILE_SIZE
     coreGfx.y = world.posY[ceid] * TILE_SIZE
   }
+
+  // Range circle overlay for selected tower
+  if (!rangeGfx) {
+    rangeGfx = new Graphics()
+    container.addChild(rangeGfx)
+  }
+  rangeGfx.clear()
+
+  if (
+    selectedEid !== null &&
+    selectedEid > 0 &&
+    (world.bitmask[selectedEid] & C.TOWER) !== 0 &&
+    (world.bitmask[selectedEid] & C.PENDING_REMOVAL) === 0
+  ) {
+    const cx = (world.posX[selectedEid] + 0.5) * TILE_SIZE
+    const cy = (world.posY[selectedEid] + 0.5) * TILE_SIZE
+    const range = getTowerRange(world, selectedEid)
+
+    if (range !== null) {
+      if (Array.isArray(range)) {
+        // ICE_SNIPER — min dead-zone (dashed inner) + max range circle
+        const [minR, maxR] = range
+        // Outer range
+        rangeGfx.setStrokeStyle({ width: 1, color: 0xaaddff, alpha: 0.6 })
+        rangeGfx.circle(cx, cy, (maxR + 0.5) * TILE_SIZE)
+        rangeGfx.stroke()
+        // Inner dead-zone
+        rangeGfx.setStrokeStyle({ width: 1, color: 0xff4444, alpha: 0.45 })
+        rangeGfx.circle(cx, cy, (minR - 0.5) * TILE_SIZE)
+        rangeGfx.stroke()
+        // Dim fill between min and max
+        rangeGfx.setFillStyle({ color: 0xaaddff, alpha: 0.05 })
+        rangeGfx.circle(cx, cy, (maxR + 0.5) * TILE_SIZE)
+        rangeGfx.fill()
+      } else {
+        // Standard range circle
+        const towerColor = TOWER_COLORS[world.towerType[selectedEid]] ?? 0xffffff
+        rangeGfx.setFillStyle({ color: towerColor, alpha: 0.07 })
+        rangeGfx.circle(cx, cy, (range + 0.5) * TILE_SIZE)
+        rangeGfx.fill()
+        rangeGfx.setStrokeStyle({ width: 1, color: towerColor, alpha: 0.55 })
+        rangeGfx.circle(cx, cy, (range + 0.5) * TILE_SIZE)
+        rangeGfx.stroke()
+      }
+    }
+  }
 }
 
 /** @internal — exported for testing only */
@@ -153,4 +224,5 @@ export function _clearTowerPool(): void {
   active.clear()
   pool.length = 0
   coreGfx = null
+  rangeGfx = null
 }

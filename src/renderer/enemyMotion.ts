@@ -125,8 +125,8 @@ export function computeEnemyMotion(
 
       // Interpolate around the arc
       let angleDelta = endAngle - startAngle
-      if (moveState === MOVE_TURN_RIGHT && angleDelta > 0) angleDelta -= Math.PI * 2
-      if (moveState === MOVE_TURN_LEFT && angleDelta < 0) angleDelta += Math.PI * 2
+      if (moveState === MOVE_TURN_RIGHT && angleDelta < 0) angleDelta += Math.PI * 2
+      if (moveState === MOVE_TURN_LEFT && angleDelta > 0) angleDelta -= Math.PI * 2
 
       const arcAngle = startAngle + angleDelta * t
       const radius = TILE_SIZE * 0.5

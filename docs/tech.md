@@ -629,10 +629,10 @@ export const GRID_SIZE = 51;
 export const SPAWN_IMMUNITY_TICKS = 30;
 
 /** Rulebook §4.3.1 — Starting Eddies. */
-export const INITIAL_EDDIES = 400;
+export const INITIAL_EDDIES = 500;
 
 /** Rulebook §4.3.1 — Starting Components. */
-export const INITIAL_COMPONENTS = 3;
+export const INITIAL_COMPONENTS = 5;
 
 /** Rulebook §2.10.8 — Arc distance for 90° turn (¼ circle, radius 0.5). */
 export const QUARTER_ARC_DISTANCE = Math.PI * 0.25; // ≈ 0.785

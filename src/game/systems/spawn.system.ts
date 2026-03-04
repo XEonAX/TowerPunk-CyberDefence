@@ -11,6 +11,7 @@
 import { GamePhase, createEnemy, type World } from '../ecs/world'
 import * as C from '../ecs/component'
 import { SPAWN_INTERVAL_TICKS } from '../wave'
+import { DIR_DX, DIR_DY } from './movement.system'
 import {
   SPAWN_IMMUNITY_TICKS,
   waveScaling,
@@ -113,8 +114,10 @@ export function spawnEnemyAtTile(
   world.pathPrevDir[eid] = dir
   world.pathFromX[eid]   = x
   world.pathFromY[eid]   = y
-  world.pathToX[eid]     = x
-  world.pathToY[eid]     = y
+  // toX/Y = first tile the enemy will enter (one step ahead from spawn)
+  world.pathToX[eid]     = dir !== 0xff ? x + DIR_DX[dir] : x
+  world.pathToY[eid]     = dir !== 0xff ? y + DIR_DY[dir] : y
+  world.pathMoveState[eid] = C.MoveState.INTRO
 
   world.enemyType[eid]   = enemyType
   world.enemyTier[eid]   = base.tierMultiplier
@@ -177,8 +180,10 @@ function spawnOneEnemy(world: World): void {
   world.pathPrevDir[eid]  = dir
   world.pathFromX[eid]    = gx
   world.pathFromY[eid]    = gy
-  world.pathToX[eid]      = gx
-  world.pathToY[eid]      = gy
+  // toX/Y = first tile the enemy will enter (one step ahead from gateway)
+  world.pathToX[eid]      = dir !== 0xff ? gx + DIR_DX[dir] : gx
+  world.pathToY[eid]      = dir !== 0xff ? gy + DIR_DY[dir] : gy
+  world.pathMoveState[eid] = C.MoveState.INTRO
 
   // Enemy component data
   world.enemyType[eid]   = enemyType

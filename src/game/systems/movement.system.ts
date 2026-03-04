@@ -22,8 +22,27 @@ import { idx } from '../pathfinding/grid'
 import { spawnEnemyAtTile } from './spawn.system'
 
 /** Tile delta [dx, dy] for each Dir value (§2.10.5). Dir: N=0, S=1, E=2, W=3. */
-const DIR_DX: readonly number[] = [0, 0, 1, -1]   // N, S, E, W
-const DIR_DY: readonly number[] = [-1, 1, 0, 0]   // N, S, E, W
+export const DIR_DX: readonly number[] = [0, 0, 1, -1]   // N, S, E, W
+export const DIR_DY: readonly number[] = [-1, 1, 0, 0]   // N, S, E, W
+
+/**
+ * Determine the MoveState for an enemy traversing a tile based on the
+ * incoming direction (how it arrived) and outgoing direction (where it goes next).
+ */
+function computeMoveState(inDir: number, outDir: number): number {
+  if (inDir === outDir) return C.MoveState.FORWARD
+  // Right turns (clockwise): N→E, E→S, S→W, W→N
+  if ((inDir === 0 && outDir === 2) || (inDir === 2 && outDir === 1) ||
+      (inDir === 1 && outDir === 3) || (inDir === 3 && outDir === 0)) {
+    return C.MoveState.TURN_RIGHT
+  }
+  // Left turns (counter-clockwise): N→W, W→S, S→E, E→N
+  if ((inDir === 0 && outDir === 3) || (inDir === 3 && outDir === 1) ||
+      (inDir === 1 && outDir === 2) || (inDir === 2 && outDir === 0)) {
+    return C.MoveState.TURN_LEFT
+  }
+  return C.MoveState.TURN_AROUND
+}
 
 export function movementSystem(world: World): void {
   // Iterate all possible entity slots; alive entities have non-zero bitmask.
@@ -104,13 +123,24 @@ export function movementSystem(world: World): void {
         }
       }
 
+      // Look up flowfield at the newly entered tile to get exit direction and
+      // exit edge (the tile AFTER current) — used by the renderer for smooth
+      // edge-to-edge interpolation (§2.10.4–2.10.8).
+      const nextTileIndex = idx(nx, ny)
+      const nextDir = isGlitch
+        ? world.glitchDir[nextTileIndex]
+        : world.flowDir[nextTileIndex]
+      const safeNextDir = nextDir !== 0xff ? nextDir : dir
+
       // Update path state for renderer interpolation
-      world.pathPrevDir[eid] = world.pathDir[eid]
-      world.pathDir[eid]     = dir
-      world.pathFromX[eid]   = tx
-      world.pathFromY[eid]   = ty
-      world.pathToX[eid]     = nx
-      world.pathToY[eid]     = ny
+      world.pathPrevDir[eid]    = dir                    // incoming dir (how we arrived at nx,ny)
+      world.pathDir[eid]        = safeNextDir            // outgoing dir (where we leave nx,ny)
+      world.pathFromX[eid]      = tx
+      world.pathFromY[eid]      = ty
+      // toX/Y = tile AFTER current so edgeMidpoint in computeEnemyMotion is correct
+      world.pathToX[eid]        = nx + DIR_DX[safeNextDir]
+      world.pathToY[eid]        = ny + DIR_DY[safeNextDir]
+      world.pathMoveState[eid]  = computeMoveState(dir, safeNextDir)
     }
   }
 }

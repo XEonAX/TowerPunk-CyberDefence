@@ -186,7 +186,7 @@ _Rulebook §1–§10_
   - `CORE_X === 25`, `CORE_Y === 25` (§2.9)
   - `SPAWN_IMMUNITY_TICKS === 30` (§2.10.1)
   - `CORE_STARTING_HP === 100` (§3.3)
-  - `INITIAL_EDDIES === 400`, `INITIAL_COMPONENTS === 3` (§4.3.1)
+  - `INITIAL_EDDIES === 500`, `INITIAL_COMPONENTS === 5` (§4.3.1)
   - Tower cost tables, enemy stat tables, ability stat tables match rulebook values
 - [ ] Define all constants with rulebook cross-reference comments:
   ```typescript

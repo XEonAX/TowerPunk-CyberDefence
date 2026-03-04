@@ -13,8 +13,8 @@ describe('createWorld', () => {
 
   it('starts with correct initial resources (§4.3.1)', () => {
     const world = createWorld()
-    expect(world.eddies).toBe(400)
-    expect(world.components).toBe(3)
+    expect(world.eddies).toBe(500)
+    expect(world.components).toBe(5)
   })
 
   it('creates a Core entity with correct position and HP (§2.3, §3.3)', () => {

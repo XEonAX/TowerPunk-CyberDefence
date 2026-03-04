@@ -57,8 +57,8 @@ describe('Rulebook §3.3 — Core HP', () => {
 })
 
 describe('Rulebook §4.3.1 — initial resources', () => {
-  it('INITIAL_EDDIES === 400', () => expect(INITIAL_EDDIES).toBe(400))
-  it('INITIAL_COMPONENTS === 3', () => expect(INITIAL_COMPONENTS).toBe(3))
+  it('INITIAL_EDDIES === 500', () => expect(INITIAL_EDDIES).toBe(500))
+  it('INITIAL_COMPONENTS === 5', () => expect(INITIAL_COMPONENTS).toBe(5))
 })
 
 describe('Rulebook §5 — tower costs', () => {

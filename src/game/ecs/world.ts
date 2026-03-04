@@ -455,8 +455,8 @@ export function createWorld(seed: number = 12345): World {
     waveSpawnIndex: 0,
     nextSpawnTick: 0,
 
-    eddies: 400,    // Rulebook §4.3.1
-    components: 3,  // Rulebook §4.3.1
+    eddies: 500,    // Rulebook §4.3.1
+    components: 5,  // Rulebook §4.3.1
 
     commandQueue: [],
 

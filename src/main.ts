@@ -80,7 +80,7 @@ if (container) {
         gameStore.syncFromWorld(world)
         gameStore.syncSelectedTower(world, uiStore.selectedTowerEid)
         // Update render layers
-        updateTowerLayer(layers.towers, world, alpha)
+        updateTowerLayer(layers.towers, world, alpha, uiStore.selectedTowerEid)
         updateEnemyLayer(layers.enemies, world, alpha)
         updatePickupLayer(layers.pickups, world, alpha)
         updateGhostLayer(layers.ghost, world, uiStore.hoveredTileX, uiStore.hoveredTileY, uiStore.selectedTowerType)

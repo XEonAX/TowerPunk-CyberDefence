@@ -169,7 +169,7 @@
 
 ### 4.3. **Initial Resources**
 
-## 4.3.1. The player starts with **400 Eddies** and **3 Components** at the beginning of the game.
+## 4.3.1. The player starts with **500 Eddies** and **5 Components** at the beginning of the game.
 
 ## 5. Towers
 
