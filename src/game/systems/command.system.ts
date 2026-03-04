@@ -6,12 +6,14 @@
  * from the UI layer (Tech.md §3 three-layer separation).
  *
  * Supported commands:
- *   PLACE_TOWER     §5      place a new tower on the grid
- *   PLACE_FIREWALL  §5.2    place a linked firewall pair
- *   UPGRADE_TOWER   §5.0.5  upgrade an existing tower by one level
- *   DISMANTLE_TOWER §4.2.6  remove a tower, optional component refund
- *   SKIP_BREAK      §8.3    skip the remaining break time for a bonus
- *   START_WAVE      §8.2.1  start the first wave from PRE_GAME phase
+ *   PLACE_TOWER       §5      place a new tower on the grid
+ *   PLACE_FIREWALL    §5.2    place a linked firewall pair
+ *   UPGRADE_TOWER     §5.0.5  upgrade an existing tower by one level
+ *   ACTIVATE_ABILITY  §6      activate a tower's unlocked ability
+ *   UPGRADE_ABILITY   §6.0.2  upgrade an ability by one level
+ *   DISMANTLE_TOWER   §4.2.6  remove a tower, optional component refund
+ *   SKIP_BREAK        §8.3    skip the remaining break time for a bonus
+ *   START_WAVE        §8.2.1  start the first wave from PRE_GAME phase
  */
 import type { World } from '../ecs/world'
 import {
@@ -23,6 +25,8 @@ import {
   type PlaceTowerCommand,
   type PlaceFirewallCommand,
   type UpgradeTowerCommand,
+  type ActivateAbilityCommand,
+  type UpgradeAbilityCommand,
   type DismantleTowerCommand,
 } from '../ecs/world'
 import * as C from '../ecs/component'
@@ -30,9 +34,13 @@ import type { ReadonlyGrid } from '../pathfinding/grid'
 import { isEdgeTile, idx } from '../pathfinding/grid'
 import { canPlaceTower, canPlaceFirewallPair } from '../pathfinding/placement'
 import { computeDualFlowfields } from '../pathfinding/flowfield'
+import { queueStun } from './statusQueue.system'
 import {
   MAX_TOWER_LEVEL,
+  MAX_ABILITY_LEVEL,
   SKIP_BONUS_TICKS,
+  ABILITY_UPGRADE_COST,
+  FIREWALL_DPS,
   ICE_WALL_COST,
   ICE_WALL_HP,
   FIREWALL_COST,
@@ -58,6 +66,18 @@ import {
   HARVESTER_HP,
   HARVESTER_EDDIES_PER_TICK,
   HARVESTER_COMPONENTS_PER_TICK,
+  EMP_BLAST_STUN_TICKS_BASE,
+  EMP_BLAST_STUN_TICKS_PER_LEVEL,
+  EMP_BLAST_COOLDOWN_BASE,
+  EMP_BLAST_COOLDOWN_PER_LEVEL,
+  OVERCLOCK_DURATION_TICKS,
+  OVERCLOCK_COOLDOWN_TICKS,
+  OVERCLOCK_MULTIPLIER_BASE,
+  OVERCLOCK_MULTIPLIER_PER_LEVEL,
+  TUNED_COOLDOWN_BASE,
+  TUNED_COOLDOWN_PER_LEVEL,
+  TUNED_COOLDOWN_MIN,
+  ORACLE_MULTIPLIER,
 } from '../constants'
 
 // ---------------------------------------------------------------------------
@@ -107,6 +127,12 @@ export function commandSystem(world: World): void {
       case CommandType.UPGRADE_TOWER:
         _handleUpgradeTower(world, cmd)
         break
+      case CommandType.ACTIVATE_ABILITY:
+        _handleActivateAbility(world, cmd)
+        break
+      case CommandType.UPGRADE_ABILITY:
+        _handleUpgradeAbility(world, cmd)
+        break
       case CommandType.DISMANTLE_TOWER:
         _handleDismantleTower(world, cmd)
         break
@@ -115,9 +141,6 @@ export function commandSystem(world: World): void {
         break
       case CommandType.START_WAVE:
         _handleStartWave(world)
-        break
-      case CommandType.ACTIVATE_ABILITY:
-        // TODO: Phase 9
         break
     }
   }
@@ -358,12 +381,47 @@ function _handleUpgradeTower(world: World, cmd: UpgradeTowerCommand): void {
     world.targetingCooldown[eid] = ICE_SNIPER_COOLDOWN[newLevel - 1]
     world.rotationSpeed[eid]     = ICE_SNIPER_ROT_SPEED[newLevel - 1]
   } else if (tt === C.TowerType.PING) {
-    world.pingRange[eid] = PING_TOWER_RANGE[newLevel - 1]
+    const baseRange = PING_TOWER_RANGE[newLevel - 1]
+    // §6.5 — If Oracle ability is already active, preserve the range multiplier
+    if (
+      (world.bitmask[eid] & C.ABILITY) !== 0 &&
+      world.abilityType[eid] === C.AbilityType.ORACLE &&
+      world.abilityLevel[eid] > 0
+    ) {
+      world.pingRange[eid] = baseRange * (ORACLE_MULTIPLIER[world.abilityLevel[eid] - 1] ?? 1.0)
+    } else {
+      world.pingRange[eid] = baseRange
+    }
   } else if (tt === C.TowerType.HARVESTER) {
     world.harvesterEddiesPerTick[eid]     = HARVESTER_EDDIES_PER_TICK[newLevel - 1]
     world.harvesterComponentsPerTick[eid] = HARVESTER_COMPONENTS_PER_TICK[newLevel - 1]
   } else if (tt === C.TowerType.BLACKWALL) {
     world.blackwallDamagePerTick[eid] = BLACKWALL_TOWER_DPT[newLevel - 1]
+  }
+
+  // §6.0.1 — Unlock ability flag at tower level 5
+  if (newLevel === 5) {
+    world.bitmask[eid] |= C.ABILITY
+    world.abilityLevel[eid] = 0  // unlocked but not yet upgraded
+    switch (tt) {
+      case C.TowerType.ICE_WALL:
+        world.abilityType[eid] = C.AbilityType.EMP_BLAST
+        break
+      case C.TowerType.FIREWALL:
+        world.abilityType[eid] = C.AbilityType.TUNED
+        break
+      case C.TowerType.DATA_SPIKE:
+      case C.TowerType.DAEMON_TURRET:
+      case C.TowerType.ICE_SNIPER:
+      case C.TowerType.HARVESTER:
+        world.abilityType[eid] = C.AbilityType.OVERCLOCK
+        break
+      case C.TowerType.PING:
+        // Default to ORACLE; player may switch to BOOSTED via a dedicated command
+        world.abilityType[eid] = C.AbilityType.ORACLE
+        break
+      // BLACKWALL: no ability
+    }
   }
 }
 
@@ -443,4 +501,127 @@ function _handleStartWave(world: World): void {
   if (world.currentPhase !== GamePhase.PRE_GAME) return
   world.currentPhase        = GamePhase.WAVE_BREAK
   world.breakTicksRemaining = 1800  // 30 s — eventSystem picks this up
+}
+
+// ---------------------------------------------------------------------------
+// §6 — Ability handlers
+// ---------------------------------------------------------------------------
+
+/**
+ * §6 — Activate a tower's ability.
+ * Abilities are unlocked at level 5 and must be upgraded at least once before
+ * activation. Passive abilities (BOOSTED, ORACLE) cannot be activated.
+ */
+function _handleActivateAbility(world: World, cmd: ActivateAbilityCommand): void {
+  const { eid } = cmd
+  const mask = world.bitmask[eid]
+
+  if ((mask & C.ABILITY) === 0) return
+  if ((mask & C.PENDING_REMOVAL) !== 0) return
+  // Ability must be upgraded at least once before it can be activated (§6.0.2)
+  if (world.abilityLevel[eid] === 0) return
+  // Check cooldown
+  if (world.abilityCooldown[eid] > 0) return
+
+  const abilityType  = world.abilityType[eid]
+  const abilityLevel = world.abilityLevel[eid]
+
+  switch (abilityType) {
+    case C.AbilityType.EMP_BLAST: {
+      // §6.1 — Stun all enemies within ICE Wall's adjacent range (Chebyshev 1)
+      const stunDuration =
+        EMP_BLAST_STUN_TICKS_BASE + (abilityLevel - 1) * EMP_BLAST_STUN_TICKS_PER_LEVEL
+      const tx    = world.posX[eid] | 0
+      const ty    = world.posY[eid] | 0
+      const range = 1  // ICE Wall acts on adjacent tiles (§5.1.1)
+      const N     = world.bitmask.length
+      for (let enemyEid = 1; enemyEid < N; enemyEid++) {
+        const em = world.bitmask[enemyEid]
+        if ((em & C.ENEMY) === 0) continue
+        if ((em & C.PENDING_REMOVAL) !== 0) continue
+        if ((em & C.SPAWN_IMMUNITY) !== 0) continue
+        // §6.1.3 — Data Leech (and any stun-immune enemy) is immune
+        if ((world.immunityFlags[enemyEid] & C.IMMUNE_STUN) !== 0) continue
+        if (_chebyshev(world.tilePosX[enemyEid], world.tilePosY[enemyEid], tx, ty) <= range) {
+          queueStun(world, enemyEid, stunDuration)
+        }
+      }
+      // §6.1.5 — Cooldown increases with ability level
+      world.abilityCooldown[eid] =
+        EMP_BLAST_COOLDOWN_BASE + (abilityLevel - 1) * EMP_BLAST_COOLDOWN_PER_LEVEL
+      break
+    }
+
+    case C.AbilityType.OVERCLOCK: {
+      // §6.2 — Temporarily boost fire rate / Eddie generation
+      const multiplier =
+        OVERCLOCK_MULTIPLIER_BASE + (abilityLevel - 1) * OVERCLOCK_MULTIPLIER_PER_LEVEL
+      world.overclockActive[eid]     = 1
+      world.overclockTicks[eid]      = OVERCLOCK_DURATION_TICKS
+      world.overclockMultiplier[eid] = multiplier
+      world.abilityCooldown[eid]     = OVERCLOCK_COOLDOWN_TICKS
+      break
+    }
+
+    case C.AbilityType.TUNED: {
+      // §6.3.2 — Switch the target enemy type; recompute damage bonus
+      if (cmd.targetType !== undefined) {
+        world.tunedTargetType[eid] = cmd.targetType
+        const towerLvl      = world.towerLevel[eid]
+        const firewallDps   = FIREWALL_DPS[towerLvl - 1] ?? FIREWALL_DPS[0]
+        const bonusMult     = 1.0 + 0.25 * (abilityLevel - 1)
+        world.tunedDamageBonus[eid] = firewallDps * bonusMult
+      }
+      world.abilityCooldown[eid] = Math.max(
+        TUNED_COOLDOWN_MIN,
+        TUNED_COOLDOWN_BASE - (abilityLevel - 1) * TUNED_COOLDOWN_PER_LEVEL,
+      )
+      break
+    }
+
+    // BOOSTED (§6.4) and ORACLE (§6.5) are permanent passives — no activation
+    case C.AbilityType.BOOSTED:
+    case C.AbilityType.ORACLE:
+      break
+  }
+}
+
+/**
+ * §6.0.2 — Spend Components to upgrade an unlocked ability by one level.
+ * Applies permanent effects for ORACLE (range increase) and TUNED (damage recalc).
+ */
+function _handleUpgradeAbility(world: World, cmd: UpgradeAbilityCommand): void {
+  const { eid } = cmd
+  const mask = world.bitmask[eid]
+
+  if ((mask & C.ABILITY) === 0) return
+  if ((mask & C.PENDING_REMOVAL) !== 0) return
+
+  const currentLevel = world.abilityLevel[eid]
+  if (currentLevel >= MAX_ABILITY_LEVEL) return  // §6.0.4 — max level 5
+
+  // Cost at currentLevel (0 = unlock first level, 1 = upgrade to L2, …)
+  const cost = ABILITY_UPGRADE_COST[currentLevel]
+  if (world.components < cost) return
+
+  world.components -= cost
+  const newLevel = currentLevel + 1
+  world.abilityLevel[eid] = newLevel
+
+  const abilityType = world.abilityType[eid]
+
+  // §6.5 — Oracle: permanently extend Ping Tower's range
+  if (abilityType === C.AbilityType.ORACLE) {
+    const towerLvl   = world.towerLevel[eid]
+    const baseRange  = PING_TOWER_RANGE[towerLvl - 1] ?? PING_TOWER_RANGE[0]
+    world.pingRange[eid] = baseRange * (ORACLE_MULTIPLIER[newLevel - 1] ?? 1.0)
+  }
+
+  // §6.3 — Tuned: recompute damage bonus when ability is upgraded
+  if (abilityType === C.AbilityType.TUNED) {
+    const towerLvl    = world.towerLevel[eid]
+    const firewallDps = FIREWALL_DPS[towerLvl - 1] ?? FIREWALL_DPS[0]
+    const bonusMult   = 1.0 + 0.25 * (newLevel - 1)
+    world.tunedDamageBonus[eid] = firewallDps * bonusMult
+  }
 }

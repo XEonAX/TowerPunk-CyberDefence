@@ -15,10 +15,11 @@
  * factors) are rendering-only concerns handled in renderer/enemyMotion.ts.
  */
 
-import { markForRemoval, type World } from '../ecs/world'
+import { markForRemoval, spawnInteriorGateway, type World } from '../ecs/world'
 import * as C from '../ecs/component'
-import { CORE_X, CORE_Y, TICK_RATE } from '../constants'
+import { CORE_X, CORE_Y, TICK_RATE, AI_OVERLORD_SPAWN_EVERY_N_TILES } from '../constants'
 import { idx } from '../pathfinding/grid'
+import { spawnEnemyAtTile } from './spawn.system'
 
 /** Tile delta [dx, dy] for each Dir value (§2.10.5). Dir: N=0, S=1, E=2, W=3. */
 const DIR_DX: readonly number[] = [0, 0, 1, -1]   // N, S, E, W
@@ -85,6 +86,23 @@ export function movementSystem(world: World): void {
       // Update tile position (§2.10.3: enemy is "on" the tile it last entered)
       world.tilePosX[eid] = nx
       world.tilePosY[eid] = ny
+
+      // §7.8.2/7.8.4/7.8.6: AI Overlord spawns an entity every 5 tiles walked
+      if (world.enemyType[eid] === C.EnemyType.AI_OVERLORD) {
+        world.aiOverlordTilesTraveled[eid]++
+        if (world.aiOverlordTilesTraveled[eid] % AI_OVERLORD_SPAWN_EVERY_N_TILES === 0) {
+          const phase  = world.aiOverlordPhase[eid]
+          const spawnX = world.tilePosX[eid]
+          const spawnY = world.tilePosY[eid]
+          if (phase === 1) {
+            spawnInteriorGateway(world, spawnX, spawnY)         // §7.8.2
+          } else if (phase === 2) {
+            spawnEnemyAtTile(world, C.EnemyType.GLITCH, spawnX, spawnY)       // §7.8.4
+          } else if (phase === 3) {
+            spawnEnemyAtTile(world, C.EnemyType.ORCHESTRATOR, spawnX, spawnY) // §7.8.6
+          }
+        }
+      }
 
       // Update path state for renderer interpolation
       world.pathPrevDir[eid] = world.pathDir[eid]

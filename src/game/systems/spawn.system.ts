@@ -79,6 +79,60 @@ export function spawnSystem(world: World): void {
   }
 }
 
+/**
+ * Spawn an enemy of the given type at a specific tile using current-wave stat scaling.
+ * Used for AI Overlord walk-spawns (§7.8.2, §7.8.4, §7.8.6).
+ */
+export function spawnEnemyAtTile(
+  world: World,
+  enemyType: number,
+  x: number,
+  y: number,
+): void {
+  const base = BASE_STATS[enemyType]
+  if (base === undefined) return
+
+  const wave         = world.currentWave
+  const scaledDamage = waveScaling(base.damage, wave)
+  const scaledHealth = waveScaling(base.health, wave)
+  const scaledSpeed  = waveScaling(base.speedPerSec, wave)
+
+  const eid = createEnemy(world)
+
+  world.tilePosX[eid]     = x
+  world.tilePosY[eid]     = y
+  world.tileProgress[eid] = 0
+
+  world.spawnImmunityTicks[eid] = SPAWN_IMMUNITY_TICKS
+
+  const tileIndex = idx(x, y)
+  const dir = enemyType === C.EnemyType.GLITCH
+    ? world.glitchDir[tileIndex]
+    : world.flowDir[tileIndex]
+  world.pathDir[eid]     = dir
+  world.pathPrevDir[eid] = dir
+  world.pathFromX[eid]   = x
+  world.pathFromY[eid]   = y
+  world.pathToX[eid]     = x
+  world.pathToY[eid]     = y
+
+  world.enemyType[eid]   = enemyType
+  world.enemyTier[eid]   = base.tierMultiplier
+  world.enemyDamage[eid] = scaledDamage
+  world.enemySpeed[eid]  = scaledSpeed
+
+  world.healthMax[eid]     = scaledHealth
+  world.healthCurrent[eid] = scaledHealth
+
+  world.immunityFlags[eid] = IMMUNITY_FLAGS[enemyType] ?? 0
+
+  world.slowMagnitude[eid] = 0
+  world.slowTicks[eid]     = 0
+  world.stunTicks[eid]     = 0
+
+  world.enemiesAlive++
+}
+
 function spawnOneEnemy(world: World): void {
   const enemyType = world.waveEnemyList[world.waveSpawnIndex]
   world.waveSpawnIndex++
@@ -143,6 +197,14 @@ function spawnOneEnemy(world: World): void {
   world.slowMagnitude[eid] = 0
   world.slowTicks[eid]     = 0
   world.stunTicks[eid]     = 0
+
+  // AI Overlord phase initialization (§7.8)
+  if (enemyType === C.EnemyType.AI_OVERLORD) {
+    world.aiOverlordPhase[eid]          = 1
+    world.aiOverlordPhaseStartTick[eid] = world.tickCount
+    world.aiOverlordTilesTraveled[eid]  = 0
+    world.aiOverlordDamageMult[eid]     = 1.0
+  }
 
   world.enemiesAlive++
 }

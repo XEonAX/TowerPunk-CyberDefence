@@ -7,6 +7,7 @@
 
 import { createEntityPool, type EntityPool, type EntityId } from './entity'
 import * as C from './component'
+import { GATEWAY_HP } from '../constants'
 
 /** Rulebook §2.1 */ const GRID_SIZE = 51
 /** Maximum simultaneous entities (enemies + towers + pickups + gateways) */
@@ -24,6 +25,8 @@ export const enum CommandType {
   DISMANTLE_TOWER = 4,
   SKIP_BREAK = 5,
   START_WAVE = 6,
+  /** §6.0.2 — Spend Components to upgrade an unlocked ability by one level. */
+  UPGRADE_ABILITY = 7,
 }
 
 export interface PlaceTowerCommand {
@@ -49,6 +52,13 @@ export interface UpgradeTowerCommand {
 export interface ActivateAbilityCommand {
   type: CommandType.ACTIVATE_ABILITY
   eid: EntityId
+  /** Optional enemy type to tune against — used by TUNED ability switch (§6.3.2) */
+  targetType?: number
+}
+
+export interface UpgradeAbilityCommand {
+  type: CommandType.UPGRADE_ABILITY
+  eid: EntityId
 }
 
 export interface DismantleTowerCommand {
@@ -72,6 +82,7 @@ export type Command =
   | DismantleTowerCommand
   | SkipBreakCommand
   | StartWaveCommand
+  | UpgradeAbilityCommand
 
 // ---------------------------------------------------------------------------
 // Game phase enum
@@ -158,6 +169,20 @@ export interface World {
   /** Remaining disable ticks per entity. 0 = not disabled. */
   towerDisableTicks: Uint32Array
 
+  // --- Saboteur pulse state (§7.7.1) ---
+  /** Tick when each Saboteur last fired its disable pulse (0 = never pulsed). */
+  saboteurPulseTick: Uint32Array
+
+  // --- AI Overlord phase state (§7.8) ---
+  /** Current boss phase (1, 2, or 3). 0 for non-AI Overlord entities. */
+  aiOverlordPhase: Uint8Array
+  /** World tick when the current phase started. */
+  aiOverlordPhaseStartTick: Uint32Array
+  /** Total tiles walked since creation (used for every-5-tile spawning). */
+  aiOverlordTilesTraveled: Uint32Array
+  /** Damage taken multiplier — 1.0 for phases 1 and 2, 1.5 for phase 3 (§7.8.5). */
+  aiOverlordDamageMult: Float32Array
+
   // --- Pickup component ---
   pickupEddies: Float32Array
   pickupComponents: Float32Array
@@ -175,6 +200,20 @@ export interface World {
   abilityType: Uint8Array
   abilityLevel: Uint8Array
   abilityCooldown: Float32Array
+
+  // --- Overclock state (§6.2) ---
+  /** 1 = overclock currently active, 0 = inactive */
+  overclockActive: Uint8Array
+  /** Remaining overclock ticks (countdown to 0) */
+  overclockTicks: Uint32Array
+  /** Current fire-rate / generation multiplier while overclocked */
+  overclockMultiplier: Float32Array
+
+  // --- Tuned state (§6.3) ---
+  /** EnemyType that receives the bonus damage (set via ACTIVATE_ABILITY command) */
+  tunedTargetType: Uint8Array
+  /** Bonus DPS applied to enemies matching tunedTargetType */
+  tunedDamageBonus: Float32Array
 
   // --- FirewallLink component ---
   firewallPartner: Uint32Array  // partner entity ID
@@ -225,6 +264,8 @@ export interface World {
   /** List of active gateway entity IDs */
   activeGateways: Uint32Array
   activeGatewayCount: number
+  /** Total gateways ever registered in this game (never decremented). Used for win condition. */
+  totalGatewaysCreated: number
   /** Round-robin index for spawning (Tech.md §3.3.1) */
   spawnGatewayIndex: number
 
@@ -332,6 +373,13 @@ export function createWorld(seed: number = 12345): World {
 
     towerDisableTicks: new Uint32Array(N),
 
+    saboteurPulseTick: new Uint32Array(N),
+
+    aiOverlordPhase: new Uint8Array(N),
+    aiOverlordPhaseStartTick: new Uint32Array(N),
+    aiOverlordTilesTraveled: new Uint32Array(N),
+    aiOverlordDamageMult: new Float32Array(N),
+
     pickupEddies: new Float32Array(N),
     pickupComponents: new Float32Array(N),
     pickupDecayPerTick: new Float32Array(N),
@@ -345,6 +393,13 @@ export function createWorld(seed: number = 12345): World {
     abilityType: new Uint8Array(N),
     abilityLevel: new Uint8Array(N),
     abilityCooldown: new Float32Array(N),
+
+    overclockActive: new Uint8Array(N),
+    overclockTicks: new Uint32Array(N),
+    overclockMultiplier: new Float32Array(N),
+
+    tunedTargetType: new Uint8Array(N),
+    tunedDamageBonus: new Float32Array(N),
 
     firewallPartner: new Uint32Array(N),
     firewallGapX: new Uint8Array(N),
@@ -377,6 +432,7 @@ export function createWorld(seed: number = 12345): World {
 
     activeGateways: new Uint32Array(256),
     activeGatewayCount: 0,
+    totalGatewaysCreated: 0,
     spawnGatewayIndex: 0,
 
     currentWave: 0,
@@ -481,4 +537,23 @@ export function createGateway(world: World): EntityId {
   const eid = world.pool.create()
   world.bitmask[eid] = C.POSITION | C.GATEWAY
   return eid
+}
+
+/**
+ * Create and register a Gateway entity at the given tile.
+ * Used by Orchestrator death (§7.5.1) and AI Overlord movement (§7.8.2).
+ */
+export function spawnInteriorGateway(world: World, x: number, y: number): void {
+  const gwEid = createGateway(world)
+  world.gatewayX[gwEid] = x
+  world.gatewayY[gwEid] = y
+  world.posX[gwEid] = x
+  world.posY[gwEid] = y
+  world.gatewayHp[gwEid] = GATEWAY_HP
+  world.gatewayMaxHp[gwEid] = GATEWAY_HP
+  world.gatewayIsClosing[gwEid] = 0
+  if (world.activeGatewayCount < world.activeGateways.length) {
+    world.activeGateways[world.activeGatewayCount++] = gwEid
+  }
+  world.totalGatewaysCreated++
 }

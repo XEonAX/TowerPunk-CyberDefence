@@ -444,3 +444,90 @@ export const SKIP_BONUS_MULTIPLIER = 2
 
 /** Rulebook §9.2.9 — Gateway HP */
 export const GATEWAY_HP = 10000
+
+// ---------------------------------------------------------------------------
+// §7.7 — Saboteur timing constants
+// ---------------------------------------------------------------------------
+
+/** Rulebook §7.7.1 — ticks between Saboteur disable pulses */
+export const SABOTEUR_PULSE_INTERVAL_TICKS = 600
+
+/** Rulebook §7.7.1 — duration of tower disable from Saboteur pulse */
+export const SABOTEUR_DISABLE_DURATION_TICKS = 300
+
+// ---------------------------------------------------------------------------
+// §7.8 — AI Overlord phase constants
+// ---------------------------------------------------------------------------
+
+/** Rulebook §7.8.7 — ticks per AI Overlord phase */
+export const AI_OVERLORD_PHASE_DURATION_TICKS = 1800
+
+/** Rulebook §7.8.2 — AI Overlord spawns an entity every Nth tile walked */
+export const AI_OVERLORD_SPAWN_EVERY_N_TILES = 5
+
+// ---------------------------------------------------------------------------
+// §6 — Abilities
+// ---------------------------------------------------------------------------
+
+/**
+ * §6.1–6.5 — All abilities share this upgrade cost progression (Components).
+ * Index = current abilityLevel (0 = cost to unlock L1, 1 = cost to reach L2 …).
+ */
+export const ABILITY_UPGRADE_COST: ReadonlyArray<number> = [1, 2, 4, 8, 16]
+
+/** §6.1 — EMP Blast stun duration at level 1 (ticks) */
+export const EMP_BLAST_STUN_TICKS_BASE = 120
+
+/** §6.1 — EMP Blast stun duration increase per ability level */
+export const EMP_BLAST_STUN_TICKS_PER_LEVEL = 120
+
+/** §6.1 — EMP Blast activation cooldown at level 1 (ticks) */
+export const EMP_BLAST_COOLDOWN_BASE = 600
+
+/** §6.1.5 — EMP Blast cooldown increase per ability level beyond L1 */
+export const EMP_BLAST_COOLDOWN_PER_LEVEL = 60
+
+/** §6.2 — Overclock active duration (5 seconds at 60 ticks/sec) */
+export const OVERCLOCK_DURATION_TICKS = 300
+
+/** §6.2 — Overclock activation cooldown (20 seconds) */
+export const OVERCLOCK_COOLDOWN_TICKS = 1200
+
+/** §6.2 — Overclock fire-rate / generation multiplier at level 1 (+50%) */
+export const OVERCLOCK_MULTIPLIER_BASE = 1.5
+
+/** §6.2 — Overclock multiplier increase per ability level (+25% per level) */
+export const OVERCLOCK_MULTIPLIER_PER_LEVEL = 0.25
+
+/** §6.3 — Tuned target-switch cooldown at level 1 (20 seconds) */
+export const TUNED_COOLDOWN_BASE = 1200
+
+/** §6.3 — Tuned target-switch cooldown reduction per ability level */
+export const TUNED_COOLDOWN_PER_LEVEL = 180
+
+/** §6.3 — Minimum Tuned target-switch cooldown (level 5 = 300 ticks) */
+export const TUNED_COOLDOWN_MIN = 300
+
+/**
+ * §6.4 — Boosted Eddie-generation multiplier per ability level.
+ * Index = abilityLevel - 1.  Values: +50% / +100% / +133% / +166% / +200%.
+ */
+export const BOOSTED_MULTIPLIER: ReadonlyArray<number> = [
+  1.5,       // L1: +50%
+  2.0,       // L2: +100%
+  7 / 3,     // L3: +133%
+  8 / 3,     // L4: +166%
+  3.0,       // L5: +200%
+]
+
+/**
+ * §6.5 — Oracle range multiplier per ability level.
+ * Index = abilityLevel - 1.  Values: +50% / +100% / +133% / +166% / +200%.
+ */
+export const ORACLE_MULTIPLIER: ReadonlyArray<number> = [
+  1.5,       // L1: +50%
+  2.0,       // L2: +100%
+  7 / 3,     // L3: +133%
+  8 / 3,     // L4: +166%
+  3.0,       // L5: +200%
+]

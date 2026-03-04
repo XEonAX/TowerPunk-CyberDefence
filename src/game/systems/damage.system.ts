@@ -34,6 +34,19 @@ function clampLevel(world: World, eid: number): number {
   return Math.max(0, Math.min(9, world.towerLevel[eid] - 1))
 }
 
+/**
+ * Returns effective damage after applying AI Overlord phase modifiers.
+ * Returns 0 if the enemy is immune (phase 1 — no damage, §7.8.1).
+ * Applies 1.5× multiplier in phase 3 (§7.8.5).
+ */
+function effectiveDamage(world: World, eid: number, dmg: number): number {
+  if (world.enemyType[eid] === C.EnemyType.AI_OVERLORD) {
+    if (world.aiOverlordPhase[eid] === 1) return 0
+    return dmg * world.aiOverlordDamageMult[eid]
+  }
+  return dmg
+}
+
 // ---------------------------------------------------------------------------
 // ICE_WALL damage — §5.1.2
 // ---------------------------------------------------------------------------
@@ -61,10 +74,13 @@ function applyIceWallDamage(world: World, teid: number): void {
     // DOT damage
     const immune = world.immunityFlags[eid]
     if ((immune & C.IMMUNE_ICE_DOT) === 0) {
-      world.healthCurrent[eid] -= dpsPerTick
-      if (world.healthCurrent[eid] <= 0) {
-        markForRemoval(world, eid)
-        continue
+      const actual = effectiveDamage(world, eid, dpsPerTick)
+      if (actual > 0) {
+        world.healthCurrent[eid] -= actual
+        if (world.healthCurrent[eid] <= 0) {
+          markForRemoval(world, eid)
+          continue
+        }
       }
     }
 
@@ -105,10 +121,13 @@ function applyFirewallDamage(world: World, teid: number): void {
 
     // Damage
     if ((immune & C.IMMUNE_FIREWALL_DMG) === 0) {
-      world.healthCurrent[eid] -= dpsPerTick
-      if (world.healthCurrent[eid] <= 0) {
-        markForRemoval(world, eid)
-        continue
+      const actual = effectiveDamage(world, eid, dpsPerTick)
+      if (actual > 0) {
+        world.healthCurrent[eid] -= actual
+        if (world.healthCurrent[eid] <= 0) {
+          markForRemoval(world, eid)
+          continue
+        }
       }
     }
 
@@ -148,9 +167,12 @@ function applyDataSpikeDamage(world: World, teid: number): void {
     const ey = world.tilePosY[eid]
     if (!inDataSpikeCone(ex, ey, tx, ty, facing, range)) continue
 
-    world.healthCurrent[eid] -= damage
-    if (world.healthCurrent[eid] <= 0) {
-      markForRemoval(world, eid)
+    const actual = effectiveDamage(world, eid, damage)
+    if (actual > 0) {
+      world.healthCurrent[eid] -= actual
+      if (world.healthCurrent[eid] <= 0) {
+        markForRemoval(world, eid)
+      }
     }
   }
 }
@@ -183,9 +205,12 @@ function applyDaemonTurretDamage(world: World, teid: number): void {
     if ((mask & C.PENDING_REMOVAL) !== 0) continue
     if (world.tilePosX[eid] !== tx || world.tilePosY[eid] !== ty) continue
 
-    world.healthCurrent[eid] -= damage
-    if (world.healthCurrent[eid] <= 0) {
-      markForRemoval(world, eid)
+    const actual = effectiveDamage(world, eid, damage)
+    if (actual > 0) {
+      world.healthCurrent[eid] -= actual
+      if (world.healthCurrent[eid] <= 0) {
+        markForRemoval(world, eid)
+      }
     }
   }
 }
@@ -208,13 +233,16 @@ function applyIceSniperDamage(world: World, teid: number): void {
   const level  = clampLevel(world, teid)
   const damage = ICE_SNIPER_DAMAGE[level] ?? 100
 
-  world.healthCurrent[targetEid] -= damage
-  if (world.healthCurrent[targetEid] <= 0) {
-    markForRemoval(world, targetEid)
-    return
+  const actual = effectiveDamage(world, targetEid, damage)
+  if (actual > 0) {
+    world.healthCurrent[targetEid] -= actual
+    if (world.healthCurrent[targetEid] <= 0) {
+      markForRemoval(world, targetEid)
+      return
+    }
   }
 
-  // Slow — skip if immune
+  // Slow — skip if immune (still applies even if damage was blocked by phase 1)
   const immune = world.immunityFlags[targetEid]
   if ((immune & C.IMMUNE_SLOW) === 0) {
     queueSlow(world, targetEid, ICE_SNIPER_SLOW[level] ?? 0.5, ICE_SNIPER_SLOW_TICKS)

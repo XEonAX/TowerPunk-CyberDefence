@@ -42,19 +42,29 @@ export function chebyshev(x1: number, y1: number, x2: number, y2: number): numbe
 
 /**
  * Returns fire cooldown ticks for the given tower (§5.3, §5.4, §5.5).
+ * §6.2 — Overclock reduces cooldown by dividing by the overclock multiplier.
  */
 function getCooldownForTower(world: World, eid: number): number {
   const level = Math.max(0, Math.min(9, world.towerLevel[eid] - 1))
+  let cooldown: number
   switch (world.towerType[eid]) {
     case C.TowerType.DATA_SPIKE:
-      return DATA_SPIKE_COOLDOWN_TICKS
+      cooldown = DATA_SPIKE_COOLDOWN_TICKS
+      break
     case C.TowerType.DAEMON_TURRET:
-      return DAEMON_TURRET_COOLDOWN[level] ?? 120
+      cooldown = DAEMON_TURRET_COOLDOWN[level] ?? 120
+      break
     case C.TowerType.ICE_SNIPER:
-      return ICE_SNIPER_COOLDOWN[level] ?? 180
+      cooldown = ICE_SNIPER_COOLDOWN[level] ?? 180
+      break
     default:
       return 0
   }
+  // §6.2 — Overclock: reduce cooldown proportionally (min 1 tick)
+  if (world.overclockActive[eid] !== 0) {
+    cooldown = Math.max(1, Math.floor(cooldown / world.overclockMultiplier[eid]))
+  }
+  return cooldown
 }
 
 /**

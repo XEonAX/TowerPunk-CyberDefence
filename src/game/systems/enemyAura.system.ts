@@ -15,6 +15,8 @@ import type { World } from '../ecs/world'
 import * as C from '../ecs/component'
 import { markForRemoval } from '../ecs/world'
 import { chebyshev } from './targeting.system'
+import { SABOTEUR_PULSE_INTERVAL_TICKS, SABOTEUR_DISABLE_DURATION_TICKS } from '../constants'
+import { queueDisable } from './statusQueue.system'
 
 export function enemyAuraSystem(world: World): void {
   const N = world.bitmask.length
@@ -47,5 +49,38 @@ export function enemyAuraSystem(world: World): void {
         markForRemoval(world, teid)
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Saboteur disable pulse (§7.7.1)
+  // ---------------------------------------------------------------------------
+
+  for (let eid = 1; eid < N; eid++) {
+    const mask = world.bitmask[eid]
+
+    if ((mask & C.ENEMY) === 0) continue
+    if ((mask & C.PENDING_REMOVAL) !== 0) continue
+    if ((mask & C.SPAWN_IMMUNITY) !== 0) continue
+
+    // Only Saboteur has a disable pulse
+    if (world.enemyType[eid] !== C.EnemyType.SABOTEUR) continue
+
+    const lastPulse = world.saboteurPulseTick[eid]
+    // Fire on first encounter (lastPulse === 0) or when interval has elapsed
+    if (lastPulse !== 0 && (world.tickCount - lastPulse) < SABOTEUR_PULSE_INTERVAL_TICKS) continue
+
+    const sabX = world.tilePosX[eid]
+    const sabY = world.tilePosY[eid]
+
+    for (let teid = 1; teid < N; teid++) {
+      const tmask = world.bitmask[teid]
+      if ((tmask & C.TOWER) === 0) continue
+      if ((tmask & C.PENDING_REMOVAL) !== 0) continue
+      if (chebyshev(sabX, sabY, world.posX[teid] | 0, world.posY[teid] | 0) > 1) continue
+
+      queueDisable(world, teid, SABOTEUR_DISABLE_DURATION_TICKS)
+    }
+
+    world.saboteurPulseTick[eid] = world.tickCount
   }
 }

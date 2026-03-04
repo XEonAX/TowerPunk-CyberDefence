@@ -5,6 +5,10 @@
  * tower-disable (towers). Clears associated flags/magnitudes when timers
  * reach zero.
  *
+ * Also handles:
+ *   §6.0.3 — Ability cooldown decrement
+ *   §6.2   — Overclock tick countdown and deactivation
+ *
  * Rule references:
  *   §7.0.15 — Slow: decrement per tick, clear magnitude at 0
  *   §7.0.11 — Stun: decrement per tick
@@ -36,12 +40,29 @@ export function statusExpireSystem(world: World): void {
       }
     }
 
-    // --- Tower disable countdown (§7.7) ---
+    // --- Tower effects ---
     if ((mask & C.TOWER) !== 0) {
+      // §7.7 — Tower disable countdown
       if (world.towerDisableTicks[eid] > 0) {
         world.towerDisableTicks[eid]--
         if (world.towerDisableTicks[eid] === 0) {
           world.bitmask[eid] &= ~C.TOWER_DISABLED
+        }
+      }
+
+      // §6.0.3 — Ability cooldown decrement
+      if ((mask & C.ABILITY) !== 0) {
+        if (world.abilityCooldown[eid] > 0) {
+          world.abilityCooldown[eid]--
+        }
+
+        // §6.2 — Overclock tick countdown
+        if (world.overclockTicks[eid] > 0) {
+          world.overclockTicks[eid]--
+          if (world.overclockTicks[eid] === 0) {
+            world.overclockActive[eid]     = 0
+            world.overclockMultiplier[eid] = 1.0
+          }
         }
       }
     }

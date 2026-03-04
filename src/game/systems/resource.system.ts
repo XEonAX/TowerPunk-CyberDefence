@@ -10,6 +10,8 @@
  * Rulebook §5.6.6: Blackwall Tower takes BLACKWALL_PASSIVE_DPT while gateway is alive.
  * Rulebook §5.6.7: Auto-repair consumes BLACKWALL_REPAIR_COMPONENTS for full restore;
  *                  partial restore if insufficient components available.
+ * Rulebook §6.2.2: Overclock on Harvester boosts Eddie generation.
+ * Rulebook §6.4:   Boosted Ping Tower multiplies connected Harvester Eddie generation.
  */
 import type { World } from '../ecs/world'
 import * as C from '../ecs/component'
@@ -17,6 +19,7 @@ import { markForRemoval } from '../ecs/world'
 import {
   BLACKWALL_PASSIVE_DPT,
   BLACKWALL_REPAIR_COMPONENTS,
+  BOOSTED_MULTIPLIER,
 } from '../constants'
 
 export function resourceSystem(world: World): void {
@@ -28,30 +31,26 @@ export function resourceSystem(world: World): void {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/**
- * §5.8.1–5.8.2 — Harvester generation.
- * Only generates if at least one non-disabled Ping Tower is within Chebyshev range.
- */
-function _harvestersGenerate(world: World): void {
-  const N = world.bitmask.length
-
-  for (let harvEid = 1; harvEid < N; harvEid++) {
-    const mask = world.bitmask[harvEid]
-    if ((mask & C.HARVESTER) === 0) continue
-    if ((mask & C.PENDING_REMOVAL) !== 0) continue
-    if ((mask & C.TOWER_DISABLED) !== 0) continue
-
-    if (_isConnectedToPing(world, harvEid, N)) {
-      world.eddies     += world.harvesterEddiesPerTick[harvEid]
-      world.components += world.harvesterComponentsPerTick[harvEid]
-    }
-  }
+/** Result of checking whether a Harvester is connected to a Ping Tower. */
+interface PingConnection {
+  connected: boolean
+  /** Best Eddie-generation multiplier from any Boosted Ping Tower in range (§6.4) */
+  boostMultiplier: number
 }
 
-/** Returns true if the given entity is within Chebyshev range of any active Ping Tower. */
-function _isConnectedToPing(world: World, eid: number, N: number): boolean {
+/**
+ * Scan all Ping Towers and return connection info for the given Harvester entity.
+ * Iterates all ping towers (not just the first) to find the best Boosted multiplier.
+ */
+function _getHarvesterConnection(
+  world: World,
+  eid: number,
+  N: number,
+): PingConnection {
   const hx = world.posX[eid]
   const hy = world.posY[eid]
+  let connected      = false
+  let boostMultiplier = 1.0
 
   for (let pingEid = 1; pingEid < N; pingEid++) {
     const pm = world.bitmask[pingEid]
@@ -63,9 +62,60 @@ function _isConnectedToPing(world: World, eid: number, N: number): boolean {
       Math.abs(hx - world.posX[pingEid]),
       Math.abs(hy - world.posY[pingEid]),
     )
-    if (dist <= world.pingRange[pingEid]) return true
+    if (dist > world.pingRange[pingEid]) continue
+
+    connected = true
+
+    // §6.4 — Check for Boosted ability (passive, no activation needed)
+    if (
+      (pm & C.ABILITY) !== 0 &&
+      world.abilityType[pingEid] === C.AbilityType.BOOSTED &&
+      world.abilityLevel[pingEid] > 0
+    ) {
+      const bm = BOOSTED_MULTIPLIER[world.abilityLevel[pingEid] - 1] ?? 1.0
+      if (bm > boostMultiplier) boostMultiplier = bm
+    }
   }
-  return false
+
+  return { connected, boostMultiplier }
+}
+
+/**
+ * §5.8.1–5.8.2 — Harvester generation.
+ * Only generates if at least one non-disabled Ping Tower is within Chebyshev range.
+ * §6.2.2 — Overclock on Harvester boosts Eddie generation.
+ * §6.4   — Boosted Ping Tower multiplies Eddie generation of connected Harvesters.
+ */
+function _harvestersGenerate(world: World): void {
+  const N = world.bitmask.length
+
+  for (let harvEid = 1; harvEid < N; harvEid++) {
+    const mask = world.bitmask[harvEid]
+    if ((mask & C.HARVESTER) === 0) continue
+    if ((mask & C.PENDING_REMOVAL) !== 0) continue
+    if ((mask & C.TOWER_DISABLED) !== 0) continue
+
+    const conn = _getHarvesterConnection(world, harvEid, N)
+    if (!conn.connected) continue
+
+    let eddiesThisTick = world.harvesterEddiesPerTick[harvEid]
+
+    // §6.4 — Boosted multiplier from connected Ping Tower
+    if (conn.boostMultiplier > 1.0) {
+      eddiesThisTick *= conn.boostMultiplier
+    }
+
+    // §6.2.2 — Overclock on Harvester boosts Eddie generation
+    if (
+      (mask & C.ABILITY) !== 0 &&
+      world.overclockActive[harvEid] !== 0
+    ) {
+      eddiesThisTick *= world.overclockMultiplier[harvEid]
+    }
+
+    world.eddies     += eddiesThisTick
+    world.components += world.harvesterComponentsPerTick[harvEid]
+  }
 }
 
 /**

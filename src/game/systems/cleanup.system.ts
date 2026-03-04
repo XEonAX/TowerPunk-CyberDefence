@@ -9,7 +9,7 @@
  *  - All marked entities: pool.destroy + bitmask cleared.
  */
 
-import { markForRemoval, createPickup, type World } from '../ecs/world'
+import { markForRemoval, createPickup, spawnInteriorGateway, type World } from '../ecs/world'
 import * as C from '../ecs/component'
 import { CORE_X, CORE_Y } from '../constants'
 
@@ -42,6 +42,11 @@ export function cleanupSystem(world: World): void {
         world.tilePosX[eid] === CORE_X && world.tilePosY[eid] === CORE_Y
       if (!reachedCore) {
         dropEnemyPickup(world, eid)
+      }
+
+      // §7.5.1: Orchestrator spawns a Gateway at its death tile
+      if (world.enemyType[eid] === C.EnemyType.ORCHESTRATOR) {
+        spawnInteriorGateway(world, world.tilePosX[eid], world.tilePosY[eid])
       }
     }
 
