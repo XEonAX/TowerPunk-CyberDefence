@@ -200,10 +200,9 @@ export const DAEMON_TURRET_ROT_SPEED: ReadonlyArray<number> = [
 
 /**
  * Daemon Turret range per level — Rulebook §5.4
- * Stays at 1 tile across all levels (upgrade table shows no range increase).
  */
 export const DAEMON_TURRET_RANGE: ReadonlyArray<number> = [
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  3, 3, 3, 3, 3, 4, 5, 5, 5, 5,
 ]
 
 /**

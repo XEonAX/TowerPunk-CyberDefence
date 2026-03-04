@@ -7,7 +7,7 @@
 
 import { createEntityPool, type EntityPool, type EntityId } from './entity'
 import * as C from './component'
-import { GATEWAY_HP } from '../constants'
+import { GATEWAY_HP, INITIAL_COMPONENTS, INITIAL_EDDIES } from '../constants'
 
 /** Rulebook §2.1 */ const GRID_SIZE = 51
 /** Maximum simultaneous entities (enemies + towers + pickups + gateways) */
@@ -455,8 +455,8 @@ export function createWorld(seed: number = 12345): World {
     waveSpawnIndex: 0,
     nextSpawnTick: 0,
 
-    eddies: 500,    // Rulebook §4.3.1
-    components: 5,  // Rulebook §4.3.1
+    eddies: INITIAL_EDDIES,    // Rulebook §4.3.1
+    components: INITIAL_COMPONENTS,  // Rulebook §4.3.1
 
     commandQueue: [],
 

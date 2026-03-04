@@ -311,7 +311,7 @@
 | ------------- | ---------------------------------------------------------------------------------- |
 | Role          | Offensive / Multi-target                                                           |
 | Health        | 100 HP (level 1)                                                                   |
-| Range         | 1 tile (level 1)                                                                   |
+| Range         | 3 tile (level 1)                                                                   |
 | Damage        | 10 damage/daemon (level 1); applied to **each enemy** on the tile the daemon hits. |
 | Fire Rate     | 1 daemon every 120 ticks (2 seconds, level 1)                                      |
 | Rotation      | 0.5 degree/tick (level 1)                                                          |
@@ -326,8 +326,8 @@
 | 3     | -      | 20         | +100 HP, +5 damage/daemon                                     |
 | 4     | -      | 40         | +100 HP, +5 damage/daemon                                     |
 | 5     | -      | 80         | +100 HP, 1 degree/tick Rotation, Unlocks Overclock (see §6.2) |
-| 6     | -      | 160        | 1 daemon/108 ticks (1.8 sec)                                  |
-| 7     | -      | 320        | 1 daemon/96 ticks (1.6 sec)                                   |
+| 6     | -      | 160        | +1 range, 1 daemon/108 ticks (1.8 sec)                        |
+| 7     | -      | 320        | +1 range, 1 daemon/96 ticks (1.6 sec)                         |
 | 8     | -      | 640        | 1 daemon/84 ticks (1.4 sec)                                   |
 | 9     | -      | 1280       | 1 daemon/72 ticks (1.2 sec)                                   |
 | 10    | -      | 2560       | 1 daemon/60 ticks (1 sec)                                     |

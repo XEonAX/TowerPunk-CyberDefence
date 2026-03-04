@@ -215,9 +215,9 @@ describe('Rulebook §5.4.2 — DAEMON_TURRET target selection', () => {
     expect(world.targetingTarget[teid]).toBe(eeid)
   })
 
-  it('does NOT target enemy at dist=2 when range=1', () => {
+  it('does NOT target enemy at dist=4 when range=3', () => {
     const teid = makeDaemonTurret(25, 25)
-    makeEnemy(27, 25)  // dist = 2
+    makeEnemy(29, 25)  // dist = 4
 
     targetingSystem(world)
 

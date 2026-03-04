@@ -138,10 +138,10 @@ describe('Rulebook §9.2.9 — Gateway HP', () => {
 describe('Rulebook §5.4 — Daemon Turret range', () => {
   it('DAEMON_TURRET_RANGE has 10 entries (one per level)', () =>
     expect(DAEMON_TURRET_RANGE.length).toBe(10))
-  it('DAEMON_TURRET_RANGE[0] === 1 (range stays 1 tile at L1)', () =>
-    expect(DAEMON_TURRET_RANGE[0]).toBe(1))
-  it('DAEMON_TURRET_RANGE[9] === 1 (range stays 1 tile at L10)', () =>
-    expect(DAEMON_TURRET_RANGE[9]).toBe(1))
+  it('DAEMON_TURRET_RANGE[0] === 3 (range starts at 3 tiles at L1)', () =>
+    expect(DAEMON_TURRET_RANGE[0]).toBe(3))
+  it('DAEMON_TURRET_RANGE[9] === 5 (range reaches 5 tiles at L10)', () =>
+    expect(DAEMON_TURRET_RANGE[9]).toBe(5))
   it('DAEMON_TURRET_HP[0] === 100 (§5.4: 100 HP at L1)', () =>
     expect(DAEMON_TURRET_HP[0]).toBe(100))
 })

@@ -16,6 +16,7 @@ import {
   ICE_SNIPER_MAX_RANGE,
   PING_TOWER_RANGE,
 } from '@game/constants'
+import { chebyshev } from '@game/systems/targeting.system'
 
 /** Rulebook §5 — placeholder colors per tower type */
 const TOWER_COLORS: Record<number, number> = {
@@ -41,6 +42,45 @@ let coreGfx: Graphics | null = null
 
 // Dedicated Graphics for range circle overlay
 let rangeGfx: Graphics | null = null
+
+// ---------------------------------------------------------------------------
+// Projectile rendering (Daemon Turret shots)
+// ---------------------------------------------------------------------------
+
+interface Projectile {
+  fromX: number; fromY: number
+  toX: number;   toY: number
+  ticksLeft: number; maxTicks: number
+  color: number
+}
+
+/** Travelling projectiles (render-only, never mutates ECS) */
+const activeProjectiles: Projectile[] = []
+/** Frames a shot-beam stays visible before fully fading */
+const PROJ_TICKS = 8
+/**
+ * Last-seen targetingCooldown per tower eid.
+ * A shot fires when cooldown jumps UP (damageSystem resets it after firing).
+ */
+const prevCooldown = new Float32Array(MAX_ENTITIES)
+/** Dedicated Graphics for drawing projectile dots */
+let projectileGfx: Graphics | null = null
+
+/**
+ * Find the closest enemy to (tx,ty) within Chebyshev range — render-only,
+ * mirrors acquireDaemonTurretTarget without mutating state.
+ */
+function findClosestEnemyInRange(world: World, tx: number, ty: number, range: number): number {
+  let bestEid = 0
+  let bestDist = Infinity
+  for (let eid = 1; eid < MAX_ENTITIES; eid++) {
+    const mask = world.bitmask[eid]
+    if (!(mask & C.ENEMY) || (mask & C.PENDING_REMOVAL) || (mask & C.SPAWN_IMMUNITY)) continue
+    const d = chebyshev(world.tilePosX[eid], world.tilePosY[eid], tx, ty)
+    if (d <= range && d < bestDist) { bestDist = d; bestEid = eid }
+  }
+  return bestEid
+}
 
 function acquire(): Graphics {
   return pool.pop() ?? new Graphics()
@@ -174,6 +214,66 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
     coreGfx.y = world.posY[ceid] * TILE_SIZE
   }
 
+  // Spawn projectiles for newly-fired Daemon Turret shots
+  // Detection: damageSystem clears targetingTarget same tick it fires, but it also
+  // resets targetingCooldown to full. A cooldown jump up = shot just fired.
+  if (!projectileGfx) {
+    projectileGfx = new Graphics()
+    container.addChild(projectileGfx)
+  }
+  for (let eid = 1; eid < MAX_ENTITIES; eid++) {
+    const mask = world.bitmask[eid]
+    if (!(mask & C.TOWER)) continue
+    if (world.towerType[eid] !== C.TowerType.DAEMON_TURRET) continue
+    if (mask & C.PENDING_REMOVAL) { prevCooldown[eid] = 0; continue }
+
+    const currentCooldown = world.targetingCooldown[eid]
+    const prev = prevCooldown[eid]
+    // Shot fired when cooldown jumps up from a lower value
+    if (currentCooldown > prev && prev >= 0) {
+      const tx = world.posX[eid] | 0
+      const ty = world.posY[eid] | 0
+      const level = Math.max(0, Math.min(9, (world.towerLevel[eid] ?? 1) - 1))
+      const range = DAEMON_TURRET_RANGE[level] ?? 3
+      const targetEid = findClosestEnemyInRange(world, tx, ty, range)
+      if (targetEid > 0) {
+        activeProjectiles.push({
+          fromX: (world.posX[eid] + 0.5) * TILE_SIZE,
+          fromY: (world.posY[eid] + 0.5) * TILE_SIZE,
+          toX: (world.tilePosX[targetEid] + 0.5) * TILE_SIZE,
+          toY: (world.tilePosY[targetEid] + 0.5) * TILE_SIZE,
+          ticksLeft: PROJ_TICKS,
+          maxTicks: PROJ_TICKS,
+          color: TOWER_COLORS[C.TowerType.DAEMON_TURRET] ?? 0x00ff88,
+        })
+      }
+    }
+    prevCooldown[eid] = currentCooldown
+  }
+
+  // Advance and draw all active beam traces
+  projectileGfx.clear()
+  for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+    const p = activeProjectiles[i]
+    const alpha = p.ticksLeft / p.maxTicks  // 1 (fresh) → 0 (faded)
+    // Core beam line
+    projectileGfx.setStrokeStyle({ width: 2, color: p.color, alpha })
+    projectileGfx.moveTo(p.fromX, p.fromY)
+    projectileGfx.lineTo(p.toX, p.toY)
+    projectileGfx.stroke()
+    // Bright core highlight
+    projectileGfx.setStrokeStyle({ width: 1, color: 0xffffff, alpha: alpha * 0.6 })
+    projectileGfx.moveTo(p.fromX, p.fromY)
+    projectileGfx.lineTo(p.toX, p.toY)
+    projectileGfx.stroke()
+    // Impact dot at target end
+    projectileGfx.setFillStyle({ color: p.color, alpha })
+    projectileGfx.circle(p.toX, p.toY, 3)
+    projectileGfx.fill()
+    p.ticksLeft--
+    if (p.ticksLeft <= 0) activeProjectiles.splice(i, 1)
+  }
+
   // Range circle overlay for selected tower
   if (!rangeGfx) {
     rangeGfx = new Graphics()
@@ -227,4 +327,7 @@ export function _clearTowerPool(): void {
   pool.length = 0
   coreGfx = null
   rangeGfx = null
+  projectileGfx = null
+  activeProjectiles.length = 0
+  prevCooldown.fill(0)
 }
