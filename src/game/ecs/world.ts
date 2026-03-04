@@ -513,6 +513,35 @@ export function towerAtTile(world: World, tileX: number, tileY: number): EntityI
 }
 
 /**
+ * Return the entity ID of the enemy currently on (or closest to) the given tile, or null.
+ * Matches enemies whose discrete tilePos equals the clicked tile.
+ */
+export function enemyAtTile(world: World, tileX: number, tileY: number): EntityId | null {
+  const N = world.bitmask.length
+  for (let eid = 1; eid < N; eid++) {
+    const mask = world.bitmask[eid]
+    if (!(mask & C.ENEMY)) continue
+    if (mask & C.PENDING_REMOVAL) continue
+    if (world.tilePosX[eid] === tileX && world.tilePosY[eid] === tileY) return eid
+  }
+  return null
+}
+
+/**
+ * Return the entity ID of the gateway occupying the given tile, or null.
+ */
+export function gatewayAtTile(world: World, tileX: number, tileY: number): EntityId | null {
+  const N = world.bitmask.length
+  for (let eid = 1; eid < N; eid++) {
+    const mask = world.bitmask[eid]
+    if (!(mask & C.GATEWAY)) continue
+    if (mask & C.PENDING_REMOVAL) continue
+    if (world.gatewayX[eid] === tileX && world.gatewayY[eid] === tileY) return eid
+  }
+  return null
+}
+
+/**
  * Create an enemy entity with given type and return its ID.
  * Caller must set TilePos, TileProgress, PathState, SpawnImmunity, and stats.
  */

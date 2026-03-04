@@ -18,6 +18,11 @@ export const useUiStore = defineStore('ui', () => {
   /** Game speed multiplier — 1×, 2×, or 4× */
   const gameSpeed = ref<1 | 2 | 4>(1)
 
+  /** Kind of entity currently being inspected. */
+  const inspectedKind = ref<'tower' | 'enemy' | 'gateway' | null>(null)
+  /** Entity ID of the inspected enemy or gateway (null for tower — use selectedTowerEid). */
+  const inspectedEid = ref<number | null>(null)
+
   function cycleSpeed(): void {
     if (gameSpeed.value === 1) gameSpeed.value = 2
     else if (gameSpeed.value === 2) gameSpeed.value = 4
@@ -27,11 +32,35 @@ export const useUiStore = defineStore('ui', () => {
   function selectTowerType(type: number | null): void {
     selectedTowerType.value = type
     selectedTowerEid.value = null // deselect placed tower instance
+    inspectedKind.value = null
+    inspectedEid.value = null
   }
 
   function selectTowerInstance(eid: number | null): void {
     selectedTowerEid.value = eid
     selectedTowerType.value = null // deselect type
+    inspectedKind.value = eid !== null ? 'tower' : null
+    inspectedEid.value = null
+  }
+
+  function selectEnemy(eid: number): void {
+    selectedTowerEid.value = null
+    selectedTowerType.value = null
+    inspectedKind.value = 'enemy'
+    inspectedEid.value = eid
+  }
+
+  function selectGateway(eid: number): void {
+    selectedTowerEid.value = null
+    selectedTowerType.value = null
+    inspectedKind.value = 'gateway'
+    inspectedEid.value = eid
+  }
+
+  function clearInspection(): void {
+    selectedTowerEid.value = null
+    inspectedKind.value = null
+    inspectedEid.value = null
   }
 
   function setHoveredTile(x: number, y: number): void {
@@ -47,6 +76,8 @@ export const useUiStore = defineStore('ui', () => {
     selectedTowerType, selectedTowerEid,
     hoveredTileX, hoveredTileY,
     isPanelOpen, placementFacing, gameSpeed,
-    selectTowerType, selectTowerInstance, setHoveredTile, rotatePlacementFacing, cycleSpeed,
+    inspectedKind, inspectedEid,
+    selectTowerType, selectTowerInstance, selectEnemy, selectGateway, clearInspection,
+    setHoveredTile, rotatePlacementFacing, cycleSpeed,
   }
 })

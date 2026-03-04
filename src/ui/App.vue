@@ -4,6 +4,7 @@
     <HUD />
     <TowerPanel @command="handleCommand" />
     <AbilityBar @command="handleCommand" />
+    <InspectPanel />
     <WaveTimer />
     <GameResult @restart="handleRestart" />
   </div>
@@ -13,6 +14,7 @@
 import HUD from './components/HUD.vue'
 import TowerPanel from './components/TowerPanel.vue'
 import AbilityBar from './components/AbilityBar.vue'
+import InspectPanel from './components/InspectPanel.vue'
 import WaveTimer from './components/WaveTimer.vue'
 import GameResult from './components/GameResult.vue'
 

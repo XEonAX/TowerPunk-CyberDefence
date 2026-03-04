@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './ui/App.vue'
 import type { Command } from './game/ecs/world'
-import { towerAtTile } from './game/ecs/world'
+import { towerAtTile, enemyAtTile, gatewayAtTile } from './game/ecs/world'
 import { initPixi, getCameraContainer } from './renderer/pixiApp'
 import { createGridLayer } from './renderer/layers/grid.layer'
 import { updateEnemyLayer } from './renderer/layers/enemy.layer'
@@ -80,6 +80,15 @@ if (container) {
         const world = simulation.getWorld()
         gameStore.syncFromWorld(world)
         gameStore.syncSelectedTower(world, uiStore.selectedTowerEid)
+        // Sync inspected entity stats for non-tower inspections
+        if (uiStore.inspectedKind === 'enemy') {
+          gameStore.syncInspectedEnemy(world, uiStore.inspectedEid)
+        } else if (uiStore.inspectedKind === 'gateway') {
+          gameStore.syncInspectedGateway(world, uiStore.inspectedEid)
+        } else {
+          gameStore.syncInspectedEnemy(world, null)
+          gameStore.syncInspectedGateway(world, null)
+        }
         // Update render layers
         updateTowerLayer(layers.towers, world, alpha, uiStore.selectedTowerEid)
         updateEnemyLayer(layers.enemies, world, alpha)
@@ -107,14 +116,16 @@ if (container) {
       const tile = camera.screenToTile(e.globalX, e.globalY)
       if (tile.x < 0 || tile.x >= 51 || tile.y < 0 || tile.y >= 51) return
 
+      const world = simulation.getWorld()
+
       if (uiStore.selectedTowerType !== null) {
         // Check if an existing tower occupies this tile — if so, inspect it instead of placing
-        const existingEid = towerAtTile(simulation.getWorld(), tile.x, tile.y)
+        const existingEid = towerAtTile(world, tile.x, tile.y)
         if (existingEid !== null) {
           uiStore.selectTowerInstance(existingEid)
         } else {
           // Placing a new tower
-          simulation.getWorld().commandQueue.push({
+          world.commandQueue.push({
             type: 0, // CommandType.PLACE_TOWER
             towerType: uiStore.selectedTowerType,
             x: tile.x,
@@ -123,9 +134,23 @@ if (container) {
           } as Command)
         }
       } else {
-        // Inspect / select an existing tower at this tile
-        const world = simulation.getWorld()
-        uiStore.selectTowerInstance(towerAtTile(world, tile.x, tile.y))
+        // Priority: tower > gateway > enemy
+        const towerEid = towerAtTile(world, tile.x, tile.y)
+        if (towerEid !== null) {
+          uiStore.selectTowerInstance(towerEid)
+        } else {
+          const gwEid = gatewayAtTile(world, tile.x, tile.y)
+          if (gwEid !== null) {
+            uiStore.selectGateway(gwEid)
+          } else {
+            const enemyEid = enemyAtTile(world, tile.x, tile.y)
+            if (enemyEid !== null) {
+              uiStore.selectEnemy(enemyEid)
+            } else {
+              uiStore.clearInspection()
+            }
+          }
+        }
       }
     })
   })

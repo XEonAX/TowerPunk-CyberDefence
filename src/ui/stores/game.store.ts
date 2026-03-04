@@ -15,11 +15,39 @@ export interface SelectedTowerInfo {
   eid: number
   towerType: number
   towerLevel: number
+  hp: number
+  hpMax: number
   hasAbility: boolean
   abilityType: number
   abilityLevel: number
   /** Remaining cooldown in ticks (0 = ready) */
   abilityCooldownTicks: number
+}
+
+export interface EnemyInspectInfo {
+  eid: number
+  enemyType: number
+  tier: number
+  hp: number
+  hpMax: number
+  /** Effective speed in tiles/sec (tile progress/tick × 60) */
+  speedTilesPerSec: number
+  /** Damage dealt to Core on breach */
+  damage: number
+  immunityFlags: number
+  slowMagnitude: number
+  slowTicksRemaining: number
+  stunTicksRemaining: number
+  spawnImmunityTicksRemaining: number
+}
+
+export interface GatewayInspectInfo {
+  eid: number
+  x: number
+  y: number
+  hp: number
+  hpMax: number
+  isClosing: boolean
 }
 
 export const useGameStore = defineStore('game', () => {
@@ -37,6 +65,12 @@ export const useGameStore = defineStore('game', () => {
 
   /** Per-tower ability state for the currently selected tower instance. */
   const selectedTowerInfo = ref<SelectedTowerInfo | null>(null)
+
+  /** Stats for the currently inspected enemy, or null. */
+  const inspectedEnemyInfo = ref<EnemyInspectInfo | null>(null)
+
+  /** Stats for the currently inspected gateway, or null. */
+  const inspectedGatewayInfo = ref<GatewayInspectInfo | null>(null)
 
   // Derived
   const isWaveActive = computed(() => phase.value === GamePhase.WAVE_ACTIVE)
@@ -84,6 +118,8 @@ export const useGameStore = defineStore('game', () => {
     }
     const hasAbility = !!(mask & C.ABILITY)
     const cooldown = hasAbility ? world.abilityCooldown[eid] : 0
+    const hp = world.healthCurrent[eid]
+    const hpMax = world.healthMax[eid]
     // Dirty-flag update to avoid triggering unnecessary reactivity
     const prev = selectedTowerInfo.value
     if (
@@ -92,12 +128,15 @@ export const useGameStore = defineStore('game', () => {
       prev.towerLevel !== world.towerLevel[eid] ||
       prev.hasAbility !== hasAbility ||
       prev.abilityLevel !== world.abilityLevel[eid] ||
-      Math.abs(prev.abilityCooldownTicks - cooldown) >= 1
+      Math.abs(prev.abilityCooldownTicks - cooldown) >= 1 ||
+      Math.abs(prev.hp - hp) >= 0.5
     ) {
       selectedTowerInfo.value = {
         eid,
         towerType: world.towerType[eid],
         towerLevel: world.towerLevel[eid],
+        hp,
+        hpMax,
         hasAbility,
         abilityType: world.abilityType[eid],
         abilityLevel: world.abilityLevel[eid],
@@ -106,12 +145,77 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  /**
+   * Sync inspected enemy stats — called once per frame while an enemy is selected.
+   * Pass null to clear.
+   */
+  function syncInspectedEnemy(world: World, eid: number | null): void {
+    if (eid === null) {
+      if (inspectedEnemyInfo.value !== null) inspectedEnemyInfo.value = null
+      return
+    }
+    const mask = world.bitmask[eid]
+    if (!(mask & C.ENEMY) || (mask & C.PENDING_REMOVAL)) {
+      if (inspectedEnemyInfo.value !== null) inspectedEnemyInfo.value = null
+      return
+    }
+    const hp = world.healthCurrent[eid]
+    const prev = inspectedEnemyInfo.value
+    if (!prev || prev.eid !== eid || Math.abs(prev.hp - hp) >= 0.5 ||
+        prev.stunTicksRemaining !== world.stunTicks[eid] ||
+        prev.slowTicksRemaining !== world.slowTicks[eid]) {
+      inspectedEnemyInfo.value = {
+        eid,
+        enemyType: world.enemyType[eid],
+        tier: world.enemyTier[eid],
+        hp,
+        hpMax: world.healthMax[eid],
+        speedTilesPerSec: world.enemySpeed[eid] * 60,
+        damage: world.enemyDamage[eid],
+        immunityFlags: world.immunityFlags[eid],
+        slowMagnitude: world.slowMagnitude[eid],
+        slowTicksRemaining: world.slowTicks[eid],
+        stunTicksRemaining: world.stunTicks[eid],
+        spawnImmunityTicksRemaining: world.spawnImmunityTicks[eid],
+      }
+    }
+  }
+
+  /**
+   * Sync inspected gateway stats — called once per frame while a gateway is selected.
+   * Pass null to clear.
+   */
+  function syncInspectedGateway(world: World, eid: number | null): void {
+    if (eid === null) {
+      if (inspectedGatewayInfo.value !== null) inspectedGatewayInfo.value = null
+      return
+    }
+    const mask = world.bitmask[eid]
+    if (!(mask & C.GATEWAY) || (mask & C.PENDING_REMOVAL)) {
+      if (inspectedGatewayInfo.value !== null) inspectedGatewayInfo.value = null
+      return
+    }
+    const hp = world.gatewayHp[eid]
+    const prev = inspectedGatewayInfo.value
+    if (!prev || prev.eid !== eid || Math.abs(prev.hp - hp) >= 0.5 ||
+        prev.isClosing !== !!world.gatewayIsClosing[eid]) {
+      inspectedGatewayInfo.value = {
+        eid,
+        x: world.gatewayX[eid],
+        y: world.gatewayY[eid],
+        hp,
+        hpMax: world.gatewayMaxHp[eid],
+        isClosing: !!world.gatewayIsClosing[eid],
+      }
+    }
+  }
+
   return {
     coreHp, coreHpMax, eddies, components, currentWave, phase,
     breakTicksRemaining, enemiesAlive, activeGatewayCount, tickCount,
-    selectedTowerInfo,
+    selectedTowerInfo, inspectedEnemyInfo, inspectedGatewayInfo,
     isWaveActive, isWaveBreak, isPreGame, isGameOver, isVictory,
     coreHpPercent, breakSecondsRemaining,
-    syncFromWorld, syncSelectedTower,
+    syncFromWorld, syncSelectedTower, syncInspectedEnemy, syncInspectedGateway,
   }
 })
