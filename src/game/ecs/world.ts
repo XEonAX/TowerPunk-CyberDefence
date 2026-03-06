@@ -595,6 +595,15 @@ export function createGateway(world: World): EntityId {
  * Used by Orchestrator death (§7.5.1) and AI Overlord movement (§7.8.2).
  */
 export function spawnInteriorGateway(world: World, x: number, y: number): void {
+  // Don't spawn on a tile already occupied by a tower
+  if (world.gridBlocked[y * GRID_SIZE + x] !== 0) return
+
+  // Don't spawn on a tile that already has a gateway
+  for (let i = 0; i < world.activeGatewayCount; i++) {
+    const existing = world.activeGateways[i]
+    if (world.gatewayX[existing] === x && world.gatewayY[existing] === y) return
+  }
+
   const gwEid = createGateway(world)
   world.gatewayX[gwEid] = x
   world.gatewayY[gwEid] = y
@@ -607,4 +616,18 @@ export function spawnInteriorGateway(world: World, x: number, y: number): void {
     world.activeGateways[world.activeGatewayCount++] = gwEid
   }
   world.totalGatewaysCreated++
+
+  // §5.6.1 — assign any adjacent Blackwall Tower that doesn't yet have a gateway
+  const N = world.bitmask.length
+  for (let eid = 1; eid < N; eid++) {
+    const m = world.bitmask[eid]
+    if ((m & C.BLACKWALL_TOWER) === 0) continue
+    if ((m & C.PENDING_REMOVAL) !== 0) continue
+    if (world.blackwallAssignedGateway[eid] !== 0) continue
+    const dx = Math.abs(world.posX[eid] - x)
+    const dy = Math.abs(world.posY[eid] - y)
+    if (Math.max(dx, dy) <= 1) {
+      world.blackwallAssignedGateway[eid] = gwEid
+    }
+  }
 }
