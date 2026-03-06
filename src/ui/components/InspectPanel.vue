@@ -20,6 +20,10 @@
           <span class="ip-stat-value">{{ stat.value }}</span>
         </div>
       </div>
+      <div class="ip-kb-hints">
+        <span class="ip-kb-hint">[U] Upgrade</span>
+        <span class="ip-kb-hint ip-kb-hint-danger">[Del] Dismantle</span>
+      </div>
     </template>
 
     <!-- ── ENEMY ── -->
@@ -300,5 +304,20 @@ const gatewayHpPct = computed(() => {
 /* Status text */
 .ip-closing { color: #00ff88; }
 .ip-open    { color: #ff4444; }
+
+/* Keyboard hint row */
+.ip-kb-hints {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid #002244;
+}
+.ip-kb-hint {
+  font-size: 9px;
+  color: #336677;
+  letter-spacing: 0.5px;
+}
+.ip-kb-hint-danger { color: #663344; }
 
 </style>

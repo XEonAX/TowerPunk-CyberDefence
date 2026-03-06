@@ -12,6 +12,7 @@
         :title="tower.name"
         @click="selectTower(tower.type)"
       >
+        <span class="tower-key">[{{ tower.type + 1 }}]</span>
         <span class="tower-abbr">{{ tower.abbr }}</span>
         <span class="tower-cost">{{ formatCost(tower) }}</span>
       </button>
@@ -153,6 +154,7 @@ function selectTower(type: number): void {
 .tower-btn:hover { border-color: #0088cc; color: #88ddff; }
 .tower-btn.selected { border-color: #00aaff; background: #001a33; color: #00ccff; }
 .tower-btn.affordable { border-color: #004466; }
+.tower-key  { font-size: 9px; color: #334455; margin-bottom: 1px; }
 .tower-abbr { font-weight: bold; font-size: 13px; }
 .tower-cost { font-size: 9px; color: #ffaa00; margin-top: 2px; }
 .placement-info { border-top: 1px solid #002244; padding-top: 8px; margin-bottom: 8px; }

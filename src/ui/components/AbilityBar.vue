@@ -16,7 +16,7 @@
       @click="upgradeTower"
       :title="`Upgrade tower to level ${(gameStore.selectedTowerInfo?.towerLevel ?? 0) + 1}`"
     >
-      UPGRADE
+      <span class="ab-btn-key">[U]</span> UPGRADE
       <span v-if="upgradeTowerCost[0] > 0">€${{ upgradeTowerCost[0] }}</span>
       <span v-if="upgradeTowerCost[1] > 0">🔋{{ upgradeTowerCost[1] }}</span>
     </button>
@@ -62,7 +62,7 @@
     </button>
 
     <!-- Dismantle button (§4.2.6) -->
-    <button class="ab-dismantle-btn" @click="dismantleTower">DISMANTLE</button>
+    <button class="ab-dismantle-btn" @click="dismantleTower"><span class="ab-btn-key ab-btn-key-danger">[Del]</span> DISMANTLE</button>
   </div>
 </template>
 
@@ -315,4 +315,6 @@ function dismantleTower(): void {
   border-radius: 2px;
 }
 .ab-dismantle-btn:hover { background: #220010; border-color: #880033; }
+.ab-btn-key { font-size: 9px; opacity: 0.55; margin-right: 2px; }
+.ab-btn-key-danger { color: #ff8899; }
 </style>
