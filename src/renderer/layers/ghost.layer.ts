@@ -9,19 +9,23 @@
 import { Graphics, Container } from 'pixi.js'
 import type { World } from '@game/ecs/world'
 import { TILE_SIZE } from '../camera'
-import { canPlaceTower } from '@game/pathfinding/placement'
+import { canPlaceTower, canPlaceFirewallPair } from '@game/pathfinding/placement'
 import { GRID_SIZE } from '@game/constants'
+import { TowerType } from '@game/ecs/component'
 
 const VALID_COLOR   = 0x00ff88  // green — valid placement
 const INVALID_COLOR = 0xff2244  // red   — invalid placement
 const GHOST_ALPHA   = 0.45
+/** Reduced alpha for the walkable gap tile in a Firewall pair preview. */
+const GAP_ALPHA     = 0.18
 
 let ghostGfx: Graphics | null = null
 
-// Cache last-validated tile to avoid running BFS every frame
+// Cache last-validated state to avoid running BFS every frame
 let lastX = -1
 let lastY = -1
 let lastTowerType: number | null = null
+let lastFacing = -1
 let lastValid = false
 
 /** Build a ReadonlyGrid view from the world arrays. Zero allocation. */
@@ -39,14 +43,28 @@ function _gatewayTiles(w: World): ReadonlyArray<readonly [number, number]> {
   return tiles
 }
 
+/** Draw a single ghost tile rect at absolute grid pixel coordinates. */
+function _drawTile(gfx: Graphics, tileX: number, tileY: number, color: number, fillAlpha: number, strokeAlpha: number): void {
+  const pad = 2
+  const px = tileX * TILE_SIZE
+  const py = tileY * TILE_SIZE
+  gfx.setFillStyle({ color, alpha: fillAlpha })
+  gfx.rect(px + pad, py + pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2)
+  gfx.fill()
+  gfx.setStrokeStyle({ color, alpha: strokeAlpha, width: 1 })
+  gfx.rect(px + pad, py + pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2)
+  gfx.stroke()
+}
+
 /**
  * Update the ghost preview layer each render frame.
  *
- * @param container        PixiJS Container for the ghost layer.
- * @param world            ECS world (read-only).
- * @param hoveredX         Hovered tile X coordinate (-1 = none).
- * @param hoveredY         Hovered tile Y coordinate (-1 = none).
+ * @param container          PixiJS Container for the ghost layer.
+ * @param world              ECS world (read-only).
+ * @param hoveredX           Hovered tile X coordinate (-1 = none).
+ * @param hoveredY           Hovered tile Y coordinate (-1 = none).
  * @param selectedTowerType  Currently selected tower type (null = no placement mode).
+ * @param placementFacing    Current placement facing (0–3). Used for Firewall axis and Data Spike.
  */
 export function updateGhostLayer(
   container: Container,
@@ -54,10 +72,13 @@ export function updateGhostLayer(
   hoveredX: number,
   hoveredY: number,
   selectedTowerType: number | null,
+  placementFacing = 0,
 ): void {
   // Acquire ghost Graphics on first call
   if (!ghostGfx) {
     ghostGfx = new Graphics()
+    ghostGfx.x = 0
+    ghostGfx.y = 0
     container.addChild(ghostGfx)
   }
 
@@ -71,35 +92,55 @@ export function updateGhostLayer(
     lastX = -1
     lastY = -1
     lastTowerType = null
+    lastFacing = -1
     return
   }
 
-  // Re-validate only when the hovered tile or tower type changes (not every frame)
-  if (hoveredX !== lastX || hoveredY !== lastY || selectedTowerType !== lastTowerType) {
+  // Re-validate and redraw only when the hovered tile, tower type, or facing changes
+  if (
+    hoveredX !== lastX || hoveredY !== lastY ||
+    selectedTowerType !== lastTowerType || placementFacing !== lastFacing
+  ) {
     lastX = hoveredX
     lastY = hoveredY
     lastTowerType = selectedTowerType
+    lastFacing = placementFacing
 
     const grid = _worldGrid(world)
     const gatewayTiles = _gatewayTiles(world)
-    lastValid = canPlaceTower(grid, gatewayTiles, hoveredX, hoveredY)
 
-    // Redraw ghost at new tile
-    const color = lastValid ? VALID_COLOR : INVALID_COLOR
-    const pad = 2
     ghostGfx.clear()
-    ghostGfx.setFillStyle({ color, alpha: GHOST_ALPHA })
-    ghostGfx.rect(pad, pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2)
-    ghostGfx.fill()
 
-    // Outline stroke
-    ghostGfx.setStrokeStyle({ color, alpha: 0.8, width: 1 })
-    ghostGfx.rect(pad, pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2)
-    ghostGfx.stroke()
+    if (selectedTowerType === TowerType.FIREWALL) {
+      // §5.2.1 — Firewall is a 3-tile pair (t1, gap, t2).
+      // The hovered tile is the walkable gap; t1/t2 are placed on either side.
+      // placementFacing % 2 === 0 → vertical axis; === 1 → horizontal axis.
+      const isVertical = placementFacing % 2 === 0
+      const gapX = hoveredX
+      const gapY = hoveredY
+      const t1x = isVertical ? gapX : gapX - 1
+      const t1y = isVertical ? gapY - 1 : gapY
+      const t2x = isVertical ? gapX : gapX + 1
+      const t2y = isVertical ? gapY + 1 : gapY
+
+      lastValid = canPlaceFirewallPair(
+        grid, gatewayTiles,
+        { x: t1x, y: t1y },
+        { x: gapX, y: gapY },
+        { x: t2x, y: t2y },
+      )
+
+      const color = lastValid ? VALID_COLOR : INVALID_COLOR
+      _drawTile(ghostGfx, t1x, t1y, color, GHOST_ALPHA, 0.8)
+      _drawTile(ghostGfx, gapX, gapY, color, GAP_ALPHA, 0.35)
+      _drawTile(ghostGfx, t2x, t2y, color, GHOST_ALPHA, 0.8)
+    } else {
+      // Standard single-tile ghost
+      lastValid = canPlaceTower(grid, gatewayTiles, hoveredX, hoveredY)
+      const color = lastValid ? VALID_COLOR : INVALID_COLOR
+      _drawTile(ghostGfx, hoveredX, hoveredY, color, GHOST_ALPHA, 0.8)
+    }
   }
 
-  // Position is updated every frame in case the camera moves
   ghostGfx.visible = true
-  ghostGfx.x = hoveredX * TILE_SIZE
-  ghostGfx.y = hoveredY * TILE_SIZE
 }

@@ -25,6 +25,10 @@
     <div v-if="uiStore.selectedTowerType !== null" class="placement-info">
       <div class="tower-name">{{ selectedTowerName }}</div>
       <div class="tower-desc">{{ selectedTowerDesc }}</div>
+      <div v-if="uiStore.selectedTowerType === 1" class="facing-control">
+        <span>Axis: {{ firewallAxisName }}</span>
+        <button @click="uiStore.rotatePlacementFacing()">Rotate [R]</button>
+      </div>
       <div v-if="uiStore.selectedTowerType === 2" class="facing-control">
         <span>Facing: {{ facingName }}</span>
         <button @click="uiStore.rotatePlacementFacing()">Rotate [R]</button>
@@ -65,6 +69,9 @@ const uiStore = useUiStore()
 
 const FACING_NAMES = ['North', 'South', 'East', 'West']
 const facingName = computed(() => FACING_NAMES[uiStore.placementFacing])
+
+const FIREWALL_AXIS_NAMES = ['Vertical', 'Horizontal']
+const firewallAxisName = computed(() => FIREWALL_AXIS_NAMES[uiStore.placementFacing % 2])
 
 interface TowerInfo {
   type: number

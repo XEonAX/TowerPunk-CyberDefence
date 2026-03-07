@@ -2,7 +2,8 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './ui/App.vue'
 import type { Command } from './game/ecs/world'
-import { towerAtTile, enemyAtTile, gatewayAtTile } from './game/ecs/world'
+import { towerAtTile, enemyAtTile, gatewayAtTile, CommandType } from './game/ecs/world'
+import { TowerType } from './game/ecs/component'
 import { initPixi, getCameraContainer } from './renderer/pixiApp'
 import { createGridLayer } from './renderer/layers/grid.layer'
 import { updateEnemyLayer } from './renderer/layers/enemy.layer'
@@ -93,7 +94,7 @@ if (container) {
         updateTowerLayer(layers.towers, world, alpha, uiStore.selectedTowerEid)
         updateEnemyLayer(layers.enemies, world, alpha)
         updatePickupLayer(layers.pickups, world, alpha)
-        updateGhostLayer(layers.ghost, world, uiStore.hoveredTileX, uiStore.hoveredTileY, uiStore.selectedTowerType)
+        updateGhostLayer(layers.ghost, world, uiStore.hoveredTileX, uiStore.hoveredTileY, uiStore.selectedTowerType, uiStore.placementFacing)
         updateFxLayer(layers.fx, world, alpha)
       },
     }
@@ -123,10 +124,23 @@ if (container) {
         const existingEid = towerAtTile(world, tile.x, tile.y)
         if (existingEid !== null) {
           uiStore.selectTowerInstance(existingEid)
-        } else {
-          // Placing a new tower
+        } else if (uiStore.selectedTowerType === TowerType.FIREWALL) {
+          // Firewall requires a linked pair — hover tile is the walkable gap §5.2.1
+          const isVertical = uiStore.placementFacing % 2 === 0
+          const gapX = tile.x
+          const gapY = tile.y
+          const t1 = isVertical ? { x: gapX, y: gapY - 1 } : { x: gapX - 1, y: gapY }
+          const t2 = isVertical ? { x: gapX, y: gapY + 1 } : { x: gapX + 1, y: gapY }
           world.commandQueue.push({
-            type: 0, // CommandType.PLACE_TOWER
+            type: CommandType.PLACE_FIREWALL,
+            t1,
+            gap: { x: gapX, y: gapY },
+            t2,
+          } as Command)
+        } else {
+          // Placing a regular tower
+          world.commandQueue.push({
+            type: CommandType.PLACE_TOWER,
             towerType: uiStore.selectedTowerType,
             x: tile.x,
             y: tile.y,
