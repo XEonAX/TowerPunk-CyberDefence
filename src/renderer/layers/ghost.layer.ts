@@ -10,8 +10,9 @@ import { Graphics, Container } from 'pixi.js'
 import type { World } from '@game/ecs/world'
 import { TILE_SIZE } from '../camera'
 import { canPlaceTower, canPlaceFirewallPair } from '@game/pathfinding/placement'
-import { GRID_SIZE } from '@game/constants'
+import { GRID_SIZE, DATA_SPIKE_RANGE } from '@game/constants'
 import { TowerType } from '@game/ecs/component'
+import { inDataSpikeCone } from '@game/systems/targeting.system'
 
 const VALID_COLOR   = 0x00ff88  // green — valid placement
 const INVALID_COLOR = 0xff2244  // red   — invalid placement
@@ -144,6 +145,20 @@ export function updateGhostLayer(
       _drawTile(ghostGfx, t1x, t1y, color, GHOST_ALPHA, 0.8)
       _drawTile(ghostGfx, gapX, gapY, color, GAP_ALPHA, 0.35)
       _drawTile(ghostGfx, t2x, t2y, color, GHOST_ALPHA, 0.8)
+    } else if (selectedTowerType === TowerType.DATA_SPIKE) {
+      // §5.3.2 — show tower tile + cone of affected tiles at L1 range.
+      // Ghost is always placed at L1, range can only grow on upgrade.
+      lastValid = canPlaceTower(grid, gatewayTiles, hoveredX, hoveredY)
+      const color = lastValid ? VALID_COLOR : INVALID_COLOR
+      _drawTile(ghostGfx, hoveredX, hoveredY, color, GHOST_ALPHA, 0.8)
+      const range = DATA_SPIKE_RANGE[0] ?? 2
+      for (let cy = hoveredY - range; cy <= hoveredY + range; cy++) {
+        for (let cx = hoveredX - range; cx <= hoveredX + range; cx++) {
+          if (cx < 0 || cy < 0 || cx >= GRID_SIZE || cy >= GRID_SIZE) continue
+          if (!inDataSpikeCone(cx, cy, hoveredX, hoveredY, placementFacing, range)) continue
+          _drawTile(ghostGfx, cx, cy, 0xff00ff, 0.22, 0.5)
+        }
+      }
     } else {
       // Standard single-tile ghost
       lastValid = canPlaceTower(grid, gatewayTiles, hoveredX, hoveredY)

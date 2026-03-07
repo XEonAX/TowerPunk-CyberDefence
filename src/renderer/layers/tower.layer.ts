@@ -16,7 +16,8 @@ import {
   ICE_SNIPER_MAX_RANGE,
   PING_TOWER_RANGE,
 } from '@game/constants'
-import { chebyshev } from '@game/systems/targeting.system'
+import { chebyshev, inDataSpikeCone } from '@game/systems/targeting.system'
+import { GRID_SIZE } from '@game/constants'
 
 /** Rulebook §5 — placeholder colors per tower type */
 const TOWER_COLORS: Record<number, number> = {
@@ -327,38 +328,28 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
     const level = Math.max(0, Math.min(9, (world.towerLevel[selectedEid] ?? 1) - 1))
 
     if (towerType === C.TowerType.DATA_SPIKE) {
-      // §5.3.2 — 90° directional cone overlay, radius driven by per-level range
+      // §5.3.2 — per-tile highlight for the exact cone shape at current level
       const range = DATA_SPIKE_RANGE[level] ?? 2
-      const radius = (range + 0.5) * TILE_SIZE
+      const tx = world.posX[selectedEid] | 0
+      const ty = world.posY[selectedEid] | 0
       const facing = world.towerFacing[selectedEid]
       const color = TOWER_COLORS[C.TowerType.DATA_SPIKE] ?? 0xff00ff
-
-      // [startDeg, endDeg] in screen coords (Y-down, 0=right, clockwise positive)
-      const D2R = Math.PI / 180
-      const CONE_ANGLES: ReadonlyArray<readonly [number, number]> = [
-        [225, 315],  // 0: N  — upper 90°
-        [ 45, 135],  // 1: S  — lower 90°
-        [-45,  45],  // 2: E  — right 90°
-        [135, 225],  // 3: W  — left 90°
-        [270, 360],  // 4: NE — upper-right quadrant
-        [  0,  90],  // 5: SE — lower-right quadrant
-        [ 90, 180],  // 6: SW — lower-left quadrant
-        [180, 270],  // 7: NW — upper-left quadrant
-      ]
-      const [startDeg, endDeg] = CONE_ANGLES[facing] ?? CONE_ANGLES[0]
-      const startAngle = startDeg * D2R
-      const endAngle   = endDeg   * D2R
-
-      rangeGfx.setFillStyle({ color, alpha: 0.12 })
-      rangeGfx.moveTo(cx, cy)
-      rangeGfx.arc(cx, cy, radius, startAngle, endAngle)
-      rangeGfx.closePath()
-      rangeGfx.fill()
-      rangeGfx.setStrokeStyle({ width: 1, color, alpha: 0.6 })
-      rangeGfx.moveTo(cx, cy)
-      rangeGfx.arc(cx, cy, radius, startAngle, endAngle)
-      rangeGfx.closePath()
-      rangeGfx.stroke()
+      for (let dy = -range; dy <= range; dy++) {
+        for (let dx = -range; dx <= range; dx++) {
+          const tileX = tx + dx
+          const tileY = ty + dy
+          if (tileX < 0 || tileY < 0 || tileX >= GRID_SIZE || tileY >= GRID_SIZE) continue
+          if (!inDataSpikeCone(tileX, tileY, tx, ty, facing, range)) continue
+          const px = tileX * TILE_SIZE
+          const py = tileY * TILE_SIZE
+          rangeGfx.setFillStyle({ color, alpha: 0.15 })
+          rangeGfx.rect(px, py, TILE_SIZE, TILE_SIZE)
+          rangeGfx.fill()
+          rangeGfx.setStrokeStyle({ width: 1, color, alpha: 0.5 })
+          rangeGfx.rect(px, py, TILE_SIZE, TILE_SIZE)
+          rangeGfx.stroke()
+        }
+      }
     } else {
       const range = getTowerRange(world, selectedEid)
       if (range !== null) {

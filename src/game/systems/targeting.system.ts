@@ -68,17 +68,24 @@ function getCooldownForTower(world: World, eid: number): number {
 }
 
 /**
- * Check whether (ex, ey) lies inside the DATA_SPIKE 90° facing cone — §5.3.2.
- * Cardinal facings define a half-plane; diagonal facings define a quadrant.
- * Facing N  (0): ey <= ty
- * Facing S  (1): ey >= ty
- * Facing E  (2): ex >= tx
- * Facing W  (3): ex <= tx
- * Facing NE (4): ex >= tx AND ey <= ty
- * Facing SE (5): ex >= tx AND ey >= ty
- * Facing SW (6): ex <= tx AND ey >= ty
- * Facing NW (7): ex <= tx AND ey <= ty
- * AND Chebyshev(enemy, tower) <= range, > 0.
+ * Check whether (ex, ey) lies inside the DATA_SPIKE cone — §5.3.2.
+ *
+ * The cone widens with distance so the number of affected tiles is equal
+ * for every facing direction at the same range.
+ *
+ * Cardinal facings — triangular wedge (width = 2×dist+1 at the tip row):
+ *   N: dy < 0  AND |dx| <= |dy|   (narrows to point at tower, widens outward)
+ *   S: dy > 0  AND |dx| <=  dy
+ *   E: dx > 0  AND |dy| <=  dx
+ *   W: dx < 0  AND |dy| <= -dx
+ *
+ * Diagonal facings — quadrant (both adjacent axes inclusive):
+ *   NE: dx >= 0 AND dy <= 0
+ *   SE: dx >= 0 AND dy >= 0
+ *   SW: dx <= 0 AND dy >= 0
+ *   NW: dx <= 0 AND dy <= 0
+ *
+ * Chebyshev(enemy, tower) in (0, range] for all cases.
  */
 export function inDataSpikeCone(
   ex: number, ey: number,
@@ -88,15 +95,17 @@ export function inDataSpikeCone(
 ): boolean {
   const dist = chebyshev(ex, ey, tx, ty)
   if (dist === 0 || dist > range) return false
+  const dx = ex - tx
+  const dy = ey - ty
   switch (facing) {
-    case C.Dir.N:  return ey <= ty
-    case C.Dir.S:  return ey >= ty
-    case C.Dir.E:  return ex >= tx
-    case C.Dir.W:  return ex <= tx
-    case C.Dir.NE: return ex >= tx && ey <= ty
-    case C.Dir.SE: return ex >= tx && ey >= ty
-    case C.Dir.SW: return ex <= tx && ey >= ty
-    case C.Dir.NW: return ex <= tx && ey <= ty
+    case C.Dir.N:  return dy < 0  && Math.abs(dx) <= -dy
+    case C.Dir.S:  return dy > 0  && Math.abs(dx) <=  dy
+    case C.Dir.E:  return dx > 0  && Math.abs(dy) <=  dx
+    case C.Dir.W:  return dx < 0  && Math.abs(dy) <= -dx
+    case C.Dir.NE: return dx >= 0 && dy <= 0
+    case C.Dir.SE: return dx >= 0 && dy >= 0
+    case C.Dir.SW: return dx <= 0 && dy >= 0
+    case C.Dir.NW: return dx <= 0 && dy <= 0
     default: return false
   }
 }
