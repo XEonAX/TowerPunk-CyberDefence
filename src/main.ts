@@ -144,6 +144,7 @@ if (container) {
             t1,
             gap: { x: gapX, y: gapY },
             t2,
+            level: uiStore.placementLevel,
           } as Command)
         } else {
           // Placing a regular tower
@@ -153,6 +154,7 @@ if (container) {
             x: tile.x,
             y: tile.y,
             facing: uiStore.placementFacing,
+            level: uiStore.placementLevel,
           } as Command)
         }
       } else {

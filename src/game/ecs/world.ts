@@ -37,6 +37,8 @@ export interface PlaceTowerCommand {
   x: number
   y: number
   facing?: number
+  /** Target level to place at (1–10). Tower is placed at L1 then upgraded to this level. Rulebook §5.0.4 */
+  level?: number
 }
 
 export interface PlaceFirewallCommand {
@@ -44,6 +46,8 @@ export interface PlaceFirewallCommand {
   t1: { x: number; y: number }
   gap: { x: number; y: number }
   t2: { x: number; y: number }
+  /** Target level to place at (1–10). Rulebook §5.0.4 */
+  level?: number
 }
 
 export interface UpgradeTowerCommand {

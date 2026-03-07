@@ -208,13 +208,19 @@ function _handlePlaceTower(world: World, cmd: PlaceTowerCommand): void {
   // §2.6 — validate placement (path must remain reachable)
   if (!canPlaceTower(grid, gwTiles, x, y)) return
 
-  // Check resources (L1 cost)
-  const [eddyCost, compCost] = TOWER_COST_TABLES[tt][0]
-  if (world.eddies < eddyCost || world.components < compCost) return
+  // Check resources — cumulative cost to place at target level (§5.0.4)
+  const targetLevel = Math.max(1, Math.min(cmd.level ?? 1, MAX_TOWER_LEVEL))
+  let totalEddies = 0
+  let totalComps = 0
+  for (let l = 0; l < targetLevel; l++) {
+    totalEddies += TOWER_COST_TABLES[tt][l]?.[0] ?? 0
+    totalComps  += TOWER_COST_TABLES[tt][l]?.[1] ?? 0
+  }
+  if (world.eddies < totalEddies || world.components < totalComps) return
 
-  // Deduct resources
-  world.eddies     -= eddyCost
-  world.components -= compCost
+  // Deduct cumulative resources
+  world.eddies     -= totalEddies
+  world.components -= totalComps
 
   // Build component flag set
   let extraFlags = 0
@@ -277,6 +283,11 @@ function _handlePlaceTower(world: World, cmd: PlaceTowerCommand): void {
     }
   }
 
+  // Apply upgrade stats for levels 2..targetLevel (resources already deducted above)
+  for (let lv = 2; lv <= targetLevel; lv++) {
+    _applyTowerLevelStats(world, eid, tt, lv)
+  }
+
   // Update grid
   const tileIdx = idx(x, y)
   world.gridBlocked[tileIdx]  = tt + 1  // §2.6.1 — 1-indexed so 0 = empty
@@ -298,12 +309,18 @@ function _handlePlaceFirewall(world: World, cmd: PlaceFirewallCommand): void {
 
   if (!canPlaceFirewallPair(grid, gwTiles, t1, gap, t2)) return
 
-  // Check resources (single cost for the pair — §5.2)
-  const [eddyCost, compCost] = FIREWALL_COST[0]
-  if (world.eddies < eddyCost || world.components < compCost) return
+  // Check resources — cumulative cost to place at target level (§5.0.4)
+  const targetLevel = Math.max(1, Math.min(cmd.level ?? 1, MAX_TOWER_LEVEL))
+  let totalEddies = 0
+  let totalComps = 0
+  for (let l = 0; l < targetLevel; l++) {
+    totalEddies += FIREWALL_COST[l]?.[0] ?? 0
+    totalComps  += FIREWALL_COST[l]?.[1] ?? 0
+  }
+  if (world.eddies < totalEddies || world.components < totalComps) return
 
-  world.eddies     -= eddyCost
-  world.components -= compCost
+  world.eddies     -= totalEddies
+  world.components -= totalComps
 
   const hp = FIREWALL_HP[0]
 
@@ -331,6 +348,12 @@ function _handlePlaceFirewall(world: World, cmd: PlaceFirewallCommand): void {
   world.firewallPartner[eid1] = eid2
   world.firewallPartner[eid2] = eid1
 
+  // Apply upgrade stats for levels 2..targetLevel on both towers
+  for (let lv = 2; lv <= targetLevel; lv++) {
+    _applyTowerLevelStats(world, eid1, C.TowerType.FIREWALL, lv)
+    _applyTowerLevelStats(world, eid2, C.TowerType.FIREWALL, lv)
+  }
+
   // Update grid for both tower tiles
   const i1 = idx(t1.x, t1.y)
   world.gridBlocked[i1]  = C.TowerType.FIREWALL + 1
@@ -347,33 +370,19 @@ function _handlePlaceFirewall(world: World, cmd: PlaceFirewallCommand): void {
   )
 }
 
-/** §5.0.5 — Upgrade a tower by one level. */
-function _handleUpgradeTower(world: World, cmd: UpgradeTowerCommand): void {
-  const { eid } = cmd
-  const mask = world.bitmask[eid]
-
-  if ((mask & C.TOWER) === 0) return
-  if ((mask & C.PENDING_REMOVAL) !== 0) return
-
-  const currentLevel = world.towerLevel[eid]
-  if (currentLevel >= MAX_TOWER_LEVEL) return  // §5.0.5
-
-  const tt           = world.towerType[eid]
-  const [eddyCost, compCost] = TOWER_COST_TABLES[tt][currentLevel]  // upgrade cost
-
-  if (world.eddies < eddyCost || world.components < compCost) return
-
-  world.eddies     -= eddyCost
-  world.components -= compCost
-
-  const newLevel = currentLevel + 1
+/**
+ * Apply stat changes for a tower being upgraded to `newLevel` (from newLevel-1).
+ * Does NOT deduct resources — callers are responsible for cost handling.
+ * Rulebook §5.0.4
+ */
+function _applyTowerLevelStats(world: World, eid: number, tt: C.TowerType, newLevel: number): void {
   world.towerLevel[eid] = newLevel
 
-  // Update max HP and restore the HP delta gained
-  const hpTable   = TOWER_HP_TABLES[tt]
-  const oldMaxHp  = hpTable[currentLevel - 1]
-  const newMaxHp  = hpTable[newLevel - 1]
-  const hpDelta   = newMaxHp - oldMaxHp
+  // Update max HP and add the HP delta
+  const hpTable  = TOWER_HP_TABLES[tt]
+  const oldMaxHp = hpTable[newLevel - 2] ?? 0
+  const newMaxHp = hpTable[newLevel - 1] ?? oldMaxHp
+  const hpDelta  = newMaxHp - oldMaxHp
   world.healthMax[eid]     = newMaxHp
   world.healthCurrent[eid] = Math.min(world.healthCurrent[eid] + hpDelta, newMaxHp)
 
@@ -427,6 +436,28 @@ function _handleUpgradeTower(world: World, cmd: UpgradeTowerCommand): void {
       // BLACKWALL: no ability
     }
   }
+}
+
+/** §5.0.5 — Upgrade a tower by one level. */
+function _handleUpgradeTower(world: World, cmd: UpgradeTowerCommand): void {
+  const { eid } = cmd
+  const mask = world.bitmask[eid]
+
+  if ((mask & C.TOWER) === 0) return
+  if ((mask & C.PENDING_REMOVAL) !== 0) return
+
+  const currentLevel = world.towerLevel[eid]
+  if (currentLevel >= MAX_TOWER_LEVEL) return  // §5.0.5
+
+  const tt                   = world.towerType[eid]
+  const [eddyCost, compCost] = TOWER_COST_TABLES[tt][currentLevel]  // upgrade cost
+
+  if (world.eddies < eddyCost || world.components < compCost) return
+
+  world.eddies     -= eddyCost
+  world.components -= compCost
+
+  _applyTowerLevelStats(world, eid, tt, currentLevel + 1)
 }
 
 /** §4.2.6–4.2.7 — Dismantle a tower, with optional component refund. */

@@ -83,12 +83,23 @@ export const useUiStore = defineStore('ui', () => {
     placementFacing.value = ROTATE_CW[placementFacing.value] ?? 0
   }
 
+  /**
+   * Placement level selector — towers can be placed pre-upgraded at levels 1–10.
+   * Cost shown is cumulative (sum of all level costs up to selected level).
+   * Rulebook §5.0.5 — maximum tower level is 10.
+   */
+  const placementLevel = ref<number>(1)
+
+  function setPlacementLevel(level: number): void {
+    placementLevel.value = Math.max(1, Math.min(10, level))
+  }
+
   return {
     selectedTowerType, selectedTowerEid,
     hoveredTileX, hoveredTileY,
-    isPanelOpen, placementFacing, gameSpeed,
+    isPanelOpen, placementFacing, gameSpeed, placementLevel,
     inspectedKind, inspectedEid,
     selectTowerType, selectTowerInstance, selectEnemy, selectGateway, clearInspection,
-    setHoveredTile, rotatePlacementFacing, cycleSpeed,
+    setHoveredTile, rotatePlacementFacing, cycleSpeed, setPlacementLevel,
   }
 })

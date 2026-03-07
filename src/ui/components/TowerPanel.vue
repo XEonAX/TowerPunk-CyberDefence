@@ -1,6 +1,13 @@
 <template>
   <div class="tower-panel game-panel">
-    <div class="panel-header">BUILD</div>
+    <div class="panel-header">
+      <span>BUILD</span>
+      <div class="level-picker">
+        <button class="lv-arrow" @click="uiStore.setPlacementLevel(uiStore.placementLevel - 1)" :disabled="uiStore.placementLevel <= 1">◀</button>
+        <span class="lv-value">LV{{ uiStore.placementLevel }}</span>
+        <button class="lv-arrow" @click="uiStore.setPlacementLevel(uiStore.placementLevel + 1)" :disabled="uiStore.placementLevel >= 10">▶</button>
+      </div>
+    </div>
 
     <!-- Tower type selector grid -->
     <div class="tower-grid">
@@ -61,6 +68,44 @@ import { computed } from 'vue'
 import { useGameStore } from '../stores/game.store'
 import { useUiStore } from '../stores/ui.store'
 import { CommandType } from '@game/ecs/world'
+import {
+  ICE_WALL_COST,
+  FIREWALL_COST,
+  DATA_SPIKE_COST,
+  DAEMON_TURRET_COST,
+  ICE_SNIPER_COST,
+  BLACKWALL_TOWER_COST,
+  PING_TOWER_COST,
+  HARVESTER_COST,
+} from '@game/constants'
+
+/** Cost tables indexed by TowerType (same order as towerTypes array). Rulebook §5 */
+const TOWER_COST_TABLES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
+  ICE_WALL_COST,
+  FIREWALL_COST,
+  DATA_SPIKE_COST,
+  DAEMON_TURRET_COST,
+  ICE_SNIPER_COST,
+  BLACKWALL_TOWER_COST,
+  PING_TOWER_COST,
+  HARVESTER_COST,
+]
+
+/**
+ * Cumulative [eddies, components] cost to place a tower at `level` (1-based).
+ * Sums all level costs from index 0 up to level-1. Rulebook §5.0.4.
+ */
+function cumulativeCost(towerType: number, level: number): readonly [number, number] {
+  const table = TOWER_COST_TABLES[towerType]
+  if (!table) return [0, 0]
+  let eddies = 0
+  let comps = 0
+  for (let i = 0; i < level; i++) {
+    eddies += table[i]?.[0] ?? 0
+    comps  += table[i]?.[1] ?? 0
+  }
+  return [eddies, comps] as const
+}
 
 const emit = defineEmits<{ command: [cmd: object] }>()
 
@@ -82,76 +127,18 @@ interface TowerInfo {
   type: number
   name: string
   abbr: string
-  baseEddieCost: number
-  baseCompCost: number
   desc: string
 }
 
 const towerTypes: TowerInfo[] = [
-  {
-    type: 0,
-    name: 'ICE Wall',
-    abbr: 'ICE',
-    baseEddieCost: 50,
-    baseCompCost: 0,
-    desc: 'Obstacle with slow DoT',
-  },
-  {
-    type: 1,
-    name: 'Firewall',
-    abbr: 'FW',
-    baseEddieCost: 75,
-    baseCompCost: 1,
-    desc: 'Pair trap — stuns + damages',
-  },
-  {
-    type: 2,
-    name: 'Data Spike',
-    abbr: 'DS',
-    baseEddieCost: 150,
-    baseCompCost: 2,
-    desc: 'Piercing line attack',
-  },
-  {
-    type: 3,
-    name: 'Daemon Turret',
-    abbr: 'DT',
-    baseEddieCost: 0,
-    baseCompCost: 5,
-    desc: 'Multi-target rotary',
-  },
-  {
-    type: 4,
-    name: 'ICE Sniper',
-    abbr: 'SN',
-    baseEddieCost: 0,
-    baseCompCost: 10,
-    desc: 'Long-range with slow',
-  },
-  {
-    type: 5,
-    name: 'Blackwall',
-    abbr: 'BW',
-    baseEddieCost: 0,
-    baseCompCost: 20,
-    desc: 'Closes gateways',
-  },
-  {
-    type: 6,
-    name: 'Ping Tower',
-    abbr: 'PG',
-    baseEddieCost: 0,
-    baseCompCost: 2,
-    desc: 'Collects resources',
-  },
-  {
-    type: 7,
-    name: 'Harvester',
-    abbr: 'HV',
-    baseEddieCost: 0,
-    baseCompCost: 2,
-    desc: 'Generates eddies',
-  },
+  { type: 0, name: 'ICE Wall',       abbr: 'ICE', desc: 'Obstacle with slow DoT' },
+  { type: 1, name: 'Firewall',       abbr: 'FW',  desc: 'Pair trap — stuns + damages' },
+  { type: 2, name: 'Data Spike',     abbr: 'DS',  desc: 'Piercing line attack' },
+  { type: 3, name: 'Daemon Turret',  abbr: 'DT',  desc: 'Multi-target rotary' },
+  { type: 4, name: 'ICE Sniper',     abbr: 'SN',  desc: 'Long-range with slow' },
+  { type: 5, name: 'Blackwall',      abbr: 'BW',  desc: 'Closes gateways' },
+  { type: 6, name: 'Ping Tower',     abbr: 'PG',  desc: 'Collects resources' },
+  { type: 7, name: 'Harvester',      abbr: 'HV',  desc: 'Generates eddies' },
 ]
 
 const selectedTowerName = computed(() => {
@@ -165,13 +152,15 @@ const selectedTowerDesc = computed(() => {
 })
 
 function canAfford(t: TowerInfo): boolean {
-  return gameStore.eddies >= t.baseEddieCost && gameStore.components >= t.baseCompCost
+  const [e, c] = cumulativeCost(t.type, uiStore.placementLevel)
+  return gameStore.eddies >= e && gameStore.components >= c
 }
 
 function formatCost(t: TowerInfo): string {
+  const [e, c] = cumulativeCost(t.type, uiStore.placementLevel)
   const parts: string[] = []
-  if (t.baseEddieCost > 0) parts.push(`€${t.baseEddieCost}`)
-  if (t.baseCompCost > 0) parts.push(`🔋${t.baseCompCost}`)
+  if (e > 0) parts.push(`€${e}`)
+  if (c > 0) parts.push(`🔋${c}`)
   return parts.join(' ') || 'Free'
 }
 
@@ -202,6 +191,34 @@ function selectTower(type: number): void {
   margin-bottom: 8px;
   border-bottom: 1px solid #002244;
   padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.level-picker {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.lv-arrow {
+  background: none;
+  border: 1px solid #002244;
+  color: #0077cc;
+  font-size: 8px;
+  padding: 1px 4px;
+  cursor: pointer;
+  font-family: monospace;
+  border-radius: 2px;
+  line-height: 1;
+}
+.lv-arrow:disabled { opacity: 0.25; cursor: default; }
+.lv-arrow:not(:disabled):hover { border-color: #0088ff; color: #44aaff; }
+.lv-value {
+  font-size: 10px;
+  color: #ffaa00;
+  min-width: 28px;
+  text-align: center;
+  letter-spacing: 0;
 }
 .tower-grid {
   display: grid;
