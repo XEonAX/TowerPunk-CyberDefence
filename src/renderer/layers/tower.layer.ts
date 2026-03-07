@@ -103,7 +103,7 @@ function getTowerRange(world: World, eid: number): number | [number, number] | n
   const towerType = world.towerType[eid]
   const level = Math.max(0, Math.min(9, (world.towerLevel[eid] ?? 1) - 1))
   switch (towerType) {
-    case C.TowerType.DATA_SPIKE:    return DATA_SPIKE_RANGE[level] ?? 2
+    // DATA_SPIKE uses a directional cone — no circle overlay (§5.3.2)
     case C.TowerType.DAEMON_TURRET: return DAEMON_TURRET_RANGE[level] ?? 1
     case C.TowerType.ICE_SNIPER:    return [ICE_SNIPER_MIN_RANGE, ICE_SNIPER_MAX_RANGE]
     case C.TowerType.PING:          return PING_TOWER_RANGE[level] ?? 3
@@ -323,33 +323,70 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
   ) {
     const cx = (world.posX[selectedEid] + 0.5) * TILE_SIZE
     const cy = (world.posY[selectedEid] + 0.5) * TILE_SIZE
-    const range = getTowerRange(world, selectedEid)
+    const towerType = world.towerType[selectedEid]
+    const level = Math.max(0, Math.min(9, (world.towerLevel[selectedEid] ?? 1) - 1))
 
-    if (range !== null) {
-      if (Array.isArray(range)) {
-        // ICE_SNIPER — min dead-zone (dashed inner) + max range circle
-        const [minR, maxR] = range
-        // Outer range
-        rangeGfx.setStrokeStyle({ width: 1, color: 0xaaddff, alpha: 0.6 })
-        rangeGfx.circle(cx, cy, (maxR + 0.5) * TILE_SIZE)
-        rangeGfx.stroke()
-        // Inner dead-zone
-        rangeGfx.setStrokeStyle({ width: 1, color: 0xff4444, alpha: 0.45 })
-        rangeGfx.circle(cx, cy, (minR - 0.5) * TILE_SIZE)
-        rangeGfx.stroke()
-        // Dim fill between min and max
-        rangeGfx.setFillStyle({ color: 0xaaddff, alpha: 0.05 })
-        rangeGfx.circle(cx, cy, (maxR + 0.5) * TILE_SIZE)
-        rangeGfx.fill()
-      } else {
-        // Standard range circle
-        const towerColor = TOWER_COLORS[world.towerType[selectedEid]] ?? 0xffffff
-        rangeGfx.setFillStyle({ color: towerColor, alpha: 0.07 })
-        rangeGfx.circle(cx, cy, (range + 0.5) * TILE_SIZE)
-        rangeGfx.fill()
-        rangeGfx.setStrokeStyle({ width: 1, color: towerColor, alpha: 0.55 })
-        rangeGfx.circle(cx, cy, (range + 0.5) * TILE_SIZE)
-        rangeGfx.stroke()
+    if (towerType === C.TowerType.DATA_SPIKE) {
+      // §5.3.2 — 90° directional cone overlay, radius driven by per-level range
+      const range = DATA_SPIKE_RANGE[level] ?? 2
+      const radius = (range + 0.5) * TILE_SIZE
+      const facing = world.towerFacing[selectedEid]
+      const color = TOWER_COLORS[C.TowerType.DATA_SPIKE] ?? 0xff00ff
+
+      // [startDeg, endDeg] in screen coords (Y-down, 0=right, clockwise positive)
+      const D2R = Math.PI / 180
+      const CONE_ANGLES: ReadonlyArray<readonly [number, number]> = [
+        [225, 315],  // 0: N  — upper 90°
+        [ 45, 135],  // 1: S  — lower 90°
+        [-45,  45],  // 2: E  — right 90°
+        [135, 225],  // 3: W  — left 90°
+        [270, 360],  // 4: NE — upper-right quadrant
+        [  0,  90],  // 5: SE — lower-right quadrant
+        [ 90, 180],  // 6: SW — lower-left quadrant
+        [180, 270],  // 7: NW — upper-left quadrant
+      ]
+      const [startDeg, endDeg] = CONE_ANGLES[facing] ?? CONE_ANGLES[0]
+      const startAngle = startDeg * D2R
+      const endAngle   = endDeg   * D2R
+
+      rangeGfx.setFillStyle({ color, alpha: 0.12 })
+      rangeGfx.moveTo(cx, cy)
+      rangeGfx.arc(cx, cy, radius, startAngle, endAngle)
+      rangeGfx.closePath()
+      rangeGfx.fill()
+      rangeGfx.setStrokeStyle({ width: 1, color, alpha: 0.6 })
+      rangeGfx.moveTo(cx, cy)
+      rangeGfx.arc(cx, cy, radius, startAngle, endAngle)
+      rangeGfx.closePath()
+      rangeGfx.stroke()
+    } else {
+      const range = getTowerRange(world, selectedEid)
+      if (range !== null) {
+        if (Array.isArray(range)) {
+          // ICE_SNIPER — min dead-zone (dashed inner) + max range circle
+          const [minR, maxR] = range
+          // Outer range
+          rangeGfx.setStrokeStyle({ width: 1, color: 0xaaddff, alpha: 0.6 })
+          rangeGfx.circle(cx, cy, (maxR + 0.5) * TILE_SIZE)
+          rangeGfx.stroke()
+          // Inner dead-zone
+          rangeGfx.setStrokeStyle({ width: 1, color: 0xff4444, alpha: 0.45 })
+          rangeGfx.circle(cx, cy, (minR - 0.5) * TILE_SIZE)
+          rangeGfx.stroke()
+          // Dim fill between min and max
+          rangeGfx.setFillStyle({ color: 0xaaddff, alpha: 0.05 })
+          rangeGfx.circle(cx, cy, (maxR + 0.5) * TILE_SIZE)
+          rangeGfx.fill()
+        } else {
+          // Standard range circle
+          const towerColor = TOWER_COLORS[towerType] ?? 0xffffff
+          rangeGfx.setFillStyle({ color: towerColor, alpha: 0.07 })
+          rangeGfx.circle(cx, cy, (range + 0.5) * TILE_SIZE)
+          rangeGfx.fill()
+          rangeGfx.setStrokeStyle({ width: 1, color: towerColor, alpha: 0.55 })
+          rangeGfx.circle(cx, cy, (range + 0.5) * TILE_SIZE)
+          rangeGfx.stroke()
+        }
       }
     }
   }
