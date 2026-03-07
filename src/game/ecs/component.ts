@@ -159,10 +159,15 @@ export const enum AbilityType {
 
 /** Rulebook §2.10.5, Tech.md §5.4 */
 export const enum Dir {
-  N = 0,
-  S = 1,
-  E = 2,
-  W = 3,
+  N    = 0,
+  S    = 1,
+  E    = 2,
+  W    = 3,
+  /** §5.3.2 — diagonal facing directions for Data Spike */
+  NE   = 4,
+  SE   = 5,
+  SW   = 6,
+  NW   = 7,
   NONE = 0xff,
 }
 

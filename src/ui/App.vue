@@ -73,7 +73,7 @@ function onKeyDown(e: KeyboardEvent): void {
       }
       break
 
-    // R  →  rotate Data Spike facing
+    // R  →  rotate Data Spike facing (8-way) or toggle Firewall axis (2-way)
     case 'r':
     case 'R':
       if (uiStore.selectedTowerType !== null) {

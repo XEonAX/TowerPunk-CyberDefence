@@ -40,6 +40,9 @@ const active = new Map<number, Graphics>() // eid → Graphics
 // Dedicated Graphics for the Core (not a tower, rendered separately)
 let coreGfx: Graphics | null = null
 
+// Dedicated Graphics for Firewall pair connector lines
+let firewallLineGfx: Graphics | null = null
+
 // Dedicated Graphics for range circle overlay
 let rangeGfx: Graphics | null = null
 
@@ -155,6 +158,37 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
 
     g.x = world.posX[eid] * TILE_SIZE
     g.y = world.posY[eid] * TILE_SIZE
+  }
+
+  // Draw orange connector lines between placed Firewall pairs (§5.2.1)
+  if (!firewallLineGfx) {
+    firewallLineGfx = new Graphics()
+    container.addChild(firewallLineGfx)
+  }
+  firewallLineGfx.clear()
+  for (let eid = 1; eid < MAX_ENTITIES; eid++) {
+    const mask = world.bitmask[eid]
+    if (!(mask & C.FIREWALL_LINK)) continue
+    if (mask & C.PENDING_REMOVAL) continue
+    const partner = world.firewallPartner[eid]
+    // Draw once per pair — lower eid wins
+    if (eid >= partner) continue
+    const partnerMask = world.bitmask[partner]
+    if (partnerMask & C.PENDING_REMOVAL) continue
+    const x1 = (world.posX[eid]     + 0.5) * TILE_SIZE
+    const y1 = (world.posY[eid]     + 0.5) * TILE_SIZE
+    const x2 = (world.posX[partner] + 0.5) * TILE_SIZE
+    const y2 = (world.posY[partner] + 0.5) * TILE_SIZE
+    // Glow outer line
+    firewallLineGfx.setStrokeStyle({ width: 4, color: 0xff8800, alpha: 0.25 })
+    firewallLineGfx.moveTo(x1, y1)
+    firewallLineGfx.lineTo(x2, y2)
+    firewallLineGfx.stroke()
+    // Core bright line
+    firewallLineGfx.setStrokeStyle({ width: 2, color: 0xff8800, alpha: 0.85 })
+    firewallLineGfx.moveTo(x1, y1)
+    firewallLineGfx.lineTo(x2, y2)
+    firewallLineGfx.stroke()
   }
 
   // Render Blackwall Gateways (§9.2)
@@ -326,6 +360,7 @@ export function _clearTowerPool(): void {
   active.clear()
   pool.length = 0
   coreGfx = null
+  firewallLineGfx = null
   rangeGfx = null
   projectileGfx = null
   activeProjectiles.length = 0

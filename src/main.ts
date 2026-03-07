@@ -60,9 +60,6 @@ if (container) {
       if (e.code === 'Escape') {
         useUiStore().selectTowerType(null)
       }
-      if (e.code === 'KeyR') {
-        useUiStore().rotatePlacementFacing()
-      }
     })
     window.addEventListener('keyup', (e) => keysDown.delete(e.code))
 
@@ -126,11 +123,22 @@ if (container) {
           uiStore.selectTowerInstance(existingEid)
         } else if (uiStore.selectedTowerType === TowerType.FIREWALL) {
           // Firewall requires a linked pair — hover tile is the walkable gap §5.2.1
-          const isVertical = uiStore.placementFacing % 2 === 0
+          // Offsets: [t1dx, t1dy, t2dx, t2dy] per Dir value (0=Vertical, 2=Horizontal, 4=Diag↗↙, 7=Diag↘↖)
+          const FW_OFFSETS = [
+            [ 0, -1,  0,  1],  // 0: N  → Vertical
+            [ 0, -1,  0,  1],  // 1: S  → Vertical (same)
+            [-1,  0,  1,  0],  // 2: E  → Horizontal
+            [-1,  0,  1,  0],  // 3: W  → Horizontal (same)
+            [-1,  1,  1, -1],  // 4: NE → Diagonal ↗↙
+            [-1, -1,  1,  1],  // 5: SE → Diagonal ↘↖
+            [-1,  1,  1, -1],  // 6: SW → Diagonal ↗↙ (same)
+            [-1, -1,  1,  1],  // 7: NW → Diagonal ↘↖ (same)
+          ] as const
+          const [t1dx, t1dy, t2dx, t2dy] = FW_OFFSETS[uiStore.placementFacing] ?? FW_OFFSETS[0]
           const gapX = tile.x
           const gapY = tile.y
-          const t1 = isVertical ? { x: gapX, y: gapY - 1 } : { x: gapX - 1, y: gapY }
-          const t2 = isVertical ? { x: gapX, y: gapY + 1 } : { x: gapX + 1, y: gapY }
+          const t1 = { x: gapX + t1dx, y: gapY + t1dy }
+          const t2 = { x: gapX + t2dx, y: gapY + t2dy }
           world.commandQueue.push({
             type: CommandType.PLACE_FIREWALL,
             t1,

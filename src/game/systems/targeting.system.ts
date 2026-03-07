@@ -69,10 +69,15 @@ function getCooldownForTower(world: World, eid: number): number {
 
 /**
  * Check whether (ex, ey) lies inside the DATA_SPIKE 90° facing cone — §5.3.2.
- * Facing N (Dir.N=0): ey <= ty  (enemy is north of or at tower row)
- * Facing S (Dir.S=1): ey >= ty
- * Facing E (Dir.E=2): ex >= tx
- * Facing W (Dir.W=3): ex <= tx
+ * Cardinal facings define a half-plane; diagonal facings define a quadrant.
+ * Facing N  (0): ey <= ty
+ * Facing S  (1): ey >= ty
+ * Facing E  (2): ex >= tx
+ * Facing W  (3): ex <= tx
+ * Facing NE (4): ex >= tx AND ey <= ty
+ * Facing SE (5): ex >= tx AND ey >= ty
+ * Facing SW (6): ex <= tx AND ey >= ty
+ * Facing NW (7): ex <= tx AND ey <= ty
  * AND Chebyshev(enemy, tower) <= range, > 0.
  */
 export function inDataSpikeCone(
@@ -84,10 +89,14 @@ export function inDataSpikeCone(
   const dist = chebyshev(ex, ey, tx, ty)
   if (dist === 0 || dist > range) return false
   switch (facing) {
-    case C.Dir.N: return ey <= ty
-    case C.Dir.S: return ey >= ty
-    case C.Dir.E: return ex >= tx
-    case C.Dir.W: return ex <= tx
+    case C.Dir.N:  return ey <= ty
+    case C.Dir.S:  return ey >= ty
+    case C.Dir.E:  return ex >= tx
+    case C.Dir.W:  return ex <= tx
+    case C.Dir.NE: return ex >= tx && ey <= ty
+    case C.Dir.SE: return ex >= tx && ey >= ty
+    case C.Dir.SW: return ex <= tx && ey >= ty
+    case C.Dir.NW: return ex <= tx && ey <= ty
     default: return false
   }
 }

@@ -64,7 +64,7 @@ function _drawTile(gfx: Graphics, tileX: number, tileY: number, color: number, f
  * @param hoveredX           Hovered tile X coordinate (-1 = none).
  * @param hoveredY           Hovered tile Y coordinate (-1 = none).
  * @param selectedTowerType  Currently selected tower type (null = no placement mode).
- * @param placementFacing    Current placement facing (0–3). Used for Firewall axis and Data Spike.
+ * @param placementFacing    Current placement facing (0–7 via Dir enum). Used for Firewall axis and Data Spike.
  */
 export function updateGhostLayer(
   container: Container,
@@ -114,14 +114,24 @@ export function updateGhostLayer(
     if (selectedTowerType === TowerType.FIREWALL) {
       // §5.2.1 — Firewall is a 3-tile pair (t1, gap, t2).
       // The hovered tile is the walkable gap; t1/t2 are placed on either side.
-      // placementFacing % 2 === 0 → vertical axis; === 1 → horizontal axis.
-      const isVertical = placementFacing % 2 === 0
+      // Offsets: [t1dx, t1dy, t2dx, t2dy] per Dir value.
+      const FW_OFFSETS = [
+        [ 0, -1,  0,  1],  // 0: N  → Vertical
+        [ 0, -1,  0,  1],  // 1: S  → Vertical (same)
+        [-1,  0,  1,  0],  // 2: E  → Horizontal
+        [-1,  0,  1,  0],  // 3: W  → Horizontal (same)
+        [-1,  1,  1, -1],  // 4: NE → Diagonal ↗↙
+        [-1, -1,  1,  1],  // 5: SE → Diagonal ↘↖
+        [-1,  1,  1, -1],  // 6: SW → Diagonal ↗↙ (same)
+        [-1, -1,  1,  1],  // 7: NW → Diagonal ↘↖ (same)
+      ] as const
+      const [t1dx, t1dy, t2dx, t2dy] = FW_OFFSETS[placementFacing] ?? FW_OFFSETS[0]
       const gapX = hoveredX
       const gapY = hoveredY
-      const t1x = isVertical ? gapX : gapX - 1
-      const t1y = isVertical ? gapY - 1 : gapY
-      const t2x = isVertical ? gapX : gapX + 1
-      const t2y = isVertical ? gapY + 1 : gapY
+      const t1x = gapX + t1dx
+      const t1y = gapY + t1dy
+      const t2x = gapX + t2dx
+      const t2y = gapY + t2dy
 
       lastValid = canPlaceFirewallPair(
         grid, gatewayTiles,

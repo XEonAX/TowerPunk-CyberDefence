@@ -12,11 +12,14 @@ export const useUiStore = defineStore('ui', () => {
   const hoveredTileX = ref<number>(-1)
   const hoveredTileY = ref<number>(-1)
   const isPanelOpen = ref(true)
-  /** Placement facing direction (0=N,1=S,2=E,3=W) — used for Data Spike (§5.3) */
+  /**
+   * Placement facing direction — used for Data Spike (§5.3) and Firewall axis.
+   * Dir values: N=0, S=1, E=2, W=3, NE=4, SE=5, SW=6, NW=7
+   */
   const placementFacing = ref(0)
 
-  /** Game speed multiplier — 1×, 2×, or 4× */
-  const gameSpeed = ref<1 | 2 | 4>(1)
+  /** Game speed multiplier — 1×, 2×, 4×, 8×, 16×, or 32× */
+  const gameSpeed = ref<1 | 2 | 4 | 8 | 16 | 32>(1)
 
   /** Kind of entity currently being inspected. */
   const inspectedKind = ref<'tower' | 'enemy' | 'gateway' | null>(null)
@@ -26,6 +29,9 @@ export const useUiStore = defineStore('ui', () => {
   function cycleSpeed(): void {
     if (gameSpeed.value === 1) gameSpeed.value = 2
     else if (gameSpeed.value === 2) gameSpeed.value = 4
+    else if (gameSpeed.value === 4) gameSpeed.value = 8
+    else if (gameSpeed.value === 8) gameSpeed.value = 16
+    else if (gameSpeed.value === 16) gameSpeed.value = 32
     else gameSpeed.value = 1
   }
 
@@ -68,8 +74,13 @@ export const useUiStore = defineStore('ui', () => {
     hoveredTileY.value = y
   }
 
+  /**
+   * Clockwise 8-direction rotation for Data Spike facing.
+   * Sequence: N→NE→E→SE→S→SW→W→NW→N (Dir values: 0→4→2→5→1→6→3→7→0)
+   */
   function rotatePlacementFacing(): void {
-    placementFacing.value = (placementFacing.value + 1) % 4
+    const ROTATE_CW = [4, 6, 5, 7, 2, 1, 3, 0] as const
+    placementFacing.value = ROTATE_CW[placementFacing.value] ?? 0
   }
 
   return {

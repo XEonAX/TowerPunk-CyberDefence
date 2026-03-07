@@ -67,11 +67,16 @@ const emit = defineEmits<{ command: [cmd: object] }>()
 const gameStore = useGameStore()
 const uiStore = useUiStore()
 
-const FACING_NAMES = ['North', 'South', 'East', 'West']
-const facingName = computed(() => FACING_NAMES[uiStore.placementFacing])
+const FACING_NAMES = ['North', 'South', 'East', 'West', 'North-East', 'South-East', 'South-West', 'North-West']
+const facingName = computed(() => FACING_NAMES[uiStore.placementFacing] ?? 'North')
 
-const FIREWALL_AXIS_NAMES = ['Vertical', 'Horizontal']
-const firewallAxisName = computed(() => FIREWALL_AXIS_NAMES[uiStore.placementFacing % 2])
+// Firewall cycles through 4 axis orientations
+const firewallAxisName = computed(() => {
+  if (uiStore.placementFacing === 2) return 'Horizontal'
+  if (uiStore.placementFacing === 4) return 'Diagonal ↗↙'
+  if (uiStore.placementFacing === 7) return 'Diagonal ↘↖'
+  return 'Vertical'
+})
 
 interface TowerInfo {
   type: number

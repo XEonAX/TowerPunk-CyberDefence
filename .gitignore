@@ -420,3 +420,4 @@ FodyWeavers.xsd
 
 dist/
 coverage/
+playwright-report/
