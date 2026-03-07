@@ -18,6 +18,7 @@ import {
   FIREWALL_DPS,
   FIREWALL_STUN_TICKS,
   DATA_SPIKE_DAMAGE,
+  DATA_SPIKE_RANGE,
   DAEMON_TURRET_DAMAGE,
   ICE_SNIPER_DAMAGE,
   ICE_SNIPER_SLOW,
@@ -155,7 +156,7 @@ function applyDataSpikeDamage(world: World, teid: number): void {
   const tx      = world.posX[teid] | 0
   const ty      = world.posY[teid] | 0
   const facing  = world.towerFacing[teid]
-  const range   = 2  // DATA_SPIKE range at all levels (§5.3.1)
+  const range   = DATA_SPIKE_RANGE[level] ?? 2  // §5.3 — grows with level
   const N       = world.bitmask.length
 
   for (let eid = 1; eid < N; eid++) {

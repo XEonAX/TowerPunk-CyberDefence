@@ -91,7 +91,7 @@ if (container) {
         updateTowerLayer(layers.towers, world, alpha, uiStore.selectedTowerEid)
         updateEnemyLayer(layers.enemies, world, alpha)
         updatePickupLayer(layers.pickups, world, alpha)
-        updateGhostLayer(layers.ghost, world, uiStore.hoveredTileX, uiStore.hoveredTileY, uiStore.selectedTowerType, uiStore.placementFacing)
+        updateGhostLayer(layers.ghost, world, uiStore.hoveredTileX, uiStore.hoveredTileY, uiStore.selectedTowerType, uiStore.placementFacing, uiStore.placementLevel)
         updateFxLayer(layers.fx, world, alpha)
       },
     }
