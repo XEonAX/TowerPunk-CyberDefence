@@ -19,7 +19,10 @@ import InspectPanel from './components/InspectPanel.vue'
 import WaveTimer from './components/WaveTimer.vue'
 import GameResult from './components/GameResult.vue'
 import { useUiStore } from './stores/ui.store'
+import { useGameStore } from './stores/game.store'
+import { CommandType } from '@game/ecs/world'
 
+const gameStore = useGameStore()
 const uiStore = useUiStore()
 
 function handleCommand(cmd: object): void {
@@ -56,7 +59,7 @@ function onKeyDown(e: KeyboardEvent): void {
     case 'U':
       if (uiStore.selectedTowerEid !== null) {
         e.preventDefault()
-        handleCommand({ type: 2, eid: uiStore.selectedTowerEid })
+        handleCommand({ type: CommandType.UPGRADE_TOWER, eid: uiStore.selectedTowerEid })
       }
       break
 
@@ -65,7 +68,7 @@ function onKeyDown(e: KeyboardEvent): void {
     case 'Backspace':
       if (uiStore.selectedTowerEid !== null) {
         e.preventDefault()
-        handleCommand({ type: 4, eid: uiStore.selectedTowerEid })
+        handleCommand({ type: CommandType.DISMANTLE_TOWER, eid: uiStore.selectedTowerEid })
         uiStore.clearInspection()
       }
       break
@@ -78,6 +81,17 @@ function onKeyDown(e: KeyboardEvent): void {
         uiStore.rotatePlacementFacing()
       }
       break
+
+    // Enter / Space  →  start wave / skip break
+    case 'Enter':
+    case ' ':
+      e.preventDefault()
+      if (gameStore.isPreGame) {
+        handleCommand({ type: CommandType.START_WAVE })  // start wave
+      } else if (gameStore.isWaveBreak) {
+        handleCommand({ type: CommandType.SKIP_BREAK })  // skip break
+      }
+      break;
 
     // Escape  →  cancel placement / deselect
     case 'Escape':
