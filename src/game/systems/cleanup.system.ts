@@ -12,6 +12,8 @@
 import { markForRemoval, createPickup, spawnInteriorGateway, type World } from '../ecs/world'
 import * as C from '../ecs/component'
 import { CORE_X, CORE_Y } from '../constants'
+import { idx } from '../pathfinding/grid'
+import { computeDualFlowfields } from '../pathfinding/flowfield'
 
 export function cleanupSystem(world: World): void {
   // First pass: ensure Firewall partners are also queued (§5.2.4)
@@ -28,9 +30,25 @@ export function cleanupSystem(world: World): void {
 
   // Second pass: destroy all queued entities (including newly added Firewall partners)
   const totalLen = world.removalQueueLen
+  let gridChanged = false
   for (let i = 0; i < totalLen; i++) {
     const eid = world.removalQueue[i]
     const mask = world.bitmask[eid]
+
+    // ----- Tower destruction — free grid tile(s) -----
+    // This handles towers destroyed by enemy aura or other non-command paths.
+    // (Command handlers already clear the grid before queuing removal, so
+    // clearing here a second time is harmless — idempotent zeroing.)
+    if ((mask & C.TOWER) !== 0) {
+      const tx = world.posX[eid] | 0
+      const ty = world.posY[eid] | 0
+      const ti = idx(tx, ty)
+      if (world.gridBlocked[ti] !== 0) {
+        world.gridBlocked[ti]   = 0
+        world.gridTowerType[ti] = 0
+        gridChanged = true
+      }
+    }
 
     // ----- Enemy death -----
     if ((mask & C.ENEMY) !== 0) {
@@ -58,6 +76,15 @@ export function cleanupSystem(world: World): void {
     // ----- Destroy entity -----
     world.bitmask[eid] = 0
     world.pool.destroy(eid)
+  }
+
+  // Recompute flowfields once if any tower tile was freed
+  if (gridChanged) {
+    computeDualFlowfields(
+      { blocked: world.gridBlocked, towerType: world.gridTowerType },
+      world.flowCost, world.flowDir,
+      world.glitchCost, world.glitchDir,
+    )
   }
 
   world.removalQueueLen = 0
