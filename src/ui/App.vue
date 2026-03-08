@@ -1,5 +1,10 @@
 <template>
   <div id="app-root">
+    <!-- Landing page overlay — shown before the game starts -->
+    <Transition name="landing-fade">
+      <LandingPage v-if="showLanding" @start="onStart" />
+    </Transition>
+
     <div id="pixi-container"></div>
     <HUD />
     <TowerPanel @command="handleCommand" />
@@ -11,7 +16,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import LandingPage from './components/LandingPage.vue'
 import HUD from './components/HUD.vue'
 import TowerPanel from './components/TowerPanel.vue'
 import AbilityBar from './components/AbilityBar.vue'
@@ -24,6 +30,12 @@ import { CommandType } from '@game/ecs/world'
 
 const gameStore = useGameStore()
 const uiStore = useUiStore()
+
+// ── Landing page ────────────────────────────────────────────────────────────
+const showLanding = ref(true)
+function onStart(): void {
+  showLanding.value = false
+}
 
 function handleCommand(cmd: object): void {
   // Commands are dispatched to the simulation command queue via window event
@@ -44,7 +56,7 @@ function onKeyDown(e: KeyboardEvent): void {
   // 1–8  →  select tower type for placement
   if (e.key >= '1' && e.key <= '8' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault()
-    const type = Number(e.key) - 1  // maps '1'→0 … '8'→7
+    const type = Number(e.key) - 1 // maps '1'→0 … '8'→7
     if (uiStore.selectedTowerType === type) {
       uiStore.selectTowerType(null)
     } else {
@@ -82,16 +94,19 @@ function onKeyDown(e: KeyboardEvent): void {
       }
       break
 
-    // Enter / Space  →  start wave / skip break
+    // Enter / Space  →  dismiss landing, start wave, or skip break
     case 'Enter':
     case ' ':
       e.preventDefault()
-      if (gameStore.isPreGame) {
-        handleCommand({ type: CommandType.START_WAVE })  // start wave
-      } else if (gameStore.isWaveBreak) {
-        handleCommand({ type: CommandType.SKIP_BREAK })  // skip break
+      if (showLanding.value) {
+        onStart()
       }
-      break;
+      if (gameStore.isPreGame) {
+        handleCommand({ type: CommandType.START_WAVE }) // start wave
+      } else if (gameStore.isWaveBreak) {
+        handleCommand({ type: CommandType.SKIP_BREAK }) // skip break
+      }
+      break
 
     // Escape  →  cancel placement / deselect
     case 'Escape':
@@ -111,10 +126,32 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 </script>
 
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #0a0a0f; overflow: hidden; }
-#app-root { width: 100vw; height: 100vh; position: relative; }
-#pixi-container { position: absolute; inset: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body {
+  background: #0a0a0f;
+  overflow: hidden;
+}
+#app-root {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+#pixi-container {
+  position: absolute;
+  inset: 0;
+}
+
+/* ── Landing page transition ────────────────────────────────────────────── */
+.landing-fade-leave-active {
+  transition: opacity 0.8s ease;
+}
+.landing-fade-leave-to {
+  opacity: 0;
+}
 
 /** Shared panel chrome — applied to every floating UI panel */
 .game-panel {

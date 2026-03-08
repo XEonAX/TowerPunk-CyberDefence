@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 514 182" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(1,0,0,1,-723.84,-499)">
+        <g transform="matrix(1,0,0,1,0,148)">
+            <g transform="matrix(1,0,0,1,-110,-200)">
+                <text x="832.4px" y="618.2px" style="font-family:'SyneMono-Regular', 'Syne Mono', monospace;font-size:96px;fill:rgb(255,0,255);">Towerpunk</text>
+            </g>
+            <g transform="matrix(1,0,0,1,960,424)">
+                <text x="158.8px" y="39.2px" style="font-family:'SyneMono-Regular', 'Syne Mono', monospace;font-size:56px;fill:rgb(255,0,255);">2027</text>
+            </g>
+        </g>
+        <g transform="matrix(1,0,0,1,678,625)">
+            <text x="49.376px" y="43.12px" style="font-family:'Orbitron-Regular', 'Orbitron';font-size:56px;fill:rgb(211,211,211);">Cybe<tspan x="209.592px " y="43.12px ">r</tspan> Defen<tspan x="438.352px 475.872px " y="43.12px 43.12px ">ce</tspan></text>
+        </g>
+    </g>
+</svg>
