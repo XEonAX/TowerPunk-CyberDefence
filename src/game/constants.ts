@@ -46,10 +46,10 @@ export const CORE_STARTING_HP = 100
 // ---------------------------------------------------------------------------
 
 /** Rulebook §4.3.1 */
-export const INITIAL_EDDIES = 5009999999
+export const INITIAL_EDDIES = 500
 
 /** Rulebook §4.3.1 */
-export const INITIAL_COMPONENTS = 599999990
+export const INITIAL_COMPONENTS = 5
 
 /** Rulebook §4.2.5 — decay rate = 5% per second / 100 per tick as fraction of initial value */
 export const PICKUP_DECAY_RATE = 5 / TICK_RATE / 100

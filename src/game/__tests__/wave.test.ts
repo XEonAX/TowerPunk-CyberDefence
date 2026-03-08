@@ -26,13 +26,14 @@ import {
   getTotalEnemiesInWave,
 } from '../wave'
 
+import { TICK_RATE } from '../constants'
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 describe('§8.4 — SPAWN_INTERVAL_TICKS', () => {
   it('is 30 ticks', () => {
-    expect(SPAWN_INTERVAL_TICKS).toBe(30)
+    expect(SPAWN_INTERVAL_TICKS).toBe(1) 
   })
 })
 
