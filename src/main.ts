@@ -16,6 +16,7 @@ import { createSimulation } from './game/simulation'
 import { startGameLoop } from './game/gameLoop'
 import { useGameStore } from './ui/stores/game.store'
 import { useUiStore } from './ui/stores/ui.store'
+import { installDevHelpers } from './misc/helper'
 
 const pinia = createPinia()
 const app = createApp(App)
@@ -65,6 +66,11 @@ if (container) {
 
     // Create simulation
     const simulation = createSimulation(12345)
+
+    // Install dev helpers on window.__dev (dev builds only)
+    if (import.meta.env.DEV) {
+      installDevHelpers()
+    }
 
     // Init Pinia stores after simulation is ready
     const gameStore = useGameStore()
