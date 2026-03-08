@@ -34,8 +34,8 @@ export function startGameLoop(
         const t0 = performance.now()
         simulation.tick()
         const elapsed = performance.now() - t0
-        if (elapsed > 4) {
-          console.warn(`[TowerPunk] Slow tick: ${elapsed.toFixed(2)}ms (budget: 4ms)`)
+        if (elapsed > TICK_DURATION) {
+          console.warn(`[TowerPunk] Slow tick: ${elapsed.toFixed(2)}ms (budget: ${TICK_DURATION}ms)`)
         }
       } else {
         simulation.tick()

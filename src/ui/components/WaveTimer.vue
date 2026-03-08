@@ -28,6 +28,7 @@
 import { computed } from 'vue'
 import { useGameStore } from '../stores/game.store'
 import { getWaveData } from '@game/wave'
+import { TICK_RATE } from '@game/constants'
 
 const gameStore = useGameStore()
 
@@ -46,7 +47,7 @@ const isBossNextWave = computed(() => {
  * §8.2.3 — base break = 1800 ticks (30s), scales down to 60 ticks (1s) at wave 40+.
  */
 const breakProgress = computed(() => {
-  const maxBreak = 1800  // §8.2.3 max break ticks
+  const maxBreak = 30 * TICK_RATE  // §8.2.3 max break ticks
   const remaining = gameStore.breakTicksRemaining
   return (remaining / maxBreak) * 100
 })

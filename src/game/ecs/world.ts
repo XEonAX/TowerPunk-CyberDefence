@@ -7,9 +7,8 @@
 
 import { createEntityPool, type EntityPool, type EntityId } from './entity'
 import * as C from './component'
-import { GATEWAY_HP, INITIAL_COMPONENTS, INITIAL_EDDIES } from '../constants'
+import { CORE_STARTING_HP, CORE_X, CORE_Y, GATEWAY_HP, GRID_SIZE, INITIAL_COMPONENTS, INITIAL_EDDIES } from '../constants'
 
-/** Rulebook §2.1 */ const GRID_SIZE = 51
 /** Maximum simultaneous entities (enemies + towers + pickups + gateways) */
 const MAX_ENTITIES = 4096
 
@@ -479,10 +478,10 @@ export function createWorld(seed: number = 12345): World {
   // Create the Core entity (Rulebook §2.3, §3.3)
   const coreEid = world.pool.create()
   world.bitmask[coreEid] = C.POSITION | C.HEALTH
-  world.posX[coreEid] = 25  // 0-indexed center of 51×51 grid (Rulebook §2.9)
-  world.posY[coreEid] = 25
-  world.healthCurrent[coreEid] = 100  // Rulebook §3.3
-  world.healthMax[coreEid] = 100
+  world.posX[coreEid] = CORE_X  // 0-indexed center of GRID_SIZE×GRID_SIZE grid (Rulebook §2.9)
+  world.posY[coreEid] = CORE_Y
+  world.healthCurrent[coreEid] = CORE_STARTING_HP  // Rulebook §3.3
+  world.healthMax[coreEid] = CORE_STARTING_HP
   world.coreEid = coreEid
 
   return world

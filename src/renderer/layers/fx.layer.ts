@@ -10,6 +10,7 @@ import { Text, Container } from 'pixi.js'
 import type { World } from '@game/ecs/world'
 import * as C from '@game/ecs/component'
 import { TILE_SIZE } from '../camera'
+import { TICK_RATE } from '@game/constants'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,7 +30,7 @@ interface DamageNumber {
 // ---------------------------------------------------------------------------
 
 const MAX_ENTITIES = 4096
-const FLOAT_TICKS = 60  // damage number lives 60 ticks (~1 sec)
+const FLOAT_TICKS = TICK_RATE  // damage number lives 60 ticks (~1 sec)
 const FLOAT_RISE_PX = TILE_SIZE * 2  // how far numbers float upward
 
 /** Last known HP per enemy entity — used to detect damage events */

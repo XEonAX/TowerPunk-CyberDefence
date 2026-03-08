@@ -87,7 +87,7 @@ function applyIceWallDamage(world: World, teid: number): void {
 
     // Slow — skip if immune
     if ((immune & C.IMMUNE_SLOW) === 0 && (immune & C.IMMUNE_ICE_SLOW) === 0) {
-      queueSlow(world, eid, slowMag, 30)
+      queueSlow(world, eid, slowMag, TICK_RATE / 2)  // §5.1.2: 0.5 s duration
     }
   }
 }

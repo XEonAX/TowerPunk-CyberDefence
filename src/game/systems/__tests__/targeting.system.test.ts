@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { createWorld, createTower, createEnemy, type World } from '../../ecs/world'
 import * as C from '../../ecs/component'
 import { targetingSystem, DATA_SPIKE_FIRE_FLAG } from '../targeting.system'
+import { TICK_RATE } from '../../constants'
 
 let world: World
 
@@ -291,6 +292,6 @@ describe('Rulebook §5.3.2 — DATA_SPIKE fire flag', () => {
     targetingSystem(world)
 
     // DATA_SPIKE_COOLDOWN_TICKS = 120
-    expect(world.targetingCooldown[teid]).toBe(120)
+    expect(world.targetingCooldown[teid]).toBe(TICK_RATE * 2)
   })
 })

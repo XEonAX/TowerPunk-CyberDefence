@@ -49,15 +49,15 @@
         </div>
         <div v-if="enemy.stunTicksRemaining > 0" class="ip-stat ip-status-stun">
           <span class="ip-stat-label">STUNNED</span>
-          <span class="ip-stat-value">{{ (enemy.stunTicksRemaining / 60).toFixed(1) }}s</span>
+          <span class="ip-stat-value">{{ (enemy.stunTicksRemaining / TICK_RATE).toFixed(1) }}s</span>
         </div>
         <div v-if="enemy.slowTicksRemaining > 0" class="ip-stat ip-status-slow">
           <span class="ip-stat-label">SLOWED</span>
-          <span class="ip-stat-value">{{ Math.round(enemy.slowMagnitude * 100) }}% / {{ (enemy.slowTicksRemaining / 60).toFixed(1) }}s</span>
+          <span class="ip-stat-value">{{ Math.round(enemy.slowMagnitude * 100) }}% / {{ (enemy.slowTicksRemaining / TICK_RATE).toFixed(1) }}s</span>
         </div>
         <div v-if="enemy.spawnImmunityTicksRemaining > 0" class="ip-stat ip-status-immune">
           <span class="ip-stat-label">IMMUNE</span>
-          <span class="ip-stat-value">{{ (enemy.spawnImmunityTicksRemaining / 60).toFixed(1) }}s</span>
+          <span class="ip-stat-value">{{ (enemy.spawnImmunityTicksRemaining / TICK_RATE).toFixed(1) }}s</span>
         </div>
       </div>
       <div v-if="enemyImmunityLabels.length > 0" class="ip-immunities">

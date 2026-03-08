@@ -11,7 +11,7 @@
 
 import { markForRemoval, createPickup, spawnInteriorGateway, type World } from '../ecs/world'
 import * as C from '../ecs/component'
-import { CORE_X, CORE_Y } from '../constants'
+import { CORE_X, CORE_Y, TICK_RATE } from '../constants'
 import { idx } from '../pathfinding/grid'
 import { computeDualFlowfields } from '../pathfinding/flowfield'
 
@@ -124,7 +124,7 @@ function dropEnemyPickup(world: World, eid: number): void {
   // §4.2.5: Pickup decays at 5/60/100 per tick as fraction of initial value
   const initialValue = eddyDrop + componentDrop * 100
   world.pickupInitialValue[pickupEid]   = initialValue
-  world.pickupDecayPerTick[pickupEid]   = (5 / 60 / 100) * initialValue
+  world.pickupDecayPerTick[pickupEid]   = (5 / TICK_RATE / 100) * initialValue
 }
 
 /** Remove a gateway entity from the activeGateways round-robin registry. */

@@ -16,6 +16,7 @@ import { commandSystem } from '../command.system'
 import { statusExpireSystem } from '../statusExpire.system'
 import { resourceSystem } from '../resource.system'
 import {
+  TICK_RATE,
   EMP_BLAST_STUN_TICKS_BASE,
   EMP_BLAST_COOLDOWN_BASE,
   OVERCLOCK_DURATION_TICKS,
@@ -422,6 +423,6 @@ describe('Tuned (§6.3)', () => {
     })
     commandSystem(world)
 
-    expect(world.abilityCooldown[eid]).toBe(1200)
+    expect(world.abilityCooldown[eid]).toBe(TICK_RATE * 20)  // 1200 ticks
   })
 })

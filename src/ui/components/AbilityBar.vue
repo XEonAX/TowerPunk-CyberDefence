@@ -82,6 +82,7 @@ import {
   BLACKWALL_TOWER_COST,
   PING_TOWER_COST,
   HARVESTER_COST,
+  TICK_RATE,
 } from '@game/constants'
 import { CommandType } from '@game/ecs/world'
 
@@ -154,7 +155,7 @@ const cooldownPercent = computed(() => {
 
 const cooldownSeconds = computed(() => {
   const ticks = gameStore.selectedTowerInfo?.abilityCooldownTicks ?? 0
-  return Math.ceil(ticks / 60)
+  return Math.ceil(ticks / TICK_RATE)
 })
 
 const upgradeAbilityCost = computed(() => {

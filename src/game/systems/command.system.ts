@@ -79,6 +79,7 @@ import {
   TUNED_COOLDOWN_MIN,
   ORACLE_MULTIPLIER,
   EDDIES_PER_COMPONENT,
+  TICK_RATE,
 } from '../constants'
 
 // ---------------------------------------------------------------------------
@@ -491,7 +492,7 @@ function _handleDismantleTower(
       // Decay relative to equivalent Eddie value (100 eddies per component)
       const initVal = totalComponents * 100
       world.pickupInitialValue[pickupEid]  = initVal
-      world.pickupDecayPerTick[pickupEid]  = (5 / 60 / 100) * initVal
+      world.pickupDecayPerTick[pickupEid]  = (5 / TICK_RATE / 100) * initVal
     }
   }
   // §4.2.7 — outside Ping range: no refund, resources are lost
@@ -535,7 +536,7 @@ function _handleSkipBreak(world: World): void {
 function _handleStartWave(world: World): void {
   if (world.currentPhase !== GamePhase.PRE_GAME) return
   world.currentPhase        = GamePhase.WAVE_BREAK
-  world.breakTicksRemaining = 1800  // 30 s — eventSystem picks this up
+  world.breakTicksRemaining = 30 * TICK_RATE   // 30 s — eventSystem picks this up
 }
 
 /** §4.2.9 — Convert 100 Eddies into 1 Component. */

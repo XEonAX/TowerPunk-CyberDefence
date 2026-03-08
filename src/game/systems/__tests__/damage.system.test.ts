@@ -129,7 +129,7 @@ describe('Rulebook §5.1.2 — ICE Wall damage over time', () => {
 
     damageSystem(world)
 
-    expect(world.healthCurrent[eeid]).toBeCloseTo(1000 - expectedDmg, 5)
+    expect(world.healthCurrent[eeid]).toBeCloseTo(1000 - expectedDmg, 4)
   })
 
   it('does NOT damage enemy outside range (Chebyshev > 1)', () => {

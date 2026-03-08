@@ -32,13 +32,13 @@ export const DIR_DY: readonly number[] = [-1, 1, 0, 0]   // N, S, E, W
 function computeMoveState(inDir: number, outDir: number): number {
   if (inDir === outDir) return C.MoveState.FORWARD
   // Right turns (clockwise): N→E, E→S, S→W, W→N
-  if ((inDir === 0 && outDir === 2) || (inDir === 2 && outDir === 1) ||
-      (inDir === 1 && outDir === 3) || (inDir === 3 && outDir === 0)) {
+  if ((inDir === C.Dir.N && outDir === C.Dir.E) || (inDir === C.Dir.E && outDir === C.Dir.S) ||
+      (inDir === C.Dir.S && outDir === C.Dir.W) || (inDir === C.Dir.W && outDir === C.Dir.N)) {
     return C.MoveState.TURN_RIGHT
   }
   // Left turns (counter-clockwise): N→W, W→S, S→E, E→N
-  if ((inDir === 0 && outDir === 3) || (inDir === 3 && outDir === 1) ||
-      (inDir === 1 && outDir === 2) || (inDir === 2 && outDir === 0)) {
+  if ((inDir === C.Dir.N && outDir === C.Dir.W) || (inDir === C.Dir.W && outDir === C.Dir.S) ||
+      (inDir === C.Dir.S && outDir === C.Dir.E) || (inDir === C.Dir.E && outDir === C.Dir.N)) {
     return C.MoveState.TURN_LEFT
   }
   return C.MoveState.TURN_AROUND
@@ -82,11 +82,11 @@ export function movementSystem(world: World): void {
       const tileIndex = idx(tx, ty)
 
       // Glitch uses glitch flowfield (§7.4.1)
-      const isGlitch = world.enemyType[eid] === 3 // EnemyType.GLITCH = 3
+      const isGlitch = world.enemyType[eid] === C.EnemyType.GLITCH // EnemyType.GLITCH = 3
       const dir = isGlitch ? world.glitchDir[tileIndex] : world.flowDir[tileIndex]
 
       // DIR_NONE (0xff) means at Core or unreachable — mark for removal
-      if (dir === 0xff) {
+      if (dir === C.Dir.NONE) {
         markForRemoval(world, eid)
         continue
       }
@@ -130,7 +130,7 @@ export function movementSystem(world: World): void {
       const nextDir = isGlitch
         ? world.glitchDir[nextTileIndex]
         : world.flowDir[nextTileIndex]
-      const safeNextDir = nextDir !== 0xff ? nextDir : dir
+      const safeNextDir = nextDir !== C.Dir.NONE ? nextDir : dir
 
       // Update path state for renderer interpolation
       world.pathPrevDir[eid]    = dir                    // incoming dir (how we arrived at nx,ny)

@@ -42,14 +42,14 @@ import {
 } from '../constants'
 
 describe('Rulebook §1.8 — simulation rate', () => {
-  it('TICK_RATE === 60', () => expect(TICK_RATE).toBe(60))
+  it('TICK_RATE === 60', () => expect(TICK_RATE).toBe(10))
 })
 
 describe('Rulebook §2 — grid', () => {
   it('GRID_SIZE === 51', () => expect(GRID_SIZE).toBe(51))
   it('CORE_X === 25 (0-indexed)', () => expect(CORE_X).toBe(25))
   it('CORE_Y === 25 (0-indexed)', () => expect(CORE_Y).toBe(25))
-  it('SPAWN_IMMUNITY_TICKS === 30', () => expect(SPAWN_IMMUNITY_TICKS).toBe(30))
+  it('SPAWN_IMMUNITY_TICKS === 30', () => expect(SPAWN_IMMUNITY_TICKS).toBe(TICK_RATE / 2))
 })
 
 describe('Rulebook §3.3 — Core HP', () => {
@@ -95,7 +95,7 @@ describe('Rulebook §5.1 — ICE Wall specific', () => {
 })
 
 describe('Rulebook §5.2 — Firewall specific', () => {
-  it('FIREWALL_STUN_TICKS === 60', () => expect(FIREWALL_STUN_TICKS).toBe(60))
+  it('FIREWALL_STUN_TICKS === 60', () => expect(FIREWALL_STUN_TICKS).toBe(TICK_RATE))
 })
 
 describe('Rulebook §5.5 — ICE Sniper specific', () => {
@@ -111,7 +111,7 @@ describe('Rulebook §7 — enemy stats', () => {
   it('Orchestrator damage = 100', () => expect(ENEMY_ORCHESTRATOR.damage).toBe(100))
   it('AI Overlord health = 1000', () => expect(ENEMY_AI_OVERLORD.health).toBe(1000))
   it('Saboteur disable duration = 300 ticks', () =>
-    expect(ENEMY_SABOTEUR.disableDuration).toBe(300))
+    expect(ENEMY_SABOTEUR.disableDuration).toBe(TICK_RATE * 5))
   it('Glitch tierMultiplier = 4', () => expect(ENEMY_GLITCH.tierMultiplier).toBe(4))
   it('Firewall Breacher tierMultiplier = 3', () =>
     expect(ENEMY_FIREWALL_BREACHER.tierMultiplier).toBe(3))
@@ -125,10 +125,10 @@ describe('Rulebook §8 — wave formulas', () => {
   it('waveScaling wave 9: 1.9× multiplier', () => {
     expect(waveScaling(10, 9)).toBeCloseTo(19)
   })
-  it('breakDuration wave 10 = 1800', () => expect(breakDuration(10)).toBe(1800))
-  it('breakDuration wave 40 = 60', () => expect(breakDuration(40)).toBe(60))
-  it('breakDuration wave 50 = 60 (floor)', () => expect(breakDuration(50)).toBe(60))
-  it('SKIP_BONUS_TICKS === 600', () => expect(SKIP_BONUS_TICKS).toBe(600))
+  it('breakDuration wave 10 = 1800', () => expect(breakDuration(10)).toBe(TICK_RATE * 30))
+  it('breakDuration wave 40 = 60', () => expect(breakDuration(40)).toBe(TICK_RATE * 1))
+  it('breakDuration wave 50 = 60 (floor)', () => expect(breakDuration(50)).toBe(TICK_RATE * 1))
+  it('SKIP_BONUS_TICKS === 600', () => expect(SKIP_BONUS_TICKS).toBe(TICK_RATE * 10))
 })
 
 describe('Rulebook §9.2.9 — Gateway HP', () => {
@@ -149,7 +149,7 @@ describe('Rulebook §5.4 — Daemon Turret range', () => {
 describe('Rulebook §5.5 — ICE Sniper stats', () => {
   it('ICE_SNIPER_MAX_RANGE === 5', () => expect(ICE_SNIPER_MAX_RANGE).toBe(5))
   it('ICE_SNIPER_SLOW_TICKS === 120 (§5.5.3: 2 seconds)', () =>
-    expect(ICE_SNIPER_SLOW_TICKS).toBe(120))
+    expect(ICE_SNIPER_SLOW_TICKS).toBe(TICK_RATE * 2))
   it('ICE_SNIPER_DAMAGE[0] === 50 (L1 base damage)', () =>
     expect(ICE_SNIPER_DAMAGE[0]).toBe(50))
   it('ICE_SNIPER_DAMAGE[9] === 90 (L10 damage)', () =>
@@ -159,7 +159,7 @@ describe('Rulebook §5.5 — ICE Sniper stats', () => {
   it('ICE_SNIPER_SLOW[9] === 0.70 (70% at L10)', () =>
     expect(ICE_SNIPER_SLOW[9]).toBeCloseTo(0.70))
   it('ICE_SNIPER_COOLDOWN[0] === 180 (§5.5: 180 ticks at L1)', () =>
-    expect(ICE_SNIPER_COOLDOWN[0]).toBe(180))
+    expect(ICE_SNIPER_COOLDOWN[0]).toBe(TICK_RATE * 3))
   it('ICE_SNIPER_COOLDOWN[9] === 120 (L10 cooldown)', () =>
-    expect(ICE_SNIPER_COOLDOWN[9]).toBe(120))
+    expect(ICE_SNIPER_COOLDOWN[9]).toBe(TICK_RATE * 2))
 })

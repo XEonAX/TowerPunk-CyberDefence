@@ -9,7 +9,8 @@
 // ---------------------------------------------------------------------------
 
 /** Rulebook §1.8 — fixed simulation rate */
-export const TICK_RATE = 60
+export const TICK_RATE = 10
+
 
 /** Rulebook §1.8 — duration of one tick in milliseconds */
 export const TICK_DURATION = 1000 / TICK_RATE
@@ -25,13 +26,13 @@ export const MAX_TICKS_PER_FRAME = 4
 export const GRID_SIZE = 51
 
 /** Rulebook §2.9 — Core position (0-indexed) */
-export const CORE_X = 25
+export const CORE_X = Math.floor(GRID_SIZE / 2)  // 0-indexed center of GRID_SIZE×GRID_SIZE grid (Rulebook §2.9)
 
 /** Rulebook §2.9 — Core position (0-indexed) */
-export const CORE_Y = 25
+export const CORE_Y = Math.floor(GRID_SIZE / 2)
 
-/** Rulebook §2.10.1 — spawn immunity duration in ticks */
-export const SPAWN_IMMUNITY_TICKS = 30
+/** Rulebook §2.10.1 — spawn immunity duration in ticks (0.5 s) */
+export const SPAWN_IMMUNITY_TICKS = TICK_RATE / 2
 
 // ---------------------------------------------------------------------------
 // §3 — Core
@@ -50,8 +51,8 @@ export const INITIAL_EDDIES = 5009999999
 /** Rulebook §4.3.1 */
 export const INITIAL_COMPONENTS = 599999990
 
-/** Rulebook §4.2.5 — decay rate = (5/60) / 100 per tick as fraction of initial value */
-export const PICKUP_DECAY_RATE = 5 / 60 / 100
+/** Rulebook §4.2.5 — decay rate = 5% per second / 100 per tick as fraction of initial value */
+export const PICKUP_DECAY_RATE = 5 / TICK_RATE / 100
 
 /** Rulebook §4.2.9 — Eddies conversion rate */
 export const EDDIES_PER_COMPONENT = 100
@@ -125,8 +126,8 @@ export const FIREWALL_DPS: ReadonlyArray<number> = [
   10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
 ]
 
-/** Firewall stun duration — Rulebook §5.2 */
-export const FIREWALL_STUN_TICKS = 60
+/** Firewall stun duration — Rulebook §5.2 (1 s) */
+export const FIREWALL_STUN_TICKS = TICK_RATE
 
 /**
  * Data Spike cost table — Rulebook §5.3
@@ -159,8 +160,8 @@ export const DATA_SPIKE_RANGE: ReadonlyArray<number> = [
   2, 3, 4, 5, 5, 5, 5, 5, 5, 5,
 ]
 
-/** Data Spike fire rate — Rulebook §5.3 */
-export const DATA_SPIKE_COOLDOWN_TICKS = 120
+/** Data Spike fire rate — Rulebook §5.3 (2 s) */
+export const DATA_SPIKE_COOLDOWN_TICKS = 2 * TICK_RATE
 
 /**
  * Daemon Turret cost table — Rulebook §5.4
@@ -183,9 +184,11 @@ export const DAEMON_TURRET_HP: ReadonlyArray<number> = [
   100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
 ]
 
-/** Daemon Turret fire cooldown per level — Rulebook §5.4 */
+/** Daemon Turret fire cooldown per level — Rulebook §5.4 (2 s → 1 s) */
 export const DAEMON_TURRET_COOLDOWN: ReadonlyArray<number> = [
-  120, 120, 120, 120, 120, 108, 96, 84, 72, 60,
+  2 * TICK_RATE, 2 * TICK_RATE, 2 * TICK_RATE, 2 * TICK_RATE, 2 * TICK_RATE,
+  Math.round(1.8 * TICK_RATE), Math.round(1.6 * TICK_RATE), Math.round(1.4 * TICK_RATE),
+  Math.round(1.2 * TICK_RATE), TICK_RATE,
 ]
 
 /** Daemon Turret damage per daemon per level — Rulebook §5.4 */
@@ -193,9 +196,10 @@ export const DAEMON_TURRET_DAMAGE: ReadonlyArray<number> = [
   10, 15, 20, 25, 30, 30, 30, 30, 30, 30,
 ]
 
-/** Daemon Turret rotation speed per level (deg/tick) — Rulebook §5.4 */
+/** Daemon Turret rotation speed per level (deg/tick, 30–60 deg/s) — Rulebook §5.4 */
 export const DAEMON_TURRET_ROT_SPEED: ReadonlyArray<number> = [
-  0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+  30 / TICK_RATE, 30 / TICK_RATE, 30 / TICK_RATE, 30 / TICK_RATE,
+  60 / TICK_RATE, 60 / TICK_RATE, 60 / TICK_RATE, 60 / TICK_RATE, 60 / TICK_RATE, 60 / TICK_RATE,
 ]
 
 /**
@@ -226,9 +230,10 @@ export const ICE_SNIPER_HP: ReadonlyArray<number> = [
   100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
 ]
 
-/** ICE Sniper rotation speed per level (deg/tick) — Rulebook §5.5 */
+/** ICE Sniper rotation speed per level (deg/tick, 30–120 deg/s) — Rulebook §5.5 */
 export const ICE_SNIPER_ROT_SPEED: ReadonlyArray<number> = [
-  0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0, 2.0,
+  30 / TICK_RATE, 30 / TICK_RATE, 30 / TICK_RATE, 30 / TICK_RATE, 30 / TICK_RATE,
+  60 / TICK_RATE, 60 / TICK_RATE, 60 / TICK_RATE, 60 / TICK_RATE, 120 / TICK_RATE,
 ]
 
 /** ICE Sniper damage per level — Rulebook §5.5 */
@@ -241,9 +246,11 @@ export const ICE_SNIPER_SLOW: ReadonlyArray<number> = [
   0.20, 0.20, 0.20, 0.20, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70,
 ]
 
-/** ICE Sniper fire cooldown per level — Rulebook §5.5 */
+/** ICE Sniper fire cooldown per level — Rulebook §5.5 (3 s → 2 s) */
 export const ICE_SNIPER_COOLDOWN: ReadonlyArray<number> = [
-  180, 180, 180, 180, 180, 168, 156, 144, 132, 120,
+  3 * TICK_RATE, 3 * TICK_RATE, 3 * TICK_RATE, 3 * TICK_RATE, 3 * TICK_RATE,
+  Math.round(2.8 * TICK_RATE), Math.round(2.6 * TICK_RATE), Math.round(2.4 * TICK_RATE),
+  Math.round(2.2 * TICK_RATE), 2 * TICK_RATE,
 ]
 
 /** ICE Sniper min range — Rulebook §5.5.2 */
@@ -252,8 +259,8 @@ export const ICE_SNIPER_MIN_RANGE = 3
 /** ICE Sniper max range — Rulebook §5.5 */
 export const ICE_SNIPER_MAX_RANGE = 5
 
-/** ICE Sniper slow duration ticks — Rulebook §5.5.3 */
-export const ICE_SNIPER_SLOW_TICKS = 120
+/** ICE Sniper slow duration ticks — Rulebook §5.5.3 (2 s) */
+export const ICE_SNIPER_SLOW_TICKS = 2 * TICK_RATE
 
 /**
  * Blackwall Tower cost table — Rulebook §5.6
@@ -276,14 +283,14 @@ export const BLACKWALL_TOWER_HP: ReadonlyArray<number> = [
   1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
 ]
 
-/** Blackwall Tower damage to gateway per tick per level — Rulebook §5.6.2 */
+/** Blackwall Tower damage to gateway per tick per level — Rulebook §5.6.2 (kills in 120 s at L1) */
 export const BLACKWALL_TOWER_DPT: ReadonlyArray<number> = Array.from(
   { length: 10 },
-  (_, i) => (1000 / 7200) * (i + 1),
+  (_, i) => (1000 / (120 * TICK_RATE)) * (i + 1),
 )
 
-/** Blackwall Tower passive damage taken from gateway per tick — Rulebook §5.6.6 */
-export const BLACKWALL_PASSIVE_DPT = 1000 / 7200
+/** Blackwall Tower passive damage taken from gateway per tick — Rulebook §5.6.6 (120 s to kill) */
+export const BLACKWALL_PASSIVE_DPT = 1000 / (120 * TICK_RATE)
 
 /** Blackwall repair cost (full restore) — Rulebook §5.6.7 */
 export const BLACKWALL_REPAIR_COMPONENTS = 10
@@ -335,16 +342,16 @@ export const HARVESTER_HP: ReadonlyArray<number> = [
   100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
 ]
 
-/** Harvester Eddie generation per tick per level — Rulebook §5.8 */
+/** Harvester Eddie generation per tick per level — Rulebook §5.8 (1–10 Eddies/s) */
 export const HARVESTER_EDDIES_PER_TICK: ReadonlyArray<number> = [
-  1 / 60, 2 / 60, 3 / 60, 4 / 60, 5 / 60,
-  6 / 60, 7 / 60, 8 / 60, 9 / 60, 10 / 60,
+  1 / TICK_RATE, 2 / TICK_RATE, 3 / TICK_RATE, 4 / TICK_RATE, 5 / TICK_RATE,
+  6 / TICK_RATE, 7 / TICK_RATE, 8 / TICK_RATE, 9 / TICK_RATE, 10 / TICK_RATE,
 ]
 
-/** Harvester Component generation per tick (from level 3) — Rulebook §5.8.2 */
+/** Harvester Component generation per tick (from level 3) — Rulebook §5.8.2 (1–8 per 10 s) */
 export const HARVESTER_COMPONENTS_PER_TICK: ReadonlyArray<number> = [
-  0, 0, 1 / 600, 2 / 600, 3 / 600,
-  4 / 600, 5 / 600, 6 / 600, 7 / 600, 8 / 600,
+  0, 0, 1 / (10 * TICK_RATE), 2 / (10 * TICK_RATE), 3 / (10 * TICK_RATE),
+  4 / (10 * TICK_RATE), 5 / (10 * TICK_RATE), 6 / (10 * TICK_RATE), 7 / (10 * TICK_RATE), 8 / (10 * TICK_RATE),
 ]
 
 // ---------------------------------------------------------------------------
@@ -406,8 +413,8 @@ export const ENEMY_SABOTEUR = {
   speedPerSec: 0.5,
   tierMultiplier: 7,
   disableRadius: 1,
-  disableDuration: 300,
-  disableCooldown: 600,
+  disableDuration: 5 * TICK_RATE,
+  disableCooldown: 10 * TICK_RATE,
 } as const
 
 /** Rulebook §7.8 — AI Overlord base stats */
@@ -416,7 +423,7 @@ export const ENEMY_AI_OVERLORD = {
   health: 1000,
   speedPerSec: 0.5,
   tierMultiplier: 8,
-  phaseDuration: 1800,
+  phaseDuration: 30 * TICK_RATE,
 } as const
 
 /** Rulebook §8.4.1 — wave stat scaling formula */
@@ -428,15 +435,15 @@ export function waveScaling(baseStat: number, wave: number): number {
 // §8 — Waves
 // ---------------------------------------------------------------------------
 
-/** Rulebook §8.2.3 — break duration formula */
+/** Rulebook §8.2.3 — break duration formula (30 s → 1 s over waves 10–40) */
 export function breakDuration(wave: number): number {
   if (wave < 10) return Infinity  // manual start (§8.2.1)
-  const raw = 1800 - (wave - 10) * (1740 / 30)
-  return Math.max(60, Math.floor(raw))
+  const raw = 30 * TICK_RATE - (wave - 10) * (29 * TICK_RATE / 30)
+  return Math.max(TICK_RATE, Math.floor(raw))
 }
 
-/** Rulebook §8.3.1 — skip bonus duration */
-export const SKIP_BONUS_TICKS = 600
+/** Rulebook §8.3.1 — skip bonus duration (10 s) */
+export const SKIP_BONUS_TICKS = 10 * TICK_RATE
 
 /** Rulebook §8.3.1 — skip bonus multiplier */
 export const SKIP_BONUS_MULTIPLIER = 2
@@ -448,18 +455,18 @@ export const GATEWAY_HP = 10000
 // §7.7 — Saboteur timing constants
 // ---------------------------------------------------------------------------
 
-/** Rulebook §7.7.1 — ticks between Saboteur disable pulses */
-export const SABOTEUR_PULSE_INTERVAL_TICKS = 600
+/** Rulebook §7.7.1 — ticks between Saboteur disable pulses (10 s) */
+export const SABOTEUR_PULSE_INTERVAL_TICKS = 10 * TICK_RATE
 
-/** Rulebook §7.7.1 — duration of tower disable from Saboteur pulse */
-export const SABOTEUR_DISABLE_DURATION_TICKS = 300
+/** Rulebook §7.7.1 — duration of tower disable from Saboteur pulse (5 s) */
+export const SABOTEUR_DISABLE_DURATION_TICKS = 5 * TICK_RATE
 
 // ---------------------------------------------------------------------------
 // §7.8 — AI Overlord phase constants
 // ---------------------------------------------------------------------------
 
-/** Rulebook §7.8.7 — ticks per AI Overlord phase */
-export const AI_OVERLORD_PHASE_DURATION_TICKS = 1800
+/** Rulebook §7.8.7 — ticks per AI Overlord phase (30 s) */
+export const AI_OVERLORD_PHASE_DURATION_TICKS = 30 * TICK_RATE
 
 /** Rulebook §7.8.2 — AI Overlord spawns an entity every Nth tile walked */
 export const AI_OVERLORD_SPAWN_EVERY_N_TILES = 5
@@ -474,23 +481,23 @@ export const AI_OVERLORD_SPAWN_EVERY_N_TILES = 5
  */
 export const ABILITY_UPGRADE_COST: ReadonlyArray<number> = [1, 2, 4, 8, 16]
 
-/** §6.1 — EMP Blast stun duration at level 1 (ticks) */
-export const EMP_BLAST_STUN_TICKS_BASE = 120
+/** §6.1 — EMP Blast stun duration at level 1 (2 s) */
+export const EMP_BLAST_STUN_TICKS_BASE = 2 * TICK_RATE
 
-/** §6.1 — EMP Blast stun duration increase per ability level */
-export const EMP_BLAST_STUN_TICKS_PER_LEVEL = 120
+/** §6.1 — EMP Blast stun duration increase per ability level (2 s) */
+export const EMP_BLAST_STUN_TICKS_PER_LEVEL = 2 * TICK_RATE
 
-/** §6.1 — EMP Blast activation cooldown at level 1 (ticks) */
-export const EMP_BLAST_COOLDOWN_BASE = 600
+/** §6.1 — EMP Blast activation cooldown at level 1 (10 s) */
+export const EMP_BLAST_COOLDOWN_BASE = 10 * TICK_RATE
 
-/** §6.1.5 — EMP Blast cooldown increase per ability level beyond L1 */
-export const EMP_BLAST_COOLDOWN_PER_LEVEL = 60
+/** §6.1.5 — EMP Blast cooldown increase per ability level beyond L1 (1 s) */
+export const EMP_BLAST_COOLDOWN_PER_LEVEL = TICK_RATE
 
-/** §6.2 — Overclock active duration (5 seconds at 60 ticks/sec) */
-export const OVERCLOCK_DURATION_TICKS = 300
+/** §6.2 — Overclock active duration (5 s) */
+export const OVERCLOCK_DURATION_TICKS = 5 * TICK_RATE
 
-/** §6.2 — Overclock activation cooldown (20 seconds) */
-export const OVERCLOCK_COOLDOWN_TICKS = 1200
+/** §6.2 — Overclock activation cooldown (20 s) */
+export const OVERCLOCK_COOLDOWN_TICKS = 20 * TICK_RATE
 
 /** §6.2 — Overclock fire-rate / generation multiplier at level 1 (+50%) */
 export const OVERCLOCK_MULTIPLIER_BASE = 1.5
@@ -498,14 +505,14 @@ export const OVERCLOCK_MULTIPLIER_BASE = 1.5
 /** §6.2 — Overclock multiplier increase per ability level (+25% per level) */
 export const OVERCLOCK_MULTIPLIER_PER_LEVEL = 0.25
 
-/** §6.3 — Tuned target-switch cooldown at level 1 (20 seconds) */
-export const TUNED_COOLDOWN_BASE = 1200
+/** §6.3 — Tuned target-switch cooldown at level 1 (20 s) */
+export const TUNED_COOLDOWN_BASE = 20 * TICK_RATE
 
-/** §6.3 — Tuned target-switch cooldown reduction per ability level */
-export const TUNED_COOLDOWN_PER_LEVEL = 180
+/** §6.3 — Tuned target-switch cooldown reduction per ability level (3 s) */
+export const TUNED_COOLDOWN_PER_LEVEL = 3 * TICK_RATE
 
-/** §6.3 — Minimum Tuned target-switch cooldown (level 5 = 300 ticks) */
-export const TUNED_COOLDOWN_MIN = 300
+/** §6.3 — Minimum Tuned target-switch cooldown (5 s) */
+export const TUNED_COOLDOWN_MIN = 5 * TICK_RATE
 
 /**
  * §6.4 — Boosted Eddie-generation multiplier per ability level.

@@ -20,12 +20,12 @@ beforeEach(() => {
 })
 
 /** Create a test enemy at (tx, ty) without spawn immunity, with given speed (tiles/sec). */
-function makeEnemy(tx: number, ty: number, speedPerSec: number): number {
+function makeEnemy(tx: number, ty: number, tilesPerSec: number): number {
   const eid = createEnemy(world)
   world.tilePosX[eid] = tx
   world.tilePosY[eid] = ty
   world.tileProgress[eid] = 0
-  world.enemySpeed[eid] = speedPerSec  // tiles/sec
+  world.enemySpeed[eid] = tilesPerSec   // tiles/sec
   world.enemyDamage[eid] = 5
   world.healthMax[eid] = 10
   world.healthCurrent[eid] = 10
@@ -42,7 +42,7 @@ describe('Rulebook §2.10.2 — per-tile progress advancement', () => {
     const ty = 5
     world.flowDir[idx(tx, ty)] = DIR_S
 
-    const eid = makeEnemy(tx, ty, 60)
+    const eid = makeEnemy(tx, ty, TICK_RATE)
     // tileProgress = 0 → after 1 tick: 0 + 1.0 = 1.0 >= 1.0 → advance
     movementSystem(world)
 
@@ -55,7 +55,7 @@ describe('Rulebook §2.10.2 — per-tile progress advancement', () => {
   it('enemy with speed 30 tiles/sec advances tileProgress by 0.5 without tile change', () => {
     const tx = 5
     const ty = 5
-    const eid = makeEnemy(tx, ty, 30)
+    const eid = makeEnemy(tx, ty, TICK_RATE / 2)
 
     movementSystem(world)
 
@@ -68,7 +68,7 @@ describe('Rulebook §2.10.2 — per-tile progress advancement', () => {
 
 describe('Rulebook §7.0.11 — stun prevents movement', () => {
   it('stunned enemy does not advance tileProgress', () => {
-    const eid = makeEnemy(5, 5, 60)
+    const eid = makeEnemy(5, 5, TICK_RATE)
     // Apply stun (component flag already set by createEnemy)
     world.stunTicks[eid] = 30  // 30 ticks remaining
 
@@ -80,7 +80,7 @@ describe('Rulebook §7.0.11 — stun prevents movement', () => {
   })
 
   it('non-stunned enemy with stunTicks=0 still moves normally', () => {
-    const eid = makeEnemy(5, 5, 30)
+    const eid = makeEnemy(5, 5, TICK_RATE / 2)
     world.stunTicks[eid] = 0  // not stunned
 
     movementSystem(world)
@@ -91,7 +91,7 @@ describe('Rulebook §7.0.11 — stun prevents movement', () => {
 
 describe('Rulebook §7.0.10 — slow reduces effective speed', () => {
   it('50% slowed enemy advances at half speed', () => {
-    const eid = makeEnemy(5, 5, 60)  // 60 tiles/sec = 1.0/tick normally
+    const eid = makeEnemy(5, 5, TICK_RATE)  // 60 tiles/sec = 1.0/tick normally
     // Apply 50% slow
     world.slowMagnitude[eid] = 0.5
     world.slowTicks[eid] = 120
@@ -106,7 +106,7 @@ describe('Rulebook §7.0.10 — slow reduces effective speed', () => {
   })
 
   it('slow has no effect when slowTicks === 0', () => {
-    const eid = makeEnemy(5, 5, 30)
+    const eid = makeEnemy(5, 5, TICK_RATE / 2)  // 30 tiles/sec
     world.slowMagnitude[eid] = 0.9  // 90% slow set but...
     world.slowTicks[eid] = 0        // ...no duration → not active
 
@@ -122,7 +122,7 @@ describe('Rulebook §3.4 — Core damage and enemy removal', () => {
     // Core is at (CORE_X, CORE_Y) = (25, 25).
     // Place enemy one tile South of Core: (25, 26).
     // flowDir at (25, 26) defaults to DIR_N (0, dy=-1) → moves to (25, 25) = Core.
-    const eid = makeEnemy(CORE_X, CORE_Y + 1, 60)
+    const eid = makeEnemy(CORE_X, CORE_Y + 1, TICK_RATE)
     // Ensure flowDir[idx(25,26)] = DIR_N (default 0)
     expect(world.flowDir[idx(CORE_X, CORE_Y + 1)]).toBe(DIR_N)
 
@@ -165,6 +165,6 @@ describe('§2.10.1 — spawn immunity prevents movement', () => {
 
 describe('§1.8 — TICK_RATE constant', () => {
   it('TICK_RATE is 60', () => {
-    expect(TICK_RATE).toBe(60)
+    expect(TICK_RATE).toBe(10)
   })
 })

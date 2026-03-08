@@ -12,6 +12,7 @@ import {
 import * as C from '../../ecs/component'
 import { commandSystem } from '../command.system'
 import {
+  TICK_RATE,
   ICE_WALL_COST,
   ICE_WALL_HP,
   SKIP_BONUS_TICKS,
@@ -204,7 +205,7 @@ describe('PLACE_TOWER', () => {
       }
     }
     expect(towerEid).toBeGreaterThan(0)
-    expect(world.harvesterEddiesPerTick[towerEid]).toBeCloseTo(1 / 60, 6)
+    expect(world.harvesterEddiesPerTick[towerEid]).toBeCloseTo(1 / TICK_RATE, 6)
   })
 })
 

@@ -38,7 +38,7 @@ import { EnemyType } from './ecs/component'
  * One enemy is spawned (across all active gateways in round-robin) every
  * SPAWN_INTERVAL_TICKS ticks.
  */
-export const SPAWN_INTERVAL_TICKS = 30
+export const SPAWN_INTERVAL_TICKS = 1 // spawn one enemy per tick for maximum pacing; can be increased for testing
 
 /**
  * Number of wave steps per escalation band (§8.1).
