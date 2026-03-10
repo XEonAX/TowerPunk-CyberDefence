@@ -14,7 +14,7 @@
       </div>
 
       <div class="landing__start-wrap" :class="{ visible: btnVisible }">
-        <div class="landing__start-meta">BLACKWALL PROTOCOL &nbsp;&nbsp; v1.0</div>
+        <div class="landing__start-meta">The &lt;center&gt; cannot hold it is too late.</div>
         <button class="landing__start" @click="$emit('start')">
           PRESS
           <span class="landing__key" aria-label="Spacebar">
@@ -51,7 +51,7 @@ interface Particle {
   vy: number
 }
 
-const PARTICLE_COUNT      = 190
+const PARTICLE_COUNT      = 290
 const MAX_LINK_DIST       = 160   // logical px — max distance to draw a line
 const PARTICLE_SPEED      = 0.55  // logical px / frame
 const DOT_RADIUS          = 2     // logical px
@@ -344,7 +344,7 @@ onUnmounted(() => {
 
 .landing__start-meta {
   font-family: monospace;
-  font-size: 8px;
+  font-size: 6px;
   letter-spacing: 0.2em;
   color: #c0392b;
   opacity: 0.6;
