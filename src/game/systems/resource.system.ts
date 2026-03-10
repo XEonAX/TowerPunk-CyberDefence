@@ -19,6 +19,7 @@ import { markForRemoval } from '../ecs/world'
 import {
   BLACKWALL_PASSIVE_DPT,
   BLACKWALL_REPAIR_COMPONENTS,
+  BLACKWALL_REPAIR_THRESHOLD,
   BOOSTED_MULTIPLIER,
 } from '../constants'
 
@@ -159,19 +160,23 @@ function _blackwallTowersTick(world: World): void {
       world.gatewayIsClosing[gwEid] = 1
     }
 
-    // §5.6.7 — Auto-repair if below max HP
-    if (world.healthCurrent[bwEid] < world.healthMax[bwEid]) {
+    // §5.6.7 — Auto-repair triggers when HP drops to BLACKWALL_REPAIR_THRESHOLD (10%)
+    if (world.healthCurrent[bwEid] <= world.healthMax[bwEid] * BLACKWALL_REPAIR_THRESHOLD) {
       const repairNeeded = world.healthMax[bwEid] - world.healthCurrent[bwEid]
+      // Cost per HP: BLACKWALL_REPAIR_COMPONENTS buys a full restore.
+      const costPerHp = BLACKWALL_REPAIR_COMPONENTS / world.healthMax[bwEid]
+      const affordableHp = world.components / costPerHp
 
       if (world.components >= BLACKWALL_REPAIR_COMPONENTS) {
         // Full repair
         world.healthCurrent[bwEid] = world.healthMax[bwEid]
         world.components -= BLACKWALL_REPAIR_COMPONENTS
       } else if (world.components > 0) {
-        // Partial repair proportional to available components
-        const repairFraction = world.components / BLACKWALL_REPAIR_COMPONENTS
-        world.healthCurrent[bwEid] += repairNeeded * repairFraction
-        world.components = 0
+        // Partial repair — cost is proportional to HP actually restored,
+        // not a flat drain of all available components.
+        const actualHeal = Math.min(repairNeeded, affordableHp)
+        world.healthCurrent[bwEid] += actualHeal
+        world.components -= actualHeal * costPerHp
       }
     }
   }

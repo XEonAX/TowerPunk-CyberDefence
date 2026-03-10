@@ -20,6 +20,7 @@ import {
   BLACKWALL_TOWER_DPT,
   BLACKWALL_TOWER_HP,
   BLACKWALL_REPAIR_COMPONENTS,
+  BLACKWALL_REPAIR_THRESHOLD,
 } from '../../constants'
 
 let world: World
@@ -235,7 +236,8 @@ describe('Blackwall Tower — auto-repair (§5.6.7)', () => {
   it('repairs tower if player has enough components', () => {
     const gwEid = makeOpenGateway(world, 10, 10)
     const bwEid = makeBlackwallTower(world, 10, 11, BLACKWALL_TOWER_HP[0], gwEid)
-    world.healthCurrent[bwEid] = 500 // damaged
+    // Set HP below the 10% repair threshold
+    world.healthCurrent[bwEid] = BLACKWALL_TOWER_HP[0] * BLACKWALL_REPAIR_THRESHOLD * 0.5
     world.components = BLACKWALL_REPAIR_COMPONENTS + 1 // enough to repair
 
     resourceSystem(world)
@@ -248,16 +250,15 @@ describe('Blackwall Tower — auto-repair (§5.6.7)', () => {
     const gwEid = makeOpenGateway(world, 10, 10)
     const bwEid = makeBlackwallTower(world, 10, 11, BLACKWALL_TOWER_HP[0], gwEid)
 
-    // Force some damage so it's below max
-    // Set HP after passive damage would have hit (we run resourceSystem once so just pre-damage it)
-    // The passive damage will also happen, but let's set enough damage first
-    world.healthCurrent[bwEid] = 200
+    // Set HP below the 10% repair threshold to trigger auto-repair
+    const startHp = BLACKWALL_TOWER_HP[0] * BLACKWALL_REPAIR_THRESHOLD * 0.5
+    world.healthCurrent[bwEid] = startHp
     world.components = 5 // only 5, need 10 for full restore
 
     resourceSystem(world)
 
-    // Should be > 200 (partial repair applied with 5 / 10 = 50% of missing HP)
-    expect(world.healthCurrent[bwEid]).toBeGreaterThan(200)
+    // 5 components buys 500 HP (costPerHp = 10/1000 = 0.01, affordable = 5/0.01 = 500)
+    expect(world.healthCurrent[bwEid]).toBeGreaterThan(startHp)
     expect(world.components).toBeCloseTo(0, 1)
   })
 })

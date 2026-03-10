@@ -295,6 +295,9 @@ export const BLACKWALL_PASSIVE_DPT = 1000 / (120 * TICK_RATE)
 /** Blackwall repair cost (full restore) — Rulebook §5.6.7 */
 export const BLACKWALL_REPAIR_COMPONENTS = 10
 
+/** HP fraction at which auto-repair triggers — Rulebook §5.6.7 */
+export const BLACKWALL_REPAIR_THRESHOLD = 0.1
+
 /**
  * Ping Tower cost table — Rulebook §5.7
  */
