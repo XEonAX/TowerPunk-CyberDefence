@@ -242,6 +242,22 @@ export interface World {
   blackwallAssignedGateway: Uint32Array  // gateway entity ID
   blackwallDamagePerTick: Float32Array
 
+  // --- Projectile component (render-only shot beams) ---
+  /** Tile-space X origin of the shot (tower posX). */
+  projFromX: Float32Array
+  /** Tile-space Y origin of the shot (tower posY). */
+  projFromY: Float32Array
+  /** Tile-space X destination of the shot (target tilePosX). */
+  projToX: Float32Array
+  /** Tile-space Y destination of the shot (target tilePosY). */
+  projToY: Float32Array
+  /** Remaining lifetime ticks (counts down to 0, then entity is destroyed). */
+  projTicksLeft: Uint8Array
+  /** Initial lifetime ticks — used by renderer to compute fade alpha. */
+  projMaxTicks: Uint8Array
+  /** Tower type that fired — renderer maps to color. */
+  projTowerType: Uint8Array
+
   // --- Grid state ---
   /** Blocked tile map (0 = empty, tower type+1 = occupied). GRID_SIZE×GRID_SIZE. */
   gridBlocked: Uint8Array
@@ -425,6 +441,14 @@ export function createWorld(seed: number = 12345): World {
     blackwallAssignedGateway: new Uint32Array(N),
     blackwallDamagePerTick: new Float32Array(N),
 
+    projFromX: new Float32Array(N),
+    projFromY: new Float32Array(N),
+    projToX: new Float32Array(N),
+    projToY: new Float32Array(N),
+    projTicksLeft: new Uint8Array(N),
+    projMaxTicks: new Uint8Array(N),
+    projTowerType: new Uint8Array(N),
+
     gridBlocked: new Uint8Array(G),
     gridTowerType: new Uint8Array(G),
 
@@ -542,6 +566,36 @@ export function gatewayAtTile(world: World, tileX: number, tileY: number): Entit
     if (world.gatewayX[eid] === tileX && world.gatewayY[eid] === tileY) return eid
   }
   return null
+}
+
+/**
+ * Spawn a render-only projectile beam entity.
+ * The beam travels from the tower tile to the target tile.
+ * It will be destroyed by cleanupSystem after `lifetimeTicks` ticks.
+ *
+ * @param fromX  Tower posX (tile grid)
+ * @param fromY  Tower posY (tile grid)
+ * @param toX    Target tilePosX
+ * @param toY    Target tilePosY
+ * @param towerType  C.TowerType — renderer maps to color
+ * @param lifetimeTicks  Number of ticks the beam remains visible
+ */
+export function spawnProjectile(
+  world: World,
+  fromX: number, fromY: number,
+  toX: number,   toY: number,
+  towerType: number,
+  lifetimeTicks: number,
+): void {
+  const eid = world.pool.create()
+  world.bitmask[eid]      = C.PROJECTILE
+  world.projFromX[eid]    = fromX
+  world.projFromY[eid]    = fromY
+  world.projToX[eid]      = toX
+  world.projToY[eid]      = toY
+  world.projTowerType[eid] = towerType
+  world.projTicksLeft[eid] = lifetimeTicks
+  world.projMaxTicks[eid]  = lifetimeTicks
 }
 
 /**

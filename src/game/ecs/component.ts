@@ -75,6 +75,13 @@ export const PENDING_REMOVAL = 1 << 20
 /** Rulebook §7.7 — Saboteur tower-disable aura */
 export const TOWER_DISABLED = 1 << 21
 
+/**
+ * Render-only projectile beam spawned by Daemon Turret and ICE Sniper shots.
+ * Carries from/to tile coords, tower type, and a lifetime countdown.
+ * Cleaned up by cleanupSystem each tick.
+ */
+export const PROJECTILE = 1 << 22
+
 // ---------------------------------------------------------------------------
 // Immunity flag masks (stored in Immunity.flags Uint8)
 // ---------------------------------------------------------------------------

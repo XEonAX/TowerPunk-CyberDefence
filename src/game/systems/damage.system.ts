@@ -10,7 +10,7 @@
  */
 import type { World } from '../ecs/world'
 import * as C from '../ecs/component'
-import { markForRemoval } from '../ecs/world'
+import { markForRemoval, spawnProjectile } from '../ecs/world'
 import {
   TICK_RATE,
   ICE_WALL_DPS,
@@ -26,6 +26,9 @@ import {
 } from '../constants'
 import { DATA_SPIKE_FIRE_FLAG, chebyshev, inDataSpikeCone } from './targeting.system'
 import { queueSlow, queueStun } from './statusQueue.system'
+
+/** How many ticks a shot-beam entity lives before cleanupSystem destroys it. */
+const SHOT_BEAM_TICKS = 8
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -199,6 +202,9 @@ function applyDaemonTurretDamage(world: World, teid: number): void {
   const ty     = world.tilePosY[targetEid]
   const N      = world.bitmask.length
 
+  // Spawn a render-only shot beam from tower to target tile
+  spawnProjectile(world, world.posX[teid], world.posY[teid], tx, ty, C.TowerType.DAEMON_TURRET, SHOT_BEAM_TICKS)
+
   // Hit ALL enemies on the target tile (splash — §5.4.2)
   for (let eid = 1; eid < N; eid++) {
     const mask = world.bitmask[eid]
@@ -230,6 +236,13 @@ function applyIceSniperDamage(world: World, teid: number): void {
   const mask = world.bitmask[targetEid]
   if ((mask & C.PENDING_REMOVAL) !== 0) return
   if ((mask & C.ENEMY) === 0) return
+
+  // Capture target position before damage may mark it for removal
+  const targetTileX = world.tilePosX[targetEid]
+  const targetTileY = world.tilePosY[targetEid]
+
+  // Spawn a render-only shot beam from tower to target tile
+  spawnProjectile(world, world.posX[teid], world.posY[teid], targetTileX, targetTileY, C.TowerType.ICE_SNIPER, SHOT_BEAM_TICKS)
 
   const level  = clampLevel(world, teid)
   const damage = ICE_SNIPER_DAMAGE[level] ?? 100

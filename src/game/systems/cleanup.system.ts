@@ -88,6 +88,19 @@ export function cleanupSystem(world: World): void {
   }
 
   world.removalQueueLen = 0
+
+  // Decay render-only projectile beam entities spawned this tick or earlier.
+  // They carry no grid state, so we can destroy them inline here rather than
+  // going through another full removal pass.
+  const M = world.bitmask.length
+  for (let eid = 1; eid < M; eid++) {
+    if ((world.bitmask[eid] & C.PROJECTILE) === 0) continue
+    world.projTicksLeft[eid]--
+    if (world.projTicksLeft[eid] === 0) {
+      world.bitmask[eid] = 0
+      world.pool.destroy(eid)
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
