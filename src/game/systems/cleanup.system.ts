@@ -94,7 +94,7 @@ export function cleanupSystem(world: World): void {
   // going through another full removal pass.
   const M = world.bitmask.length
   for (let eid = 1; eid < M; eid++) {
-    if ((world.bitmask[eid] & C.PROJECTILE) === 0) continue
+    if ((world.bitmask[eid] & (C.PROJECTILE | C.CONE_FX)) === 0) continue
     world.projTicksLeft[eid]--
     if (world.projTicksLeft[eid] === 0) {
       world.bitmask[eid] = 0

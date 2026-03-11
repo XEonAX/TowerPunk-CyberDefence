@@ -54,6 +54,9 @@ let rangeGfx: Graphics | null = null
 /** Dedicated Graphics for drawing shot beams (§5.4.2, §5.5.2). */
 let projectileGfx: Graphics | null = null
 
+/** Dedicated Graphics for drawing Data Spike cone wave FX (§5.3.2). */
+let coneFxGfx: Graphics | null = null
+
 function acquire(): Graphics {
   return pool.pop() ?? new Graphics()
 }
@@ -217,6 +220,67 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
     coreGfx.y = world.posY[ceid] * TILE_SIZE
   }
 
+  // Draw Data Spike cone FX (§5.3.2)
+  // A single leading stroke sweeps smoothly outward at the continuous progress position.
+  // Cardinal: one widening horizontal/vertical stroke perpendicular to the axis.
+  // Diagonal: one L-shape at the current reach.
+  if (!coneFxGfx) {
+    coneFxGfx = new Graphics()
+    container.addChild(coneFxGfx)
+  }
+  coneFxGfx.clear()
+  for (let eid = 1; eid < MAX_ENTITIES; eid++) {
+    if (!(world.bitmask[eid] & C.CONE_FX)) continue
+    const tx        = world.projFromX[eid] | 0
+    const ty        = world.projFromY[eid] | 0
+    const facing    = world.projFacing[eid]
+    const range     = world.projRange[eid]
+    const color     = TOWER_COLORS[world.projTowerType[eid]] ?? 0xff00ff
+    const maxTicks  = world.projMaxTicks[eid]
+    const ticksLeft = world.projTicksLeft[eid]
+    const fade      = maxTicks > 0 ? ticksLeft / maxTicks : 1
+    const progress  = maxTicks > 1 ? (maxTicks - ticksLeft) / (maxTicks - 1) : 1
+    // Continuous pixel reach from tower center
+    const r = progress * range * TILE_SIZE
+
+    const T = TILE_SIZE
+    const pc = (n: number): number => (n + 0.5) * T
+    const ox = pc(tx)
+    const oy = pc(ty)
+
+    const seg = (x0: number, y0: number, x1: number, y1: number): void => {
+      coneFxGfx!.setStrokeStyle({ width: 4, color, alpha: fade * 0.3 })
+      coneFxGfx!.moveTo(x0, y0); coneFxGfx!.lineTo(x1, y1); coneFxGfx!.stroke()
+      coneFxGfx!.setStrokeStyle({ width: 2, color, alpha: fade * 0.85 })
+      coneFxGfx!.moveTo(x0, y0); coneFxGfx!.lineTo(x1, y1); coneFxGfx!.stroke()
+      coneFxGfx!.setStrokeStyle({ width: 1, color: 0xffffff, alpha: fade * 0.55 })
+      coneFxGfx!.moveTo(x0, y0); coneFxGfx!.lineTo(x1, y1); coneFxGfx!.stroke()
+    }
+
+    switch (facing) {
+      case C.Dir.N: seg(ox - r, oy - r, ox + r, oy - r); break
+      case C.Dir.S: seg(ox - r, oy + r, ox + r, oy + r); break
+      case C.Dir.E: seg(ox + r, oy - r, ox + r, oy + r); break
+      case C.Dir.W: seg(ox - r, oy - r, ox - r, oy + r); break
+      case C.Dir.NE:
+        seg(ox,     oy - r, ox + r, oy - r)  // top edge →
+        seg(ox + r, oy,     ox + r, oy - r)  // right edge ↑
+        break
+      case C.Dir.SE:
+        seg(ox,     oy + r, ox + r, oy + r)  // bottom edge →
+        seg(ox + r, oy,     ox + r, oy + r)  // right edge ↓
+        break
+      case C.Dir.SW:
+        seg(ox,     oy + r, ox - r, oy + r)  // bottom edge ←
+        seg(ox - r, oy,     ox - r, oy + r)  // left edge ↓
+        break
+      case C.Dir.NW:
+        seg(ox,     oy - r, ox - r, oy - r)  // top edge ←
+        seg(ox - r, oy,     ox - r, oy - r)  // left edge ↑
+        break
+    }
+  }
+
   // Draw shot beams for ECS PROJECTILE entities (§5.4.2 Daemon Turret, §5.5.2 ICE Sniper)
   if (!projectileGfx) {
     projectileGfx = new Graphics()
@@ -331,4 +395,5 @@ export function _clearTowerPool(): void {
   firewallLineGfx = null
   rangeGfx = null
   projectileGfx = null
+  coneFxGfx = null
 }

@@ -257,6 +257,10 @@ export interface World {
   projMaxTicks: Uint8Array
   /** Tower type that fired — renderer maps to color. */
   projTowerType: Uint8Array
+  /** Facing direction for CONE_FX entities (C.Dir enum). */
+  projFacing: Uint8Array
+  /** Cone range in tiles for CONE_FX entities. */
+  projRange: Uint8Array
 
   // --- Grid state ---
   /** Blocked tile map (0 = empty, tower type+1 = occupied). GRID_SIZE×GRID_SIZE. */
@@ -448,6 +452,8 @@ export function createWorld(seed: number = 12345): World {
     projTicksLeft: new Uint8Array(N),
     projMaxTicks: new Uint8Array(N),
     projTowerType: new Uint8Array(N),
+    projFacing: new Uint8Array(N),
+    projRange: new Uint8Array(N),
 
     gridBlocked: new Uint8Array(G),
     gridTowerType: new Uint8Array(G),
@@ -566,6 +572,37 @@ export function gatewayAtTile(world: World, tileX: number, tileY: number): Entit
     if (world.gatewayX[eid] === tileX && world.gatewayY[eid] === tileY) return eid
   }
   return null
+}
+
+/**
+ * Spawn a render-only cone wave FX entity for Data Spike.
+ * The wave sweeps from the tower outward to `range` tiles in the facing cone.
+ * Cleaned up by cleanupSystem after `lifetimeTicks` ticks.
+ *
+ * @param fromX  Tower posX (tile grid)
+ * @param fromY  Tower posY (tile grid)
+ * @param facing Dir enum — cone facing direction
+ * @param range  Cone range in tiles
+ * @param towerType  C.TowerType — renderer maps to color
+ * @param lifetimeTicks  Number of ticks the wave is visible
+ */
+export function spawnConeFx(
+  world: World,
+  fromX: number, fromY: number,
+  facing: number,
+  range: number,
+  towerType: number,
+  lifetimeTicks: number,
+): void {
+  const eid = world.pool.create()
+  world.bitmask[eid]       = C.CONE_FX
+  world.projFromX[eid]     = fromX
+  world.projFromY[eid]     = fromY
+  world.projFacing[eid]    = facing
+  world.projRange[eid]     = range
+  world.projTowerType[eid] = towerType
+  world.projTicksLeft[eid] = lifetimeTicks
+  world.projMaxTicks[eid]  = lifetimeTicks
 }
 
 /**

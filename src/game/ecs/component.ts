@@ -82,6 +82,13 @@ export const TOWER_DISABLED = 1 << 21
  */
 export const PROJECTILE = 1 << 22
 
+/**
+ * Render-only cone wave effect spawned by Data Spike on fire.
+ * Carries origin tile, facing direction, range, and a lifetime countdown.
+ * Cleaned up by cleanupSystem each tick.
+ */
+export const CONE_FX = 1 << 23
+
 // ---------------------------------------------------------------------------
 // Immunity flag masks (stored in Immunity.flags Uint8)
 // ---------------------------------------------------------------------------

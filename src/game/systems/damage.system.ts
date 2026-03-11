@@ -10,7 +10,7 @@
  */
 import type { World } from '../ecs/world'
 import * as C from '../ecs/component'
-import { markForRemoval, spawnProjectile } from '../ecs/world'
+import { markForRemoval, spawnProjectile, spawnConeFx } from '../ecs/world'
 import {
   TICK_RATE,
   ICE_WALL_DPS,
@@ -23,12 +23,11 @@ import {
   ICE_SNIPER_DAMAGE,
   ICE_SNIPER_SLOW,
   ICE_SNIPER_SLOW_TICKS,
+  SHOT_BEAM_TICKS,
+  CONE_FX_TICKS,
 } from '../constants'
 import { DATA_SPIKE_FIRE_FLAG, chebyshev, inDataSpikeCone } from './targeting.system'
 import { queueSlow, queueStun } from './statusQueue.system'
-
-/** How many ticks a shot-beam entity lives before cleanupSystem destroys it. */
-const SHOT_BEAM_TICKS = 8
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -161,6 +160,9 @@ function applyDataSpikeDamage(world: World, teid: number): void {
   const facing  = world.towerFacing[teid]
   const range   = DATA_SPIKE_RANGE[level] ?? 2  // §5.3 — grows with level
   const N       = world.bitmask.length
+
+  // Spawn a render-only sweeping cone wave effect
+  spawnConeFx(world, tx, ty, facing, range, C.TowerType.DATA_SPIKE, CONE_FX_TICKS)
 
   for (let eid = 1; eid < N; eid++) {
     const mask = world.bitmask[eid]
