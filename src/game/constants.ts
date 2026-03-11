@@ -262,6 +262,16 @@ export const ICE_SNIPER_MAX_RANGE = 5
 /** ICE Sniper slow duration ticks — Rulebook §5.5.3 (2 s) */
 export const ICE_SNIPER_SLOW_TICKS = 2 * TICK_RATE
 
+// ---------------------------------------------------------------------------
+// Visual FX durations (renderer)
+// ---------------------------------------------------------------------------
+
+/** Ticks a Daemon Turret / ICE Sniper shot-beam entity remains visible. */
+export const SHOT_BEAM_TICKS = 5
+
+/** Ticks a Data Spike cone wave entity takes to sweep its full range. */
+export const CONE_FX_TICKS = 5
+
 /**
  * Blackwall Tower cost table — Rulebook §5.6
  */

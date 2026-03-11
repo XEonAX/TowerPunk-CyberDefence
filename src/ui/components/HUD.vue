@@ -18,7 +18,11 @@
       <span v-else-if="gameStore.isVictory" class="victory">BLACKWALL RESTORED — VICTORY!</span>
       <span v-else-if="gameStore.isGameOver" class="game-over">CORE COMPROMISED</span>
     </div>
-    <button class="speed-btn" @click="uiStore.cycleSpeed()">⏩ {{ uiStore.gameSpeed }}×</button>
+    <div class="speed-picker">
+      <button class="sp-arrow" @click="uiStore.decreaseSpeed()" :disabled="uiStore.gameSpeed <= 0">◀</button>
+      <span class="sp-value">{{ uiStore.gameSpeed }}×</span>
+      <button class="sp-arrow" @click="uiStore.increaseSpeed()" :disabled="uiStore.gameSpeed >= 16">▶</button>
+    </div>
   </div>
 </template>
 
@@ -68,17 +72,30 @@ const uiStore = useUiStore()
 .hud-wave { color: #aaff88; }
 .victory { color: #00ff88; font-weight: bold; }
 .game-over { color: #ff2244; font-weight: bold; }
-.speed-btn {
+.speed-picker {
   pointer-events: all;
-  background: #001833;
-  border: 1px solid #0044aa;
-  color: #00ccff;
-  font-family: monospace;
-  font-size: 13px;
-  padding: 3px 10px;
-  cursor: pointer;
-  border-radius: 3px;
-  transition: background 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
-.speed-btn:hover { background: #002855; }
+.sp-arrow {
+  background: none;
+  border: 1px solid #002244;
+  color: #0077cc;
+  font-size: 8px;
+  padding: 1px 4px;
+  cursor: pointer;
+  font-family: monospace;
+  border-radius: 2px;
+  line-height: 1;
+}
+.sp-arrow:disabled { opacity: 0.25; cursor: default; }
+.sp-arrow:not(:disabled):hover { border-color: #0088ff; color: #44aaff; }
+.sp-value {
+  font-size: 12px;
+  color: #00ccff;
+  min-width: 36px;
+  text-align: center;
+  font-family: monospace;
+}
 </style>

@@ -87,10 +87,10 @@ function getTowerRange(world: World, eid: number): number | [number, number] | n
  * Update tower layer each render frame.
  * @param container   The PixiJS Container for this layer.
  * @param world       Current ECS world (read-only in renderer).
- * @param _alpha      Interpolation factor — towers don't interpolate position.
+ * @param alpha       Sub-tick interpolation factor [0,1] — used to smooth projectile/cone FX fades.
  * @param selectedEid Entity ID of the currently selected tower, or null.
  */
-export function updateTowerLayer(container: Container, world: World, _alpha: number, selectedEid: number | null = null): void {
+export function updateTowerLayer(container: Container, world: World, alpha: number, selectedEid: number | null = null): void {
   // Release Graphics for removed towers / gateways
   const toRelease: number[] = []
   for (const [eid, g] of active) {
@@ -238,8 +238,10 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
     const color     = TOWER_COLORS[world.projTowerType[eid]] ?? 0xff00ff
     const maxTicks  = world.projMaxTicks[eid]
     const ticksLeft = world.projTicksLeft[eid]
-    const fade      = maxTicks > 0 ? ticksLeft / maxTicks : 1
-    const progress  = maxTicks > 1 ? (maxTicks - ticksLeft) / (maxTicks - 1) : 1
+    // Interpolate ticksLeft toward (ticksLeft - 1) using sub-tick alpha for fluid animation
+    const interpLeft = ticksLeft - alpha
+    const fade      = maxTicks > 0 ? interpLeft / maxTicks : 1
+    const progress  = maxTicks > 1 ? (maxTicks - interpLeft) / (maxTicks - 1) : 1
     // Continuous pixel reach from tower center
     const r = progress * range * TILE_SIZE
 
@@ -289,8 +291,9 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
   projectileGfx.clear()
   for (let eid = 1; eid < MAX_ENTITIES; eid++) {
     if (!(world.bitmask[eid] & C.PROJECTILE)) continue
-    const alpha = world.projMaxTicks[eid] > 0
-      ? world.projTicksLeft[eid] / world.projMaxTicks[eid]
+    // Interpolate fade using sub-tick alpha for fluid animation
+    const beamAlpha = world.projMaxTicks[eid] > 0
+      ? (world.projTicksLeft[eid] - alpha) / world.projMaxTicks[eid]
       : 1
     const fromPx = (world.projFromX[eid] + 0.5) * TILE_SIZE
     const fromPy = (world.projFromY[eid] + 0.5) * TILE_SIZE
@@ -298,17 +301,17 @@ export function updateTowerLayer(container: Container, world: World, _alpha: num
     const toPy   = (world.projToY[eid]   + 0.5) * TILE_SIZE
     const color  = TOWER_COLORS[world.projTowerType[eid]] ?? 0xffffff
     // Outer glow line
-    projectileGfx.setStrokeStyle({ width: 2, color, alpha })
+    projectileGfx.setStrokeStyle({ width: 2, color, alpha: beamAlpha })
     projectileGfx.moveTo(fromPx, fromPy)
     projectileGfx.lineTo(toPx, toPy)
     projectileGfx.stroke()
     // Bright core highlight
-    projectileGfx.setStrokeStyle({ width: 1, color: 0xffffff, alpha: alpha * 0.6 })
+    projectileGfx.setStrokeStyle({ width: 1, color: 0xffffff, alpha: beamAlpha * 0.6 })
     projectileGfx.moveTo(fromPx, fromPy)
     projectileGfx.lineTo(toPx, toPy)
     projectileGfx.stroke()
     // Impact dot at target end
-    projectileGfx.setFillStyle({ color, alpha })
+    projectileGfx.setFillStyle({ color, alpha: beamAlpha })
     projectileGfx.circle(toPx, toPy, 3)
     projectileGfx.fill()
   }

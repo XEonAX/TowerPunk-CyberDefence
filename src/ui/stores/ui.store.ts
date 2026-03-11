@@ -18,21 +18,26 @@ export const useUiStore = defineStore('ui', () => {
    */
   const placementFacing = ref(0)
 
-  /** Game speed multiplier — 1×, 2×, 4×, 8×, 16×, or 32× */
-  const gameSpeed = ref<1 | 2 | 4 | 8 | 16 | 32>(1)
+  /** Game speed multiplier — 0×, 0.5×, 1×, 2×, 4×, 8×, or 16× */
+  const gameSpeed = ref<0 | 0.5 | 1 | 2 | 4 | 8 | 16>(1)
 
   /** Kind of entity currently being inspected. */
   const inspectedKind = ref<'tower' | 'enemy' | 'gateway' | null>(null)
   /** Entity ID of the inspected enemy or gateway (null for tower — use selectedTowerEid). */
   const inspectedEid = ref<number | null>(null)
 
-  function cycleSpeed(): void {
-    if (gameSpeed.value === 1) gameSpeed.value = 2
-    else if (gameSpeed.value === 2) gameSpeed.value = 4
-    else if (gameSpeed.value === 4) gameSpeed.value = 8
-    else if (gameSpeed.value === 8) gameSpeed.value = 16
-    else if (gameSpeed.value === 16) gameSpeed.value = 32
-    else gameSpeed.value = 1
+  const SPEED_STEPS = [0, 0.5, 1, 2, 4, 8, 16] as const
+
+  function increaseSpeed(): void {
+    const idx = SPEED_STEPS.indexOf(gameSpeed.value)
+    const next = SPEED_STEPS[idx + 1]
+    if (next !== undefined) gameSpeed.value = next
+  }
+
+  function decreaseSpeed(): void {
+    const idx = SPEED_STEPS.indexOf(gameSpeed.value)
+    const prev = SPEED_STEPS[idx - 1]
+    if (prev !== undefined) gameSpeed.value = prev
   }
 
   function selectTowerType(type: number | null): void {
@@ -100,6 +105,6 @@ export const useUiStore = defineStore('ui', () => {
     isPanelOpen, placementFacing, gameSpeed, placementLevel,
     inspectedKind, inspectedEid,
     selectTowerType, selectTowerInstance, selectEnemy, selectGateway, clearInspection,
-    setHoveredTile, rotatePlacementFacing, cycleSpeed, setPlacementLevel,
+    setHoveredTile, rotatePlacementFacing, increaseSpeed, decreaseSpeed, setPlacementLevel,
   }
 })
