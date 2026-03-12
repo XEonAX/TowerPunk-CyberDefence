@@ -44,6 +44,9 @@ let coreGfx: Graphics | null = null
 // Dedicated Graphics for Firewall pair connector lines
 let firewallLineGfx: Graphics | null = null
 
+// Dedicated Graphics for Blackwall Tower → Gateway connector lines
+let blackwallLineGfx: Graphics | null = null
+
 // Dedicated Graphics for range circle overlay
 let rangeGfx: Graphics | null = null
 
@@ -161,6 +164,41 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     firewallLineGfx.moveTo(x1, y1)
     firewallLineGfx.lineTo(x2, y2)
     firewallLineGfx.stroke()
+  }
+
+  // Draw red connector lines between each Blackwall Tower and its adjacent gateways (§5.6.1)
+  if (!blackwallLineGfx) {
+    blackwallLineGfx = new Graphics()
+    container.addChild(blackwallLineGfx)
+  }
+  blackwallLineGfx.clear()
+  for (let eid = 1; eid < MAX_ENTITIES; eid++) {
+    const mask = world.bitmask[eid]
+    if (!(mask & C.BLACKWALL_TOWER)) continue
+    if (mask & C.PENDING_REMOVAL) continue
+    const bwX = world.posX[eid]
+    const bwY = world.posY[eid]
+    for (let i = 0; i < world.activeGatewayCount; i++) {
+      const gwEid = world.activeGateways[i]
+      if (world.bitmask[gwEid] & C.PENDING_REMOVAL) continue
+      const dx = Math.abs(bwX - world.gatewayX[gwEid])
+      const dy = Math.abs(bwY - world.gatewayY[gwEid])
+      if (Math.max(dx, dy) > 1) continue
+      const x1 = (bwX + 0.5) * TILE_SIZE
+      const y1 = (bwY + 0.5) * TILE_SIZE
+      const x2 = (world.gatewayX[gwEid] + 0.5) * TILE_SIZE
+      const y2 = (world.gatewayY[gwEid] + 0.5) * TILE_SIZE
+      // Glow outer line
+      blackwallLineGfx.setStrokeStyle({ width: 4, color: 0xff0044, alpha: 0.25 })
+      blackwallLineGfx.moveTo(x1, y1)
+      blackwallLineGfx.lineTo(x2, y2)
+      blackwallLineGfx.stroke()
+      // Core bright line
+      blackwallLineGfx.setStrokeStyle({ width: 2, color: 0xff0044, alpha: 0.85 })
+      blackwallLineGfx.moveTo(x1, y1)
+      blackwallLineGfx.lineTo(x2, y2)
+      blackwallLineGfx.stroke()
+    }
   }
 
   // Render Blackwall Gateways (§9.2)
@@ -396,6 +434,7 @@ export function _clearTowerPool(): void {
   pool.length = 0
   coreGfx = null
   firewallLineGfx = null
+  blackwallLineGfx = null
   rangeGfx = null
   projectileGfx = null
   coneFxGfx = null

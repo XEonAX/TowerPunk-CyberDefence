@@ -711,17 +711,6 @@ export function spawnInteriorGateway(world: World, x: number, y: number): void {
   }
   world.totalGatewaysCreated++
 
-  // §5.6.1 — assign any adjacent Blackwall Tower that doesn't yet have a gateway
-  const N = world.bitmask.length
-  for (let eid = 1; eid < N; eid++) {
-    const m = world.bitmask[eid]
-    if ((m & C.BLACKWALL_TOWER) === 0) continue
-    if ((m & C.PENDING_REMOVAL) !== 0) continue
-    if (world.blackwallAssignedGateway[eid] !== 0) continue
-    const dx = Math.abs(world.posX[eid] - x)
-    const dy = Math.abs(world.posY[eid] - y)
-    if (Math.max(dx, dy) <= 1) {
-      world.blackwallAssignedGateway[eid] = gwEid
-    }
-  }
+  // §5.6.1 — adjacency to Blackwall Towers is evaluated dynamically each tick;
+  // no stored assignment written here.
 }

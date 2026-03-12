@@ -274,14 +274,8 @@ function _handlePlaceTower(world: World, cmd: PlaceTowerCommand): void {
 
   } else if (tt === C.TowerType.BLACKWALL) {
     world.blackwallDamagePerTick[eid] = BLACKWALL_TOWER_DPT[0]
-    // §5.6.1 — find adjacent gateway within Chebyshev 1
-    for (let i = 0; i < world.activeGatewayCount; i++) {
-      const gwEid = world.activeGateways[i]
-      if (_chebyshev(x, y, world.gatewayX[gwEid], world.gatewayY[gwEid]) <= 1) {
-        world.blackwallAssignedGateway[eid] = gwEid
-        break
-      }
-    }
+    // §5.6.1 — adjacency to gateways is evaluated dynamically each tick;
+    // no stored assignment needed.
   }
 
   // Apply upgrade stats for levels 2..targetLevel (resources already deducted above)
