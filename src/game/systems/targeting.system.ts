@@ -44,7 +44,7 @@ export function chebyshev(x1: number, y1: number, x2: number, y2: number): numbe
  * Returns fire cooldown ticks for the given tower (§5.3, §5.4, §5.5).
  * §6.2 — Overclock reduces cooldown by dividing by the overclock multiplier.
  */
-function getCooldownForTower(world: World, eid: number): number {
+export function getCooldownForTower(world: World, eid: number): number {
   const level = Math.max(0, Math.min(9, world.towerLevel[eid] - 1))
   let cooldown: number
   switch (world.towerType[eid]) {
@@ -111,6 +111,54 @@ export function inDataSpikeCone(
 }
 
 // ---------------------------------------------------------------------------
+// Rotation / aim helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Signed shortest angular delta from `from` to `to`, in (-π, π].
+ * Both inputs are expected to be outputs of Math.atan2 (i.e. in [-π, π]).
+ */
+function angleDelta(from: number, to: number): number {
+  let d = to - from
+  if (d >  Math.PI) d -= 2 * Math.PI
+  if (d < -Math.PI) d += 2 * Math.PI
+  return d
+}
+
+/** Unsigned angular difference between two angles (0 to π). */
+export function angleDiff(a: number, b: number): number {
+  return Math.abs(angleDelta(a, b))
+}
+
+/**
+ * Step angle `current` toward `target` by at most `speed` radians.
+ * Snaps exactly to `target` when the remaining gap is within `speed`.
+ */
+export function stepAngle(current: number, target: number, speed: number): number {
+  const delta = angleDelta(current, target)
+  if (Math.abs(delta) <= speed) return target
+  return current + Math.sign(delta) * speed
+}
+
+/**
+ * Returns true when the tower's current rotationAngle is within one rotationSpeed
+ * step of the angle required to face its `targetingTarget`.
+ * Used by damageSystem to gate firing for DAEMON_TURRET and ICE_SNIPER.
+ */
+export function isAimed(world: World, teid: number): boolean {
+  const targetEid = world.targetingTarget[teid]
+  if (targetEid === 0) return false
+  const tx = world.posX[teid] | 0
+  const ty = world.posY[teid] | 0
+  const ex = world.tilePosX[targetEid]
+  const ey = world.tilePosY[targetEid]
+  const desiredAngle = Math.atan2(ex - tx, -(ey - ty))
+  // rotationSpeed is stored in degrees/tick; rotationAngle is in radians.
+  const speedRad = world.rotationSpeed[teid] * (Math.PI / 180)
+  return angleDiff(world.rotationAngle[teid], desiredAngle) <= speedRad
+}
+
+// ---------------------------------------------------------------------------
 // Main system
 // ---------------------------------------------------------------------------
 
@@ -138,33 +186,70 @@ export function targetingSystem(world: World): void {
       towerType !== C.TowerType.ICE_SNIPER
     ) continue
 
-    // Cooldown tick-down — not ready until it reaches 0
-    if (world.targetingCooldown[eid] > 0) {
-      world.targetingCooldown[eid]--
-      continue
-    }
-
     const tx = world.posX[eid] | 0
     const ty = world.posY[eid] | 0
     const level = Math.max(0, Math.min(9, world.towerLevel[eid] - 1))
 
-    let target = 0
-    switch (towerType) {
-      case C.TowerType.DATA_SPIKE:
-        target = acquireDataSpikeTarget(world, eid, tx, ty, level)
-        break
-      case C.TowerType.DAEMON_TURRET:
-        target = acquireDaemonTurretTarget(world, eid, tx, ty, level)
-        break
-      case C.TowerType.ICE_SNIPER:
-        target = acquireIceSniperTarget(world, eid, tx, ty)
-        break
+    // --- DATA_SPIKE: unchanged cooldown-gated logic ---
+    if (towerType === C.TowerType.DATA_SPIKE) {
+      if (world.targetingCooldown[eid] > 0) {
+        world.targetingCooldown[eid]--
+        continue
+      }
+      const target = acquireDataSpikeTarget(world, eid, tx, ty, level)
+      if (target > 0) {
+        world.targetingTarget[eid] = target
+        world.targetingCooldown[eid] = getCooldownForTower(world, eid)
+      }
+      continue
     }
 
-    if (target > 0) {
-      world.targetingTarget[eid] = target
-      world.targetingCooldown[eid] = getCooldownForTower(world, eid)
+    // --- DAEMON_TURRET / ICE_SNIPER: rotation-aware tracking (§5.4.2, §5.5.1) ---
+    // The tower tracks a target every tick (regardless of cooldown) and rotates
+    // incrementally. damageSystem (§1.10.8) fires once isAimed() is true and
+    // the fire cooldown has expired.
+
+    // 1. Decrement fire cooldown
+    if (world.targetingCooldown[eid] > 0) {
+      world.targetingCooldown[eid]--
     }
+
+    // 2. Validate existing target or acquire a new one
+    let targetEid = world.targetingTarget[eid]
+    if (targetEid > 0) {
+      const tmask = world.bitmask[targetEid]
+      let valid = (tmask & C.ENEMY) !== 0
+                && (tmask & C.PENDING_REMOVAL) === 0
+                && (tmask & C.SPAWN_IMMUNITY) === 0
+      if (valid) {
+        const dist = chebyshev(world.tilePosX[targetEid], world.tilePosY[targetEid], tx, ty)
+        valid = towerType === C.TowerType.DAEMON_TURRET
+          ? dist <= (DAEMON_TURRET_RANGE[level] ?? 1)
+          : dist >= ICE_SNIPER_MIN_RANGE && dist <= ICE_SNIPER_MAX_RANGE
+      }
+      if (!valid) {
+        targetEid = 0
+        world.targetingTarget[eid] = 0
+      }
+    }
+    if (targetEid === 0) {
+      targetEid = towerType === C.TowerType.DAEMON_TURRET
+        ? acquireDaemonTurretTarget(world, eid, tx, ty, level)
+        : acquireIceSniperTarget(world, eid, tx, ty)
+      world.targetingTarget[eid] = targetEid
+    }
+
+    // 3. Rotate incrementally toward target — never snap instantly
+    if (targetEid > 0) {
+      const ex = world.tilePosX[targetEid]
+      const ey = world.tilePosY[targetEid]
+      const desiredAngle = Math.atan2(ex - tx, -(ey - ty))
+      // rotationSpeed is stored in degrees/tick; convert to radians for angle math.
+      const speedRad = world.rotationSpeed[eid] * (Math.PI / 180)
+      world.rotationAngle[eid] = stepAngle(world.rotationAngle[eid], desiredAngle, speedRad)
+    }
+    // NOTE: cooldown reset + actual firing are handled in damageSystem (§1.10.8)
+    // once isAimed() confirms the barrel is on target.
   }
 }
 

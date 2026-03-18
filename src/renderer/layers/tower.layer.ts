@@ -32,6 +32,29 @@ const TOWER_COLORS: Record<number, number> = {
   [C.TowerType.HARVESTER]:    0x44ff44, // bright green
 }
 
+/**
+ * Converts a Dir enum value to a PixiJS rotation angle in radians.
+ * All tower art assets face North (up) by default.
+ * PixiJS rotation: 0 = no rotation (up), positive = clockwise.
+ */
+const DIR_ROTATION: Record<number, number> = {
+  [C.Dir.N]:  0,
+  [C.Dir.S]:  Math.PI,
+  [C.Dir.E]:  Math.PI / 2,
+  [C.Dir.W]:  -Math.PI / 2,
+  [C.Dir.NE]: Math.PI / 4,
+  [C.Dir.SE]: 3 * Math.PI / 4,
+  [C.Dir.SW]: -3 * Math.PI / 4,
+  [C.Dir.NW]: -Math.PI / 4,
+}
+
+/** Tower types whose sprites rotate. Uses anchor(0.5) and center-based positioning. */
+const ROTATING_TOWERS = new Set([
+  C.TowerType.DATA_SPIKE,
+  C.TowerType.DAEMON_TURRET,
+  C.TowerType.ICE_SNIPER,
+])
+
 /** Tint applied to tower sprites when disabled by Saboteur aura (§7.7). */
 const DISABLED_TINT = 0x555555
 const MAX_ENTITIES = 4096
@@ -125,6 +148,10 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
       sprite = new Sprite(getTowerTexture(towerType))
       sprite.width  = TILE_SIZE
       sprite.height = TILE_SIZE
+      // Rotating towers need center anchor so rotation pivots around the tile centre
+      if (ROTATING_TOWERS.has(towerType)) {
+        sprite.anchor.set(0.5)
+      }
       sprite.visible = true
       container.addChild(sprite)
       active.set(eid, sprite)
@@ -132,9 +159,24 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
 
     const isDisabled = world.towerDisableTicks[eid] > 0
     sprite.tint = isDisabled ? DISABLED_TINT : 0xffffff
-    sprite.x = world.posX[eid] * TILE_SIZE
-    sprite.y = world.posY[eid] * TILE_SIZE
-  }
+
+    if (ROTATING_TOWERS.has(towerType)) {
+      // Centre-based position (anchor is 0.5)
+      sprite.x = (world.posX[eid] + 0.5) * TILE_SIZE
+      sprite.y = (world.posY[eid] + 0.5) * TILE_SIZE
+      if (towerType === C.TowerType.DATA_SPIKE) {
+        // Fixed facing set at placement time (Dir enum)
+        sprite.rotation = DIR_ROTATION[world.towerFacing[eid]] ?? 0
+      } else {
+        // Daemon Turret / ICE Sniper — continuously updated by targetingSystem
+        sprite.rotation = world.rotationAngle[eid]
+      }
+    } else {
+      // Non-rotating towers — top-left anchor, no rotation
+      sprite.x = world.posX[eid] * TILE_SIZE
+      sprite.y = world.posY[eid] * TILE_SIZE
+    }
+  } // end tower render loop
 
   // Draw orange connector lines between placed Firewall pairs (§5.2.1)
   if (!firewallLineGfx) {

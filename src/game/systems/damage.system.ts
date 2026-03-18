@@ -26,7 +26,7 @@ import {
   SHOT_BEAM_TICKS,
   CONE_FX_TICKS,
 } from '../constants'
-import { DATA_SPIKE_FIRE_FLAG, chebyshev, inDataSpikeCone } from './targeting.system'
+import { DATA_SPIKE_FIRE_FLAG, chebyshev, inDataSpikeCone, getCooldownForTower, isAimed } from './targeting.system'
 import { queueSlow, queueStun } from './statusQueue.system'
 
 // ---------------------------------------------------------------------------
@@ -300,14 +300,20 @@ export function damageSystem(world: World): void {
         break
 
       case C.TowerType.DAEMON_TURRET:
-        if (world.targetingTarget[eid] > 0) {
+        // §5.4.2 — only fire when the barrel is on target and the fire cooldown has expired.
+        // Cooldown is reset here (not in targetingSystem) so the rotation delay is not
+        // conflated with the fire-rate delay.
+        if (world.targetingCooldown[eid] === 0 && world.targetingTarget[eid] > 0 && isAimed(world, eid)) {
           applyDaemonTurretDamage(world, eid)
+          world.targetingCooldown[eid] = getCooldownForTower(world, eid)
         }
         break
 
       case C.TowerType.ICE_SNIPER:
-        if (world.targetingTarget[eid] > 0) {
+        // §5.5.1 — fires in one direction; can rotate to track; only fires once aimed.
+        if (world.targetingCooldown[eid] === 0 && world.targetingTarget[eid] > 0 && isAimed(world, eid)) {
           applyIceSniperDamage(world, eid)
+          world.targetingCooldown[eid] = getCooldownForTower(world, eid)
         }
         break
     }

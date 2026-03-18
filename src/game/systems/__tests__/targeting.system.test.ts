@@ -4,8 +4,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createWorld, createTower, createEnemy, type World } from '../../ecs/world'
 import * as C from '../../ecs/component'
-import { targetingSystem, DATA_SPIKE_FIRE_FLAG } from '../targeting.system'
-import { TICK_RATE } from '../../constants'
+import { targetingSystem, DATA_SPIKE_FIRE_FLAG, stepAngle, angleDiff } from '../targeting.system'
+import { TICK_RATE, DAEMON_TURRET_ROT_SPEED, ICE_SNIPER_ROT_SPEED } from '../../constants'
 
 let world: World
 
@@ -27,6 +27,7 @@ function makeIceSniper(tx: number, ty: number, level = 1): number {
   world.targetingMode[eid]     = C.TargetingMode.CLOSEST
   world.targetingCooldown[eid] = 0
   world.targetingTarget[eid]   = 0
+  world.rotationSpeed[eid]     = ICE_SNIPER_ROT_SPEED[level - 1]
   return eid
 }
 
@@ -40,6 +41,7 @@ function makeDaemonTurret(tx: number, ty: number, level = 1): number {
   world.targetingMode[eid]     = C.TargetingMode.CLOSEST
   world.targetingCooldown[eid] = 0
   world.targetingTarget[eid]   = 0
+  world.rotationSpeed[eid]     = DAEMON_TURRET_ROT_SPEED[level - 1]
   return eid
 }
 
@@ -72,19 +74,20 @@ function makeEnemy(ex: number, ey: number, hp = 100): number {
 // ---------------------------------------------------------------------------
 
 describe('Rulebook §1.10.7 — cooldown management', () => {
-  it('tower with cooldown > 0 decrements cooldown and does NOT acquire target', () => {
+  it('tower with cooldown > 0 decrements cooldown and also acquires/tracks target for rotation', () => {
     const teid = makeIceSniper(25, 25)
     world.targetingCooldown[teid] = 10
     // Place enemy in valid sniper range (dist = 4)
-    makeEnemy(25, 21)
+    const eeid = makeEnemy(25, 21)
 
     targetingSystem(world)
 
     expect(world.targetingCooldown[teid]).toBe(9)
-    expect(world.targetingTarget[teid]).toBe(0)
+    // Target is now tracked every tick (for rotation) even while cooling down
+    expect(world.targetingTarget[teid]).toBe(eeid)
   })
 
-  it('tower with cooldown 0 acquires target and resets cooldown', () => {
+  it('tower with cooldown 0 acquires target; cooldown reset is deferred to damageSystem', () => {
     const teid = makeIceSniper(25, 25)
     world.targetingCooldown[teid] = 0
     const eeid = makeEnemy(25, 21)  // dist = 4, in [3,5] range
@@ -92,7 +95,53 @@ describe('Rulebook §1.10.7 — cooldown management', () => {
     targetingSystem(world)
 
     expect(world.targetingTarget[teid]).toBe(eeid)
-    expect(world.targetingCooldown[teid]).toBeGreaterThan(0)
+    // targetingSystem no longer resets the cooldown — that happens in damageSystem after firing
+    expect(world.targetingCooldown[teid]).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Rotation — DAEMON_TURRET / ICE_SNIPER
+// ---------------------------------------------------------------------------
+
+describe('Rotation — incremental tracking (§5.4.2, §5.5.1)', () => {
+  it('rotationAngle steps toward the target by exactly rotationSpeed (in radians) each tick', () => {
+    const teid = makeDaemonTurret(25, 25)  // facing North (angle=0) by default
+    makeEnemy(28, 25)                      // East: desired angle = atan2(3, 0) = π/2
+
+    const speedRad = world.rotationSpeed[teid] * (Math.PI / 180)
+    targetingSystem(world)
+
+    // After one tick the angle should have advanced by exactly one speed step toward East
+    expect(world.rotationAngle[teid]).toBeCloseTo(speedRad, 6)
+  })
+
+  it('snaps to desired angle when already within one rotationSpeed step', () => {
+    const teid = makeIceSniper(25, 25)
+    const eeid = makeEnemy(25, 22)  // North (dist=3): desired angle = atan2(0, 3) = 0
+
+    const speedRad = world.rotationSpeed[teid] * (Math.PI / 180)
+    // Start almost aimed — gap smaller than one step
+    world.rotationAngle[teid] = speedRad * 0.4
+
+    targetingSystem(world)
+
+    // stepAngle snaps to exact target when within `speedRad`
+    const desired = Math.atan2(25 - 25, -(22 - 25))
+    expect(world.rotationAngle[teid]).toBeCloseTo(desired, 6)
+    expect(world.targetingTarget[teid]).toBe(eeid)
+  })
+
+  it('drops out-of-range target and acquires new one instead', () => {
+    const teid = makeDaemonTurret(25, 25)
+    const oldTarget = makeEnemy(29, 25)  // dist=4, out of range=3 at L1
+    world.targetingTarget[teid] = oldTarget  // manually force the stale target
+
+    const newTarget = makeEnemy(26, 25)  // dist=1, in range
+
+    targetingSystem(world)
+
+    expect(world.targetingTarget[teid]).toBe(newTarget)
   })
 })
 

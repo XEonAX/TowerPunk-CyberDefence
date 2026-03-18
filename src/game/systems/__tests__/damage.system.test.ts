@@ -16,9 +16,11 @@ import {
   FIREWALL_DPS,
   DATA_SPIKE_DAMAGE,
   DAEMON_TURRET_DAMAGE,
+  DAEMON_TURRET_ROT_SPEED,
   ICE_SNIPER_DAMAGE,
   ICE_SNIPER_SLOW,
   ICE_SNIPER_SLOW_TICKS,
+  ICE_SNIPER_ROT_SPEED,
   TICK_RATE,
   FIREWALL_STUN_TICKS,
 } from '../../constants'
@@ -93,26 +95,42 @@ function makeDataSpike(
 /** DAEMON_TURRET tower at (tx, ty) with optional pre-set target. */
 function makeDaemonTurret(tx: number, ty: number, level = 1, targetEid = 0): number {
   const eid = createTower(world, C.TARGETING)
-  world.towerType[eid]       = C.TowerType.DAEMON_TURRET
-  world.towerLevel[eid]      = level
-  world.posX[eid]            = tx
-  world.posY[eid]            = ty
-  world.targetingTarget[eid] = targetEid
-  world.healthCurrent[eid]   = 100
-  world.healthMax[eid]       = 100
+  world.towerType[eid]          = C.TowerType.DAEMON_TURRET
+  world.towerLevel[eid]         = level
+  world.posX[eid]               = tx
+  world.posY[eid]               = ty
+  world.targetingTarget[eid]    = targetEid
+  world.targetingCooldown[eid]  = 0
+  world.rotationSpeed[eid]      = DAEMON_TURRET_ROT_SPEED[level - 1]
+  world.healthCurrent[eid]      = 100
+  world.healthMax[eid]          = 100
+  // Pre-aim at target so isAimed() returns true immediately in tests
+  if (targetEid > 0) {
+    const ex = world.tilePosX[targetEid]
+    const ey = world.tilePosY[targetEid]
+    world.rotationAngle[eid] = Math.atan2(ex - tx, -(ey - ty))
+  }
   return eid
 }
 
 /** ICE_SNIPER tower at (tx, ty) with a specific target. */
 function makeIceSniper(tx: number, ty: number, level = 1, targetEid = 0): number {
   const eid = createTower(world, C.TARGETING)
-  world.towerType[eid]       = C.TowerType.ICE_SNIPER
-  world.towerLevel[eid]      = level
-  world.posX[eid]            = tx
-  world.posY[eid]            = ty
-  world.targetingTarget[eid] = targetEid
-  world.healthCurrent[eid]   = 100
-  world.healthMax[eid]       = 100
+  world.towerType[eid]          = C.TowerType.ICE_SNIPER
+  world.towerLevel[eid]         = level
+  world.posX[eid]               = tx
+  world.posY[eid]               = ty
+  world.targetingTarget[eid]    = targetEid
+  world.targetingCooldown[eid]  = 0
+  world.rotationSpeed[eid]      = ICE_SNIPER_ROT_SPEED[level - 1]
+  world.healthCurrent[eid]      = 100
+  world.healthMax[eid]          = 100
+  // Pre-aim at target so isAimed() returns true immediately in tests
+  if (targetEid > 0) {
+    const ex = world.tilePosX[targetEid]
+    const ey = world.tilePosY[targetEid]
+    world.rotationAngle[eid] = Math.atan2(ex - tx, -(ey - ty))
+  }
   return eid
 }
 
@@ -369,6 +387,17 @@ describe('Rulebook §5.4.2 — DAEMON_TURRET tile damage', () => {
 
     expect(world.healthCurrent[eeid]).toBe(200)
   })
+
+  it('does NOT fire when tower is not yet aimed at target (§5.4.2)', () => {
+    const eeid = makeEnemy(15, 15, 200)
+    const teid = makeDaemonTurret(14, 15, 1, eeid)
+    // Override to face North; target is East — far outside one rotationSpeed step
+    world.rotationAngle[teid] = 0
+
+    damageSystem(world)
+
+    expect(world.healthCurrent[eeid]).toBe(200)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -428,6 +457,17 @@ describe('Rulebook §5.5.3 — ICE_SNIPER single-target shot', () => {
   it('does nothing when targetingTarget is 0', () => {
     const eeid = makeEnemy(25, 21, 1000)
     makeIceSniper(25, 25, 1, 0)
+
+    damageSystem(world)
+
+    expect(world.healthCurrent[eeid]).toBe(1000)
+  })
+
+  it('does NOT fire when tower is not yet aimed at target (§5.5.1)', () => {
+    const eeid = makeEnemy(25, 21, 1000)
+    const teid = makeIceSniper(25, 25, 1, eeid)
+    // Override to face East; target is North — far outside one rotationSpeed step
+    world.rotationAngle[teid] = Math.PI / 2
 
     damageSystem(world)
 
