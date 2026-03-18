@@ -6,7 +6,8 @@
  * Placement validity is re-checked only when the hovered tile changes.
  */
 
-import { Graphics, Container } from 'pixi.js'
+import { Graphics, Container, Sprite } from 'pixi.js'
+import { getTowerTexture } from '../towerTextures'
 import type { World } from '@game/ecs/world'
 import { TILE_SIZE } from '../camera'
 import { canPlaceTower, canPlaceFirewallPair } from '@game/pathfinding/placement'
@@ -27,7 +28,16 @@ const GHOST_ALPHA   = 0.45
 /** Reduced alpha for the walkable gap tile in a Firewall pair preview. */
 const GAP_ALPHA     = 0.18
 
+/** Tint applied to ghost sprite when placement is valid. Soft green preserves tower art colours. */
+const GHOST_TINT_VALID   = 0x99ffbb
+/** Tint applied to ghost sprite when placement is invalid. Soft red preserves tower art colours. */
+const GHOST_TINT_INVALID = 0xff8888
+
 let ghostGfx: Graphics | null = null
+/** Ghost sprite for the primary tower tile (all tower types). */
+let ghostSprite: Sprite | null = null
+/** Ghost sprite for the second Firewall tower tile (§5.2.1). */
+let ghostSprite2: Sprite | null = null
 
 // Cache last-validated state to avoid running BFS every frame
 let lastX = -1
@@ -113,12 +123,28 @@ export function updateGhostLayer(
   placementFacing = 0,
   placementLevel = 1,
 ): void {
-  // Acquire ghost Graphics on first call
+  // Acquire ghost Graphics on first call (range overlays — added first, sits underneath sprites)
   if (!ghostGfx) {
     ghostGfx = new Graphics()
     ghostGfx.x = 0
     ghostGfx.y = 0
     container.addChild(ghostGfx)
+  }
+  // Primary ghost sprite — all tower types show their art here
+  if (!ghostSprite) {
+    ghostSprite = new Sprite()
+    ghostSprite.width  = TILE_SIZE
+    ghostSprite.height = TILE_SIZE
+    ghostSprite.visible = false
+    container.addChild(ghostSprite)
+  }
+  // Secondary ghost sprite — Firewall second tower tile (§5.2.1)
+  if (!ghostSprite2) {
+    ghostSprite2 = new Sprite()
+    ghostSprite2.width  = TILE_SIZE
+    ghostSprite2.height = TILE_SIZE
+    ghostSprite2.visible = false
+    container.addChild(ghostSprite2)
   }
 
   // Hide ghost when not in placement mode or hovering off-grid
@@ -128,6 +154,8 @@ export function updateGhostLayer(
     hoveredY < 0 || hoveredY >= GRID_SIZE
   ) {
     ghostGfx.visible = false
+    if (ghostSprite)  ghostSprite.visible  = false
+    if (ghostSprite2) ghostSprite2.visible = false
     lastX = -1
     lastY = -1
     lastTowerType = null
@@ -152,6 +180,9 @@ export function updateGhostLayer(
     const gatewayTiles = _gatewayTiles(world)
 
     ghostGfx.clear()
+    // Reset sprite visibility — each branch below re-enables what it needs
+    ghostSprite!.visible  = false
+    ghostSprite2!.visible = false
 
     if (selectedTowerType === TowerType.FIREWALL) {
       // §5.2.1 — Firewall is a 3-tile pair (t1, gap, t2).
@@ -183,31 +214,62 @@ export function updateGhostLayer(
       )
 
       const color = lastValid ? VALID_COLOR : INVALID_COLOR
-      _drawTile(ghostGfx, t1x, t1y, color, GHOST_ALPHA, 0.8)
+      const tint  = lastValid ? GHOST_TINT_VALID : GHOST_TINT_INVALID
+      // Gap tile — dimmer graphics rect (walkable gap, not a tower)
       _drawTile(ghostGfx, gapX, gapY, color, GAP_ALPHA, 0.35)
-      _drawTile(ghostGfx, t2x, t2y, color, GHOST_ALPHA, 0.8)
+      // t1 sprite
+      const fwTex = getTowerTexture(TowerType.FIREWALL)
+      ghostSprite!.texture = fwTex
+      ghostSprite!.width   = TILE_SIZE
+      ghostSprite!.height  = TILE_SIZE
+      ghostSprite!.tint    = tint
+      ghostSprite!.alpha   = GHOST_ALPHA
+      ghostSprite!.x       = t1x * TILE_SIZE
+      ghostSprite!.y       = t1y * TILE_SIZE
+      ghostSprite!.visible = true
+      // t2 sprite
+      ghostSprite2!.texture = fwTex
+      ghostSprite2!.width   = TILE_SIZE
+      ghostSprite2!.height  = TILE_SIZE
+      ghostSprite2!.tint    = tint
+      ghostSprite2!.alpha   = GHOST_ALPHA
+      ghostSprite2!.x       = t2x * TILE_SIZE
+      ghostSprite2!.y       = t2y * TILE_SIZE
+      ghostSprite2!.visible = true
     } else if (selectedTowerType === TowerType.DATA_SPIKE) {
       // §5.3.2 — show tower tile + cone of affected tiles at L1 range.
       // Ghost is always placed at L1, range can only grow on upgrade.
       lastValid = canPlaceTower(grid, gatewayTiles, hoveredX, hoveredY)
       const color = lastValid ? VALID_COLOR : INVALID_COLOR
-      _drawTile(ghostGfx, hoveredX, hoveredY, color, GHOST_ALPHA, 0.8)
+      const tint  = lastValid ? GHOST_TINT_VALID : GHOST_TINT_INVALID
       const levelIdx = Math.max(0, Math.min(9, placementLevel - 1))
       const range = DATA_SPIKE_RANGE[levelIdx] ?? 2
+      // Cone tile highlights (drawn under the sprite)
       for (let cy = hoveredY - range; cy <= hoveredY + range; cy++) {
         for (let cx = hoveredX - range; cx <= hoveredX + range; cx++) {
           if (cx < 0 || cy < 0 || cx >= GRID_SIZE || cy >= GRID_SIZE) continue
           if (!inDataSpikeCone(cx, cy, hoveredX, hoveredY, placementFacing, range)) continue
-          _drawTile(ghostGfx, cx, cy, 0xff00ff, 0.22, 0.5)
+          _drawTile(ghostGfx, cx, cy, color, 0.22, 0.5)
         }
       }
+      // Tower tile as sprite
+      ghostSprite!.texture = getTowerTexture(TowerType.DATA_SPIKE)
+      ghostSprite!.width   = TILE_SIZE
+      ghostSprite!.height  = TILE_SIZE
+      ghostSprite!.tint    = tint
+      ghostSprite!.alpha   = GHOST_ALPHA
+      ghostSprite!.x       = hoveredX * TILE_SIZE
+      ghostSprite!.y       = hoveredY * TILE_SIZE
+      ghostSprite!.visible = true
     } else {
       // Standard single-tile ghost
       lastValid = canPlaceTower(grid, gatewayTiles, hoveredX, hoveredY)
-      const color = lastValid ? VALID_COLOR : INVALID_COLOR
       const levelIdx = Math.max(0, Math.min(9, placementLevel - 1))
 
       // Range overlay — draw before the ghost tile so it sits underneath
+      const color = lastValid ? VALID_COLOR : INVALID_COLOR
+      const tint  = lastValid ? GHOST_TINT_VALID : GHOST_TINT_INVALID
+
       if (selectedTowerType === TowerType.ICE_WALL) {
         // §5.1.2 — Chebyshev 1 aura, constant across all levels
         _drawRangeCircle(ghostGfx, hoveredX, hoveredY, 1, RANGE_COLORS[TowerType.ICE_WALL]!, 0.07, 0.45)
@@ -227,7 +289,15 @@ export function updateGhostLayer(
         _drawRangeCircle(ghostGfx, hoveredX, hoveredY, range, RANGE_COLORS[TowerType.PING]!, 0.07, 0.45)
       }
 
-      _drawTile(ghostGfx, hoveredX, hoveredY, color, GHOST_ALPHA, 0.8)
+      // Tower tile as sprite (on top of range overlay)
+      ghostSprite!.texture = getTowerTexture(selectedTowerType as TowerType)
+      ghostSprite!.width   = TILE_SIZE
+      ghostSprite!.height  = TILE_SIZE
+      ghostSprite!.tint    = tint
+      ghostSprite!.alpha   = GHOST_ALPHA
+      ghostSprite!.x       = hoveredX * TILE_SIZE
+      ghostSprite!.y       = hoveredY * TILE_SIZE
+      ghostSprite!.visible = true
     }
   }
 

@@ -5,7 +5,8 @@
  * Uses a Graphics object pool — zero allocations during active gameplay.
  */
 
-import { Graphics, Container } from 'pixi.js'
+import { Graphics, Container, Sprite } from 'pixi.js'
+import { getTowerTexture } from '../towerTextures'
 import type { World } from '@game/ecs/world'
 import * as C from '@game/ecs/component'
 import { TILE_SIZE } from '../camera'
@@ -31,12 +32,16 @@ const TOWER_COLORS: Record<number, number> = {
   [C.TowerType.HARVESTER]:    0x44ff44, // bright green
 }
 
-const DISABLED_COLOR = 0x444444
+/** Tint applied to tower sprites when disabled by Saboteur aura (§7.7). */
+const DISABLED_TINT = 0x555555
 const MAX_ENTITIES = 4096
 
-// Tower + gateway object pool
-const pool: Graphics[] = []
-const active = new Map<number, Graphics>() // eid → Graphics
+// Active sprites for placed towers indexed by eid.
+// Towers are placed/removed rarely, so a simple map without a pool is sufficient.
+const active = new Map<number, Sprite>()   // eid → Sprite (towers only)
+
+// Active Graphics for Blackwall Gateways — rendered as colored rects (no art asset yet).
+const activeGateways = new Map<number, Graphics>() // eid → Graphics
 
 // Dedicated Graphics for the Core (not a tower, rendered separately)
 let coreGfx: Graphics | null = null
@@ -47,7 +52,7 @@ let firewallLineGfx: Graphics | null = null
 // Dedicated Graphics for Blackwall Tower → Gateway connector lines
 let blackwallLineGfx: Graphics | null = null
 
-// Dedicated Graphics for range circle overlay
+// Graphics for range circle overlay (rendered on top of tower sprites)
 let rangeGfx: Graphics | null = null
 
 // ---------------------------------------------------------------------------
@@ -59,16 +64,6 @@ let projectileGfx: Graphics | null = null
 
 /** Dedicated Graphics for drawing Data Spike cone wave FX (§5.3.2). */
 let coneFxGfx: Graphics | null = null
-
-function acquire(): Graphics {
-  return pool.pop() ?? new Graphics()
-}
-
-function release(g: Graphics): void {
-  g.clear()
-  g.visible = false
-  pool.push(g)
-}
 
 /**
  * Return the attack range in tiles for a tower, or null if it has no range.
@@ -94,18 +89,29 @@ function getTowerRange(world: World, eid: number): number | [number, number] | n
  * @param selectedEid Entity ID of the currently selected tower, or null.
  */
 export function updateTowerLayer(container: Container, world: World, alpha: number, selectedEid: number | null = null): void {
-  // Release Graphics for removed towers / gateways
+  // Destroy sprites for towers that have been removed
   const toRelease: number[] = []
-  for (const [eid, g] of active) {
+  for (const [eid, sprite] of active) {
     const mask = world.bitmask[eid]
-    const stillValid = ((mask & C.TOWER) || (mask & C.GATEWAY)) && !(mask & C.PENDING_REMOVAL)
-    if (!stillValid) {
-      container.removeChild(g)
-      release(g)
+    if (!(mask & C.TOWER) || (mask & C.PENDING_REMOVAL)) {
+      container.removeChild(sprite)
+      sprite.destroy()
       toRelease.push(eid)
     }
   }
   for (const eid of toRelease) active.delete(eid)
+
+  // Release Graphics for gateways that have been removed
+  const toReleaseGw: number[] = []
+  for (const [eid, g] of activeGateways) {
+    const mask = world.bitmask[eid]
+    if (!(mask & C.GATEWAY) || (mask & C.PENDING_REMOVAL)) {
+      container.removeChild(g)
+      g.destroy()
+      toReleaseGw.push(eid)
+    }
+  }
+  for (const eid of toReleaseGw) activeGateways.delete(eid)
 
   // Render towers
   for (let eid = 1; eid < MAX_ENTITIES; eid++) {
@@ -113,26 +119,21 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     if (!(mask & C.TOWER)) continue
     if (mask & C.PENDING_REMOVAL) continue
 
-    let g = active.get(eid)
-    if (!g) {
-      g = acquire()
-      g.visible = true
-      container.addChild(g)
-      active.set(eid, g)
+    const towerType = world.towerType[eid]
+    let sprite = active.get(eid)
+    if (!sprite) {
+      sprite = new Sprite(getTowerTexture(towerType))
+      sprite.width  = TILE_SIZE
+      sprite.height = TILE_SIZE
+      sprite.visible = true
+      container.addChild(sprite)
+      active.set(eid, sprite)
     }
 
-    const towerType = world.towerType[eid]
     const isDisabled = world.towerDisableTicks[eid] > 0
-    const color = isDisabled ? DISABLED_COLOR : (TOWER_COLORS[towerType] ?? 0xffffff)
-
-    const pad = 1
-    g.clear()
-    g.setFillStyle({ color, alpha: 0.85 })
-    g.rect(pad, pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2)
-    g.fill()
-
-    g.x = world.posX[eid] * TILE_SIZE
-    g.y = world.posY[eid] * TILE_SIZE
+    sprite.tint = isDisabled ? DISABLED_TINT : 0xffffff
+    sprite.x = world.posX[eid] * TILE_SIZE
+    sprite.y = world.posY[eid] * TILE_SIZE
   }
 
   // Draw orange connector lines between placed Firewall pairs (§5.2.1)
@@ -207,12 +208,12 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     if (!(mask & C.GATEWAY)) continue
     if (mask & C.PENDING_REMOVAL) continue
 
-    let g = active.get(eid)
+    let g = activeGateways.get(eid)
     if (!g) {
-      g = acquire()
+      g = new Graphics()
       g.visible = true
       container.addChild(g)
-      active.set(eid, g)
+      activeGateways.set(eid, g)
     }
 
     const hpFrac = world.gatewayMaxHp[eid] > 0
@@ -430,8 +431,10 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
 
 /** @internal — exported for testing only */
 export function _clearTowerPool(): void {
+  for (const sprite of active.values()) sprite.destroy()
   active.clear()
-  pool.length = 0
+  for (const g of activeGateways.values()) g.destroy()
+  activeGateways.clear()
   coreGfx = null
   firewallLineGfx = null
   blackwallLineGfx = null
