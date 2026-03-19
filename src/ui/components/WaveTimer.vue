@@ -19,7 +19,7 @@
     <!-- Pre-game -->
     <template v-else-if="gameStore.isPreGame">
       <div class="wt-label">WAVE {{ gameStore.currentWave + 1 }}</div>
-      <div class="wt-ready">READY TO DEPLOY</div>
+      <div class="wt-ready">BLACKWALL BREACH INEVITABLE</div>
     </template>
   </div>
 </template>
@@ -85,7 +85,7 @@ const breakProgress = computed(() => {
 }
 .wt-ready {
   font-size: 13px;
-  color: #44ff88;
+  color: #ff4400;
   letter-spacing: 2px;
 }
 .wt-boss-warning {

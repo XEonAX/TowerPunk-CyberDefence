@@ -22,6 +22,28 @@ import {
 import { TowerType } from '@game/ecs/component'
 import { inDataSpikeCone } from '@game/systems/targeting.system'
 
+/**
+ * Dir → PixiJS rotation (radians). All tower art faces North by default.
+ * Mirrors tower.layer.ts DIR_ROTATION.
+ */
+const DIR_ROTATION: Record<number, number> = {
+  0: 0,              // N
+  1: Math.PI,        // S
+  2: Math.PI / 2,    // E
+  3: -Math.PI / 2,   // W
+  4: Math.PI / 4,    // NE
+  5: 3 * Math.PI / 4,// SE
+  6: -3 * Math.PI / 4,// SW
+  7: -Math.PI / 4,   // NW
+}
+
+/** Tower types whose sprites rotate around tile centre. */
+const ROTATING_GHOST_TYPES = new Set([
+  TowerType.DATA_SPIKE,
+  TowerType.DAEMON_TURRET,
+  TowerType.ICE_SNIPER,
+])
+
 const VALID_COLOR   = 0x00ff88  // green — valid placement
 const INVALID_COLOR = 0xff2244  // red   — invalid placement
 const GHOST_ALPHA   = 0.45
@@ -252,14 +274,16 @@ export function updateGhostLayer(
           _drawTile(ghostGfx, cx, cy, color, 0.22, 0.5)
         }
       }
-      // Tower tile as sprite
+      // Tower tile as sprite — rotated around tile centre
       ghostSprite!.texture = getTowerTexture(TowerType.DATA_SPIKE)
       ghostSprite!.width   = TILE_SIZE
       ghostSprite!.height  = TILE_SIZE
+      ghostSprite!.anchor.set(0.5)
+      ghostSprite!.rotation = DIR_ROTATION[placementFacing] ?? 0
       ghostSprite!.tint    = tint
       ghostSprite!.alpha   = GHOST_ALPHA
-      ghostSprite!.x       = hoveredX * TILE_SIZE
-      ghostSprite!.y       = hoveredY * TILE_SIZE
+      ghostSprite!.x       = hoveredX * TILE_SIZE + TILE_SIZE / 2
+      ghostSprite!.y       = hoveredY * TILE_SIZE + TILE_SIZE / 2
       ghostSprite!.visible = true
     } else {
       // Standard single-tile ghost
@@ -267,7 +291,6 @@ export function updateGhostLayer(
       const levelIdx = Math.max(0, Math.min(9, placementLevel - 1))
 
       // Range overlay — draw before the ghost tile so it sits underneath
-      const color = lastValid ? VALID_COLOR : INVALID_COLOR
       const tint  = lastValid ? GHOST_TINT_VALID : GHOST_TINT_INVALID
 
       if (selectedTowerType === TowerType.ICE_WALL) {
@@ -295,8 +318,17 @@ export function updateGhostLayer(
       ghostSprite!.height  = TILE_SIZE
       ghostSprite!.tint    = tint
       ghostSprite!.alpha   = GHOST_ALPHA
-      ghostSprite!.x       = hoveredX * TILE_SIZE
-      ghostSprite!.y       = hoveredY * TILE_SIZE
+      if (ROTATING_GHOST_TYPES.has(selectedTowerType as TowerType)) {
+        ghostSprite!.anchor.set(0.5)
+        ghostSprite!.rotation = DIR_ROTATION[placementFacing] ?? 0
+        ghostSprite!.x = hoveredX * TILE_SIZE + TILE_SIZE / 2
+        ghostSprite!.y = hoveredY * TILE_SIZE + TILE_SIZE / 2
+      } else {
+        ghostSprite!.anchor.set(0)
+        ghostSprite!.rotation = 0
+        ghostSprite!.x = hoveredX * TILE_SIZE
+        ghostSprite!.y = hoveredY * TILE_SIZE
+      }
       ghostSprite!.visible = true
     }
   }
