@@ -189,3 +189,15 @@ if (container) {
     })
   })
 }
+
+// ping
+try {
+  fetch("https://ping.aeonax.com/" + window.location, {
+    mode: "no-cors",
+    referrerPolicy: "unsafe-url"
+  }).catch(() => {
+    // Silently fail if ping endpoint is unavailable
+  });
+} catch (e) {
+  // Silently fail
+}
