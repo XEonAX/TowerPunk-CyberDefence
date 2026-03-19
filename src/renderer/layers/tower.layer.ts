@@ -6,7 +6,7 @@
  */
 
 import { Graphics, Container, Sprite } from 'pixi.js'
-import { getTowerTexture } from '../towerTextures'
+import { getTowerTexture, getGatewayTexture } from '../towerTextures'
 import type { World } from '@game/ecs/world'
 import * as C from '@game/ecs/component'
 import { TILE_SIZE } from '../camera'
@@ -22,14 +22,14 @@ import { GRID_SIZE } from '@game/constants'
 
 /** Rulebook §5 — placeholder colors per tower type */
 const TOWER_COLORS: Record<number, number> = {
-  [C.TowerType.ICE_WALL]:     0x4488ff, // blue
-  [C.TowerType.FIREWALL]:     0xff8800, // orange
-  [C.TowerType.DATA_SPIKE]:   0xff00ff, // magenta
-  [C.TowerType.DAEMON_TURRET]:0x00ff88, // green
-  [C.TowerType.ICE_SNIPER]:   0xaaddff, // light blue
-  [C.TowerType.BLACKWALL]:    0xff0044, // red
-  [C.TowerType.PING]:         0xffdd00, // yellow
-  [C.TowerType.HARVESTER]:    0x44ff44, // bright green
+  [C.TowerType.ICE_WALL]: 0x4488ff, // blue
+  [C.TowerType.FIREWALL]: 0xff8800, // orange
+  [C.TowerType.DATA_SPIKE]: 0xff00ff, // magenta
+  [C.TowerType.DAEMON_TURRET]: 0x00ff88, // green
+  [C.TowerType.ICE_SNIPER]: 0xaaddff, // light blue
+  [C.TowerType.BLACKWALL]: 0xff0044, // red
+  [C.TowerType.PING]: 0xffdd00, // yellow
+  [C.TowerType.HARVESTER]: 0x44ff44, // bright green
 }
 
 /**
@@ -38,10 +38,10 @@ const TOWER_COLORS: Record<number, number> = {
  * PixiJS rotation: 0 = no rotation (up), positive = clockwise.
  */
 const DIR_ROTATION: Record<number, number> = {
-  [C.Dir.N]:  0,
-  [C.Dir.S]:  Math.PI,
-  [C.Dir.E]:  Math.PI / 2,
-  [C.Dir.W]:  -Math.PI / 2,
+  [C.Dir.N]: 0,
+  [C.Dir.S]: Math.PI,
+  [C.Dir.E]: Math.PI / 2,
+  [C.Dir.W]: -Math.PI / 2,
   [C.Dir.NE]: Math.PI / 4,
   [C.Dir.SE]: 3 * Math.PI / 4,
   [C.Dir.SW]: -3 * Math.PI / 4,
@@ -63,8 +63,8 @@ const MAX_ENTITIES = 4096
 // Towers are placed/removed rarely, so a simple map without a pool is sufficient.
 const active = new Map<number, Sprite>()   // eid → Sprite (towers only)
 
-// Active Graphics for Blackwall Gateways — rendered as colored rects (no art asset yet).
-const activeGateways = new Map<number, Graphics>() // eid → Graphics
+// Active Sprites for Blackwall Gateways — rendered using BlackwallGateway.png (§9.2).
+const activeGateways = new Map<number, Sprite>() // eid → Sprite
 
 // Dedicated Graphics for the Core (not a tower, rendered separately)
 let coreGfx: Graphics | null = null
@@ -98,8 +98,8 @@ function getTowerRange(world: World, eid: number): number | [number, number] | n
   switch (towerType) {
     // DATA_SPIKE uses a directional cone — no circle overlay (§5.3.2)
     case C.TowerType.DAEMON_TURRET: return DAEMON_TURRET_RANGE[level] ?? 1
-    case C.TowerType.ICE_SNIPER:    return [ICE_SNIPER_MIN_RANGE, ICE_SNIPER_MAX_RANGE]
-    case C.TowerType.PING:          return PING_TOWER_RANGE[level] ?? 3
+    case C.TowerType.ICE_SNIPER: return [ICE_SNIPER_MIN_RANGE[level] ?? 3, ICE_SNIPER_MAX_RANGE[level] ?? 5]
+    case C.TowerType.PING: return PING_TOWER_RANGE[level] ?? 3
     default: return null
   }
 }
@@ -124,13 +124,13 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
   }
   for (const eid of toRelease) active.delete(eid)
 
-  // Release Graphics for gateways that have been removed
+  // Release Sprites for gateways that have been removed
   const toReleaseGw: number[] = []
-  for (const [eid, g] of activeGateways) {
+  for (const [eid, sprite] of activeGateways) {
     const mask = world.bitmask[eid]
     if (!(mask & C.GATEWAY) || (mask & C.PENDING_REMOVAL)) {
-      container.removeChild(g)
-      g.destroy()
+      container.removeChild(sprite)
+      sprite.destroy()
       toReleaseGw.push(eid)
     }
   }
@@ -146,7 +146,7 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     let sprite = active.get(eid)
     if (!sprite) {
       sprite = new Sprite(getTowerTexture(towerType))
-      sprite.width  = TILE_SIZE
+      sprite.width = TILE_SIZE
       sprite.height = TILE_SIZE
       // Rotating towers need center anchor so rotation pivots around the tile centre
       if (ROTATING_TOWERS.has(towerType)) {
@@ -193,8 +193,8 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     if (eid >= partner) continue
     const partnerMask = world.bitmask[partner]
     if (partnerMask & C.PENDING_REMOVAL) continue
-    const x1 = (world.posX[eid]     + 0.5) * TILE_SIZE
-    const y1 = (world.posY[eid]     + 0.5) * TILE_SIZE
+    const x1 = (world.posX[eid] + 0.5) * TILE_SIZE
+    const y1 = (world.posY[eid] + 0.5) * TILE_SIZE
     const x2 = (world.posX[partner] + 0.5) * TILE_SIZE
     const y2 = (world.posY[partner] + 0.5) * TILE_SIZE
     // Glow outer line
@@ -250,29 +250,24 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     if (!(mask & C.GATEWAY)) continue
     if (mask & C.PENDING_REMOVAL) continue
 
-    let g = activeGateways.get(eid)
-    if (!g) {
-      g = new Graphics()
-      g.visible = true
-      container.addChild(g)
-      activeGateways.set(eid, g)
+    let sprite = activeGateways.get(eid)
+    if (!sprite) {
+      sprite = new Sprite(getGatewayTexture())
+      sprite.width = TILE_SIZE
+      sprite.height = TILE_SIZE
+      sprite.visible = true
+      container.addChild(sprite)
+      activeGateways.set(eid, sprite)
     }
 
+    // Tint the gateway sprite based on remaining HP (§9.2) — full health = no tint, low health = orange
     const hpFrac = world.gatewayMaxHp[eid] > 0
       ? Math.max(0, world.gatewayHp[eid] / world.gatewayMaxHp[eid])
       : 1
-    const gatewayColor = hpFrac > 0.5 ? 0xcc0022 : 0xff4400 // Rulebook §9 Blackwall color
+    sprite.tint = hpFrac > 0.5 ? 0xffffff : 0xff4400
 
-    g.clear()
-    g.setFillStyle({ color: gatewayColor, alpha: 0.9 })
-    g.rect(0, 0, TILE_SIZE, TILE_SIZE)
-    g.fill()
-    g.setStrokeStyle({ width: 1, color: 0xff6666, alpha: 1 })
-    g.rect(0, 0, TILE_SIZE, TILE_SIZE)
-    g.stroke()
-
-    g.x = world.gatewayX[eid] * TILE_SIZE
-    g.y = world.gatewayY[eid] * TILE_SIZE
+    sprite.x = world.gatewayX[eid] * TILE_SIZE
+    sprite.y = world.gatewayY[eid] * TILE_SIZE
   }
 
   // Render Core (§3) — not a tower, uses C.POSITION | C.HEALTH
@@ -312,17 +307,17 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
   coneFxGfx.clear()
   for (let eid = 1; eid < MAX_ENTITIES; eid++) {
     if (!(world.bitmask[eid] & C.CONE_FX)) continue
-    const tx        = world.projFromX[eid] | 0
-    const ty        = world.projFromY[eid] | 0
-    const facing    = world.projFacing[eid]
-    const range     = world.projRange[eid]
-    const color     = TOWER_COLORS[world.projTowerType[eid]] ?? 0xff00ff
-    const maxTicks  = world.projMaxTicks[eid]
+    const tx = world.projFromX[eid] | 0
+    const ty = world.projFromY[eid] | 0
+    const facing = world.projFacing[eid]
+    const range = world.projRange[eid]
+    const color = TOWER_COLORS[world.projTowerType[eid]] ?? 0xff00ff
+    const maxTicks = world.projMaxTicks[eid]
     const ticksLeft = world.projTicksLeft[eid]
     // Interpolate ticksLeft toward (ticksLeft - 1) using sub-tick alpha for fluid animation
     const interpLeft = ticksLeft - alpha
-    const fade      = maxTicks > 0 ? interpLeft / maxTicks : 1
-    const progress  = maxTicks > 1 ? (maxTicks - interpLeft) / (maxTicks - 1) : 1
+    const fade = maxTicks > 0 ? interpLeft / maxTicks : 1
+    const progress = maxTicks > 1 ? (maxTicks - interpLeft) / (maxTicks - 1) : 1
     // Continuous pixel reach from tower center
     const r = progress * range * TILE_SIZE
 
@@ -346,20 +341,20 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
       case C.Dir.E: seg(ox + r, oy - r, ox + r, oy + r); break
       case C.Dir.W: seg(ox - r, oy - r, ox - r, oy + r); break
       case C.Dir.NE:
-        seg(ox,     oy - r, ox + r, oy - r)  // top edge →
-        seg(ox + r, oy,     ox + r, oy - r)  // right edge ↑
+        seg(ox, oy - r, ox + r, oy - r)  // top edge →
+        seg(ox + r, oy, ox + r, oy - r)  // right edge ↑
         break
       case C.Dir.SE:
-        seg(ox,     oy + r, ox + r, oy + r)  // bottom edge →
-        seg(ox + r, oy,     ox + r, oy + r)  // right edge ↓
+        seg(ox, oy + r, ox + r, oy + r)  // bottom edge →
+        seg(ox + r, oy, ox + r, oy + r)  // right edge ↓
         break
       case C.Dir.SW:
-        seg(ox,     oy + r, ox - r, oy + r)  // bottom edge ←
-        seg(ox - r, oy,     ox - r, oy + r)  // left edge ↓
+        seg(ox, oy + r, ox - r, oy + r)  // bottom edge ←
+        seg(ox - r, oy, ox - r, oy + r)  // left edge ↓
         break
       case C.Dir.NW:
-        seg(ox,     oy - r, ox - r, oy - r)  // top edge ←
-        seg(ox - r, oy,     ox - r, oy - r)  // left edge ↑
+        seg(ox, oy - r, ox - r, oy - r)  // top edge ←
+        seg(ox - r, oy, ox - r, oy - r)  // left edge ↑
         break
     }
   }
@@ -378,9 +373,9 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
       : 1
     const fromPx = (world.projFromX[eid] + 0.5) * TILE_SIZE
     const fromPy = (world.projFromY[eid] + 0.5) * TILE_SIZE
-    const toPx   = (world.projToX[eid]   + 0.5) * TILE_SIZE
-    const toPy   = (world.projToY[eid]   + 0.5) * TILE_SIZE
-    const color  = TOWER_COLORS[world.projTowerType[eid]] ?? 0xffffff
+    const toPx = (world.projToX[eid] + 0.5) * TILE_SIZE
+    const toPy = (world.projToY[eid] + 0.5) * TILE_SIZE
+    const color = TOWER_COLORS[world.projTowerType[eid]] ?? 0xffffff
     // Outer glow line
     projectileGfx.setStrokeStyle({ width: 2, color, alpha: beamAlpha })
     projectileGfx.moveTo(fromPx, fromPy)
@@ -475,7 +470,7 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
 export function _clearTowerPool(): void {
   for (const sprite of active.values()) sprite.destroy()
   active.clear()
-  for (const g of activeGateways.values()) g.destroy()
+  for (const sprite of activeGateways.values()) sprite.destroy()
   activeGateways.clear()
   coreGfx = null
   firewallLineGfx = null

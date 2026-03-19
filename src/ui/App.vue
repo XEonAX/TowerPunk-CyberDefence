@@ -118,6 +118,15 @@ function onKeyDown(e: KeyboardEvent): void {
         uiStore.clearInspection()
       }
       break
+    case '+':
+    case '=':
+      e.preventDefault()
+      uiStore.increaseSpeed()
+      break
+    case '-':
+      e.preventDefault()
+      uiStore.decreaseSpeed()
+      break
   }
 }
 

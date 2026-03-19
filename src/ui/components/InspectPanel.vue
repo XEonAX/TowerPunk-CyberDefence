@@ -165,7 +165,7 @@ const towerStats = computed((): { label: string; value: string }[] => {
     stats.push({ label: 'Cooldown', value: ((DAEMON_TURRET_COOLDOWN[lvl] ?? 120) / TICK_RATE).toFixed(1) + 's' })
   } else if (t === C.TowerType.ICE_SNIPER) {
     stats.push({ label: 'Damage', value: String(ICE_SNIPER_DAMAGE[lvl] ?? '—') })
-    stats.push({ label: 'Range', value: ICE_SNIPER_MIN_RANGE + '–' + ICE_SNIPER_MAX_RANGE + ' tiles' })
+    stats.push({ label: 'Range', value: ICE_SNIPER_MIN_RANGE[lvl] + '–' + ICE_SNIPER_MAX_RANGE[lvl] + ' tiles' })
     stats.push({ label: 'Cooldown', value: ((ICE_SNIPER_COOLDOWN[lvl] ?? 180) / TICK_RATE).toFixed(1) + 's' })
     stats.push({ label: 'Slow', value: Math.round((ICE_SNIPER_SLOW[lvl] ?? 0) * 100) + '%' })
   } else if (t === C.TowerType.BLACKWALL) {

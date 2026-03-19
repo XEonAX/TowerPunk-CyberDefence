@@ -49,7 +49,7 @@ export const CORE_STARTING_HP = 100
 export const INITIAL_EDDIES = 500
 
 /** Rulebook §4.3.1 */
-export const INITIAL_COMPONENTS = 5
+export const INITIAL_COMPONENTS = 10
 
 /** Rulebook §4.2.5 — decay rate = 5% per second / 100 per tick as fraction of initial value */
 export const PICKUP_DECAY_RATE = 5 / TICK_RATE / 100
@@ -188,7 +188,7 @@ export const DAEMON_TURRET_HP: ReadonlyArray<number> = [
 export const DAEMON_TURRET_COOLDOWN: ReadonlyArray<number> = [
   2 * TICK_RATE, 2 * TICK_RATE, 2 * TICK_RATE, 2 * TICK_RATE, 2 * TICK_RATE,
   Math.round(1.8 * TICK_RATE), Math.round(1.6 * TICK_RATE), Math.round(1.4 * TICK_RATE),
-  Math.round(1.2 * TICK_RATE), TICK_RATE,
+  Math.round(1.2 * TICK_RATE), Math.round(0.5 * TICK_RATE),
 ]
 
 /** Daemon Turret damage per daemon per level — Rulebook §5.4 */
@@ -238,7 +238,7 @@ export const ICE_SNIPER_ROT_SPEED: ReadonlyArray<number> = [
 
 /** ICE Sniper damage per level — Rulebook §5.5 */
 export const ICE_SNIPER_DAMAGE: ReadonlyArray<number> = [
-  50, 60, 70, 80, 90, 90, 90, 90, 90, 90,
+  50, 60, 70, 80, 90, 120, 150, 180, 220, 300,
 ]
 
 /** ICE Sniper slow % per level — Rulebook §5.5 */
@@ -254,10 +254,14 @@ export const ICE_SNIPER_COOLDOWN: ReadonlyArray<number> = [
 ]
 
 /** ICE Sniper min range — Rulebook §5.5.2 */
-export const ICE_SNIPER_MIN_RANGE = 3
+export const ICE_SNIPER_MIN_RANGE: ReadonlyArray<number> = [
+  3, 3, 3, 4, 4, 4, 5, 5, 5, 6,
+]
 
 /** ICE Sniper max range — Rulebook §5.5 */
-export const ICE_SNIPER_MAX_RANGE = 5
+export const ICE_SNIPER_MAX_RANGE: ReadonlyArray<number> = [
+  5, 5, 5, 6, 6, 6, 7, 7, 7, 8,
+]
 
 /** ICE Sniper slow duration ticks — Rulebook §5.5.3 (2 s) */
 export const ICE_SNIPER_SLOW_TICKS = 2 * TICK_RATE

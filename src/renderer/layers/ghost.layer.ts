@@ -280,9 +280,9 @@ export function updateGhostLayer(
 
       } else if (selectedTowerType === TowerType.ICE_SNIPER) {
         // §5.5.2 — fixed min/max range, not level-dependent
-        _drawRangeCircle(ghostGfx, hoveredX, hoveredY, ICE_SNIPER_MAX_RANGE, RANGE_COLORS[TowerType.ICE_SNIPER]!, 0.05, 0.45)
+        _drawRangeCircle(ghostGfx, hoveredX, hoveredY, ICE_SNIPER_MAX_RANGE[levelIdx], RANGE_COLORS[TowerType.ICE_SNIPER]!, 0.05, 0.45)
         // Dead-zone inner ring in red
-        _drawRangeCircle(ghostGfx, hoveredX, hoveredY, ICE_SNIPER_MIN_RANGE - 1, 0xff4444, 0.08, 0.4)
+        _drawRangeCircle(ghostGfx, hoveredX, hoveredY, ICE_SNIPER_MIN_RANGE[levelIdx] - 1, 0xff4444, 0.08, 0.4)
 
       } else if (selectedTowerType === TowerType.PING) {
         const range = PING_TOWER_RANGE[levelIdx] ?? 3

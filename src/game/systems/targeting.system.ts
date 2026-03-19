@@ -225,7 +225,7 @@ export function targetingSystem(world: World): void {
         const dist = chebyshev(world.tilePosX[targetEid], world.tilePosY[targetEid], tx, ty)
         valid = towerType === C.TowerType.DAEMON_TURRET
           ? dist <= (DAEMON_TURRET_RANGE[level] ?? 1)
-          : dist >= ICE_SNIPER_MIN_RANGE && dist <= ICE_SNIPER_MAX_RANGE
+          : dist >= ICE_SNIPER_MIN_RANGE[level] && dist <= ICE_SNIPER_MAX_RANGE[level]
       }
       if (!valid) {
         targetEid = 0
@@ -235,7 +235,7 @@ export function targetingSystem(world: World): void {
     if (targetEid === 0) {
       targetEid = towerType === C.TowerType.DAEMON_TURRET
         ? acquireDaemonTurretTarget(world, eid, tx, ty, level)
-        : acquireIceSniperTarget(world, eid, tx, ty)
+        : acquireIceSniperTarget(world, eid, tx, ty, level)
       world.targetingTarget[eid] = targetEid
     }
 
@@ -347,6 +347,7 @@ function acquireIceSniperTarget(
   towerEid: number,
   tx: number,
   ty: number,
+  level: number,
 ): number {
   const mode = world.targetingMode[towerEid]
   const N    = world.bitmask.length
@@ -360,7 +361,7 @@ function acquireIceSniperTarget(
     if ((mask & C.PENDING_REMOVAL) !== 0) continue
     if ((mask & C.SPAWN_IMMUNITY) !== 0) continue
     const dist = chebyshev(world.tilePosX[eid], world.tilePosY[eid], tx, ty)
-    if (dist < ICE_SNIPER_MIN_RANGE || dist > ICE_SNIPER_MAX_RANGE) continue
+    if (dist < ICE_SNIPER_MIN_RANGE[level] || dist > ICE_SNIPER_MAX_RANGE[level]) continue
 
     let score: number
     switch (mode) {
