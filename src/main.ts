@@ -6,6 +6,7 @@ import { towerAtTile, enemyAtTile, gatewayAtTile, CommandType } from './game/ecs
 import { TowerType } from './game/ecs/component'
 import { initPixi, getCameraContainer } from './renderer/pixiApp'
 import { loadTowerTextures } from './renderer/towerTextures'
+import { loadEnemyTextures } from './renderer/enemyTextures'
 import { createGridLayer } from './renderer/layers/grid.layer'
 import { updateEnemyLayer } from './renderer/layers/enemy.layer'
 import { updateTowerLayer } from './renderer/layers/tower.layer'
@@ -28,8 +29,8 @@ app.mount('#app')
 const container = document.getElementById('pixi-container') ?? document.getElementById('app')
 if (container) {
   initPixi(container).then(async ({ app: pixiApp, layers }) => {
-    // Load tower art textures before the game loop starts
-    await loadTowerTextures()
+    // Load tower and enemy art textures before the game loop starts
+    await Promise.all([loadTowerTextures(), loadEnemyTextures()])
 
     // Initialize grid layer
     createGridLayer(layers.grid)
