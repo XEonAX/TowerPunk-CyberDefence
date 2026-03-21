@@ -76,9 +76,6 @@ function handleWaveBreak(world: World): void {
     }
   }
 
-  // Infinity means manual-start only (waves 1–10 that haven't been triggered)
-  if (!isFinite(world.breakTicksRemaining)) return
-
   if (world.breakTicksRemaining > 0) {
     world.breakTicksRemaining--
     return

@@ -452,11 +452,9 @@ export function waveScaling(baseStat: number, wave: number): number {
 // §8 — Waves
 // ---------------------------------------------------------------------------
 
-/** Rulebook §8.2.3 — break duration formula (30 s → 1 s over waves 10–40) */
-export function breakDuration(wave: number): number {
-  if (wave < 10) return Infinity  // manual start (§8.2.1)
-  const raw = 30 * TICK_RATE - (wave - 10) * (29 * TICK_RATE / 30)
-  return Math.max(TICK_RATE, Math.floor(raw))
+/** Break duration — fixed at 60 s for every wave (auto-start). */
+export function breakDuration(_wave: number): number {
+  return 60 * TICK_RATE
 }
 
 /** Rulebook §8.3.1 — skip bonus duration (10 s) */

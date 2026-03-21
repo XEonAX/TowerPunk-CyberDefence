@@ -67,8 +67,13 @@ export function spawnSystem(world: World): void {
   // Not yet time to spawn
   if (world.tickCount < world.nextSpawnTick) return
 
-  // No active gateways to spawn from
-  if (world.activeGatewayCount === 0) return
+  // No active gateways to spawn from — fast-forward spawn index so the wave
+  // completion check in eventSystem can detect allSpawned && enemiesAlive === 0
+  // and end the wave (avoids the game locking up with no gateways remaining).
+  if (world.activeGatewayCount === 0) {
+    world.waveSpawnIndex = world.waveEnemyList.length
+    return
+  }
 
   // Spawn one enemy, catching up if multiple intervals have elapsed
   while (

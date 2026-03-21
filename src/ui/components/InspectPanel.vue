@@ -109,6 +109,7 @@ import {
   BLACKWALL_TOWER_DPT,
   PING_TOWER_RANGE,
   HARVESTER_EDDIES_PER_TICK,
+  HARVESTER_COMPONENTS_PER_TICK,
 } from '@game/constants'
 
 const gameStore = useGameStore()
@@ -176,6 +177,10 @@ const towerStats = computed((): { label: string; value: string }[] => {
   } else if (t === C.TowerType.HARVESTER) {
     const ept = HARVESTER_EDDIES_PER_TICK[lvl] ?? 0
     stats.push({ label: 'Eddies/s', value: (ept * TICK_RATE).toFixed(1) })
+    const cpt = HARVESTER_COMPONENTS_PER_TICK[lvl] ?? 0
+    if (cpt > 0) {
+      stats.push({ label: 'Comp/s', value: (cpt * TICK_RATE).toFixed(2) })
+    }
   }
   return stats
 })

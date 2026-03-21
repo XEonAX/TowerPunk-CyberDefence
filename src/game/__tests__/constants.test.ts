@@ -125,9 +125,9 @@ describe('Rulebook §8 — wave formulas', () => {
   it('waveScaling wave 9: 1.9× multiplier', () => {
     expect(waveScaling(10, 9)).toBeCloseTo(19)
   })
-  it('breakDuration wave 10 = 1800', () => expect(breakDuration(10)).toBe(TICK_RATE * 30))
-  it('breakDuration wave 40 = 60', () => expect(breakDuration(40)).toBe(TICK_RATE * 1))
-  it('breakDuration wave 50 = 60 (floor)', () => expect(breakDuration(50)).toBe(TICK_RATE * 1))
+  it('breakDuration wave 1 = 600 (fixed 60 s)', () => expect(breakDuration(1)).toBe(TICK_RATE * 60))
+  it('breakDuration wave 10 = 600 (fixed 60 s)', () => expect(breakDuration(10)).toBe(TICK_RATE * 60))
+  it('breakDuration wave 50 = 600 (fixed 60 s)', () => expect(breakDuration(50)).toBe(TICK_RATE * 60))
   it('SKIP_BONUS_TICKS === 600', () => expect(SKIP_BONUS_TICKS).toBe(TICK_RATE * 10))
 })
 

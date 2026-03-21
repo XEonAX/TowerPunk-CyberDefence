@@ -18,15 +18,15 @@ export const useUiStore = defineStore('ui', () => {
    */
   const placementFacing = ref(0)
 
-  /** Game speed multiplier — 0×, 0.5×, 1×, 2×, 4×, 8×, or 16× */
-  const gameSpeed = ref<0 | 0.5 | 1 | 2 | 4 | 8 | 16>(1)
+  /** Game speed multiplier — 0×, 0.1×, 0.5×, 1×, 2×, 4×, 8×, 16×, 32×, or 64× */
+  const gameSpeed = ref<0 | 0.1 | 0.5 | 1 | 2 | 4 | 8 | 16 | 32 | 64>(1)
 
   /** Kind of entity currently being inspected. */
   const inspectedKind = ref<'tower' | 'enemy' | 'gateway' | null>(null)
   /** Entity ID of the inspected enemy or gateway (null for tower — use selectedTowerEid). */
   const inspectedEid = ref<number | null>(null)
 
-  const SPEED_STEPS = [0, 0.5, 1, 2, 4, 8, 16] as const
+  const SPEED_STEPS = [0, 0.1, 0.5, 1, 2, 4, 8, 16, 32, 64] as const
 
   function increaseSpeed(): void {
     const idx = SPEED_STEPS.indexOf(gameSpeed.value)

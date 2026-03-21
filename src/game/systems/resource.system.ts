@@ -21,11 +21,24 @@ import {
   BLACKWALL_REPAIR_COMPONENTS,
   BLACKWALL_REPAIR_THRESHOLD,
   BOOSTED_MULTIPLIER,
+  EDDIES_PER_COMPONENT,
 } from '../constants'
 
 export function resourceSystem(world: World): void {
   _harvestersGenerate(world)
   _blackwallTowersTick(world)
+  _autoConvertEddies(world)
+}
+
+/**
+ * §4.2.9 — Auto-convert Eddies into Components whenever the balance crosses 10000.
+ * Every full 100-Eddie batch is converted; the remainder (< 100) stays as Eddies.
+ */
+function _autoConvertEddies(world: World): void {
+  if (world.eddies < 10000) return
+  const batches = Math.floor(world.eddies / EDDIES_PER_COMPONENT)
+  world.eddies     -= batches * EDDIES_PER_COMPONENT
+  world.components += batches
 }
 
 // ---------------------------------------------------------------------------
