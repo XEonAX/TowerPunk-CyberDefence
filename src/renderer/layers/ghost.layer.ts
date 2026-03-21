@@ -241,23 +241,27 @@ export function updateGhostLayer(
       _drawTile(ghostGfx, gapX, gapY, color, GAP_ALPHA, 0.35)
       // t1 sprite
       const fwTex = getTowerTexture(TowerType.FIREWALL)
-      ghostSprite!.texture = fwTex
-      ghostSprite!.width   = TILE_SIZE
-      ghostSprite!.height  = TILE_SIZE
-      ghostSprite!.tint    = tint
-      ghostSprite!.alpha   = GHOST_ALPHA
-      ghostSprite!.x       = t1x * TILE_SIZE
-      ghostSprite!.y       = t1y * TILE_SIZE
-      ghostSprite!.visible = true
+      ghostSprite!.texture  = fwTex
+      ghostSprite!.anchor.set(0)
+      ghostSprite!.rotation = 0
+      ghostSprite!.width    = TILE_SIZE
+      ghostSprite!.height   = TILE_SIZE
+      ghostSprite!.tint     = tint
+      ghostSprite!.alpha    = GHOST_ALPHA
+      ghostSprite!.x        = t1x * TILE_SIZE
+      ghostSprite!.y        = t1y * TILE_SIZE
+      ghostSprite!.visible  = true
       // t2 sprite
-      ghostSprite2!.texture = fwTex
-      ghostSprite2!.width   = TILE_SIZE
-      ghostSprite2!.height  = TILE_SIZE
-      ghostSprite2!.tint    = tint
-      ghostSprite2!.alpha   = GHOST_ALPHA
-      ghostSprite2!.x       = t2x * TILE_SIZE
-      ghostSprite2!.y       = t2y * TILE_SIZE
-      ghostSprite2!.visible = true
+      ghostSprite2!.texture  = fwTex
+      ghostSprite2!.anchor.set(0)
+      ghostSprite2!.rotation = 0
+      ghostSprite2!.width    = TILE_SIZE
+      ghostSprite2!.height   = TILE_SIZE
+      ghostSprite2!.tint     = tint
+      ghostSprite2!.alpha    = GHOST_ALPHA
+      ghostSprite2!.x        = t2x * TILE_SIZE
+      ghostSprite2!.y        = t2y * TILE_SIZE
+      ghostSprite2!.visible  = true
     } else if (selectedTowerType === TowerType.DATA_SPIKE) {
       // §5.3.2 — show tower tile + cone of affected tiles at L1 range.
       // Ghost is always placed at L1, range can only grow on upgrade.
