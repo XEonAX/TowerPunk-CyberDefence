@@ -8,6 +8,8 @@ import type { Simulation } from './simulation'
 
 export interface Renderer {
   draw(alpha: number): void
+  /** Called once before each simulation tick — use to snapshot render state for interpolation. */
+  beforeTick?(): void
 }
 
 let rafHandle: number | null = null
@@ -29,6 +31,9 @@ export function startGameLoop(
 
     let ticks = 0
     while (accumulator >= TICK_DURATION && ticks < maxTicks) {
+      // Snapshot render state before the tick so the renderer can interpolate
+      // between the previous tick result and the new tick result.
+      renderer.beforeTick?.()
       // Performance instrumentation (dev only) — budget: 4ms per tick (Tech.md §14)
       if (import.meta.env.DEV) {
         const t0 = performance.now()

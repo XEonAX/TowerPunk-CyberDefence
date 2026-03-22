@@ -8,7 +8,7 @@ import { initPixi, getCameraContainer } from './renderer/pixiApp'
 import { loadTowerTextures } from './renderer/towerTextures'
 import { loadEnemyTextures } from './renderer/enemyTextures'
 import { createGridLayer } from './renderer/layers/grid.layer'
-import { updateEnemyLayer } from './renderer/layers/enemy.layer'
+import { updateEnemyLayer, snapshotEnemies } from './renderer/layers/enemy.layer'
 import { updateTowerLayer } from './renderer/layers/tower.layer'
 import { updatePickupLayer } from './renderer/layers/pickup.layer'
 import { updateGhostLayer } from './renderer/layers/ghost.layer'
@@ -83,6 +83,9 @@ if (container) {
 
     // Start game loop
     const renderer = {
+      beforeTick(): void {
+        snapshotEnemies(simulation.getWorld())
+      },
       draw(alpha: number): void {
         camera.applyKeyPan(keysDown)
         // Sync simulation state to Vue stores (Tech.md §8)

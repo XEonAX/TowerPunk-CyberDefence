@@ -64,6 +64,37 @@ const glitchState = new Map<number, GlitchState>()
 const spinAngle = new Map<number, number>()
 
 // ---------------------------------------------------------------------------
+// Tick-lagged interpolation state
+// Pre-allocated arrays storing the rendered position at the END of the
+// previous simulation tick. The renderer lerps from these towards the current
+// tick's computed position using alpha ∈ [0, 1).
+// ---------------------------------------------------------------------------
+
+const prevRenderX = new Float32Array(MAX_ENTITIES)
+const prevRenderY = new Float32Array(MAX_ENTITIES)
+
+/**
+ * Snapshot the current computed render position for every live enemy.
+ * Must be called once before each simulation tick (via Renderer.beforeTick).
+ * At draw time the renderer interpolates: pos = prev + (curr − prev) × alpha.
+ */
+export function snapshotEnemies(world: World): void {
+  for (const [eid] of active) {
+    const motion = computeEnemyMotion(
+      world.pathFromX[eid], world.pathFromY[eid],
+      world.pathToX[eid],   world.pathToY[eid],
+      world.tilePosX[eid],  world.tilePosY[eid],
+      world.tileProgress[eid],
+      world.pathMoveState[eid],
+      world.pathDir[eid],
+      world.pathPrevDir[eid],
+    )
+    prevRenderX[eid] = motion.renderX
+    prevRenderY[eid] = motion.renderY
+  }
+}
+
+// ---------------------------------------------------------------------------
 // HP bar — single shared Graphics drawn on top of all enemy sprites
 // ---------------------------------------------------------------------------
 
@@ -77,9 +108,9 @@ let hpBarGfx: Graphics | null = null
  * Update enemy layer each render frame.
  * @param container  The PixiJS Container for this layer.
  * @param world      Current ECS world (read-only in renderer).
- * @param _alpha     Interpolation factor — not currently used (progress is simulation-side).
+ * @param alpha      Sub-tick interpolation factor [0, 1) — fraction of a tick elapsed since last simulation step.
  */
-export function updateEnemyLayer(container: Container, world: World, _alpha: number): void {
+export function updateEnemyLayer(container: Container, world: World, alpha: number): void {
   // Release sprites for entities that are no longer active enemies
   const toRelease: number[] = []
   for (const [eid, sprite] of active) {
@@ -103,17 +134,7 @@ export function updateEnemyLayer(container: Container, world: World, _alpha: num
 
     const enemyType = world.enemyType[eid] as C.EnemyType
 
-    let sprite = active.get(eid)
-    if (!sprite) {
-      sprite = acquire(enemyType)
-      container.addChild(sprite)
-      active.set(eid, sprite)
-    } else {
-      // Reassign texture in case pool reuse gave us a sprite from a different type
-      sprite.texture = getEnemyTexture(enemyType)
-    }
-
-    // Compute visual position via motion interpolation (Rulebook §2.10.4–2.10.8)
+    // Compute current tick's position (no extrapolation — interpolation handles smoothing)
     const motion = computeEnemyMotion(
       world.pathFromX[eid],
       world.pathFromY[eid],
@@ -126,6 +147,19 @@ export function updateEnemyLayer(container: Container, world: World, _alpha: num
       world.pathDir[eid],
       world.pathPrevDir[eid],
     )
+
+    let sprite = active.get(eid)
+    if (!sprite) {
+      sprite = acquire(enemyType)
+      container.addChild(sprite)
+      active.set(eid, sprite)
+      // Bootstrap prev to current so the first frame shows the correct spawn position.
+      prevRenderX[eid] = motion.renderX
+      prevRenderY[eid] = motion.renderY
+    } else {
+      // Reassign texture in case pool reuse gave us a sprite from a different type
+      sprite.texture = getEnemyTexture(enemyType)
+    }
 
     const isBoss = enemyType === C.EnemyType.AI_OVERLORD
     const desiredSize = isBoss ? TILE_SIZE * 1.2 : TILE_SIZE * 0.7
@@ -204,8 +238,9 @@ export function updateEnemyLayer(container: Container, world: World, _alpha: num
       }
     }
 
-    sprite.x = motion.renderX
-    sprite.y = motion.renderY
+    // Interpolate position between the previous tick's snapshot and this tick's result.
+    sprite.x = prevRenderX[eid] + (motion.renderX - prevRenderX[eid]) * alpha
+    sprite.y = prevRenderY[eid] + (motion.renderY - prevRenderY[eid]) * alpha
   }
 
   // HP bars — drawn as a single shared Graphics pass on top of all sprites
@@ -253,4 +288,6 @@ export function _clearEnemyPool(): void {
   lastHFlip.clear()
   glitchState.clear()
   spinAngle.clear()
+  prevRenderX.fill(0)
+  prevRenderY.fill(0)
 }
