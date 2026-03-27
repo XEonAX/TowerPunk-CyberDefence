@@ -89,6 +89,15 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   /**
+   * Counter-clockwise 8-direction rotation for Data Spike facing (inverse of rotatePlacementFacing).
+   * Sequence: N→NW→W→SW→S→SE→E→NE→N (Dir values: 0→7→3→6→1→5→2→4→0)
+   */
+  function rotatePlacementBackward(): void {
+    const ROTATE_CCW = [7, 5, 4, 6, 0, 2, 1, 3] as const
+    placementFacing.value = ROTATE_CCW[placementFacing.value] ?? 0
+  }
+
+  /**
    * Placement level selector — towers can be placed pre-upgraded at levels 1–10.
    * Cost shown is cumulative (sum of all level costs up to selected level).
    * Rulebook §5.0.5 — maximum tower level is 10.
@@ -105,6 +114,6 @@ export const useUiStore = defineStore('ui', () => {
     isPanelOpen, placementFacing, gameSpeed, placementLevel,
     inspectedKind, inspectedEid,
     selectTowerType, selectTowerInstance, selectEnemy, selectGateway, clearInspection,
-    setHoveredTile, rotatePlacementFacing, increaseSpeed, decreaseSpeed, setPlacementLevel,
+    setHoveredTile, rotatePlacementFacing, rotatePlacementBackward, increaseSpeed, decreaseSpeed, setPlacementLevel,
   }
 })

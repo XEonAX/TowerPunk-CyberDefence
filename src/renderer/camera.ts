@@ -2,6 +2,10 @@
  * Camera — Tech.md §6.5
  * Pan, zoom, viewport management.
  * Implemented as a transform on the root camera Container.
+ *
+ * Interaction model:
+ *   Mouse: Ctrl/Cmd+drag or middle-click drag → pan; scroll always zooms
+ *   Touch: 1-finger tap → click (place/inspect); 2-finger drag/pinch → pan + zoom
  */
 
 import type { Application, Container, FederatedPointerEvent } from 'pixi.js'
@@ -24,12 +28,17 @@ export interface Camera {
   centerOnGrid(): void
   /** Handle mouse wheel zoom */
   onWheel(event: WheelEvent): void
-  /** Start drag pan */
+  /** Start drag pan (Ctrl/Cmd/middle-click) or track a touch point */
   onPointerDown(event: FederatedPointerEvent): void
-  /** Continue drag pan */
+  /** Continue drag pan or update pinch-zoom */
   onPointerMove(event: FederatedPointerEvent): void
-  /** End drag pan */
-  onPointerUp(): void
+  /** End drag or lift touch point */
+  onPointerUp(event: FederatedPointerEvent): void
+  /**
+   * Returns true (and resets the flag) if a multi-touch gesture just ended.
+   * Use to suppress stray click events that follow a pinch/pan gesture.
+   */
+  consumeGestureFlag(): boolean
   /** Apply key-based panning (call each frame) */
   applyKeyPan(keys: Set<string>): void
   /** Apply current transform to camera container */
@@ -40,11 +49,25 @@ export interface Camera {
   clamp(): void
 }
 
+// Mouse drag state
 let isDragging = false
 let dragStartX = 0
 let dragStartY = 0
 let dragPanStartX = 0
 let dragPanStartY = 0
+
+// Multi-touch state
+const activeTouches = new Map<number, { x: number; y: number }>()
+let lastPinchDist = 0
+let lastPinchCenterX = 0
+let lastPinchCenterY = 0
+let gestureJustEnded = false
+
+function getTwoTouches(): [{ x: number; y: number }, { x: number; y: number }] | null {
+  const entries = [...activeTouches.values()]
+  if (entries.length < 2) return null
+  return [entries[0], entries[1]]
+}
 
 export function createCamera(app: Application, cameraContainer: Container): Camera {
   const camera: Camera = {
@@ -80,14 +103,63 @@ export function createCamera(app: Application, cameraContainer: Container): Came
     },
 
     onPointerDown(event: FederatedPointerEvent): void {
-      isDragging = true
-      dragStartX = event.globalX
-      dragStartY = event.globalY
-      dragPanStartX = this.panX
-      dragPanStartY = this.panY
+      if (event.pointerType === 'touch') {
+        activeTouches.set(event.pointerId, { x: event.globalX, y: event.globalY })
+        if (activeTouches.size === 2) {
+          const pair = getTwoTouches()
+          if (pair) {
+            lastPinchCenterX = (pair[0].x + pair[1].x) / 2
+            lastPinchCenterY = (pair[0].y + pair[1].y) / 2
+            lastPinchDist = Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y)
+          }
+        }
+        return
+      }
+      // Mouse/pen: only start drag pan with Ctrl/Cmd held or middle-click
+      if (event.ctrlKey || event.metaKey || event.button === 1) {
+        isDragging = true
+        dragStartX = event.globalX
+        dragStartY = event.globalY
+        dragPanStartX = this.panX
+        dragPanStartY = this.panY
+      }
     },
 
     onPointerMove(event: FederatedPointerEvent): void {
+      if (event.pointerType === 'touch') {
+        if (activeTouches.has(event.pointerId)) {
+          activeTouches.set(event.pointerId, { x: event.globalX, y: event.globalY })
+        }
+        if (activeTouches.size === 2) {
+          const pair = getTwoTouches()
+          if (pair) {
+            const cx = (pair[0].x + pair[1].x) / 2
+            const cy = (pair[0].y + pair[1].y) / 2
+            const dist = Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y)
+
+            // Pan from center-point movement
+            this.panX += cx - lastPinchCenterX
+            this.panY += cy - lastPinchCenterY
+
+            // Zoom from pinch distance ratio, centered on the pinch midpoint
+            if (lastPinchDist > 0) {
+              const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.zoom * (dist / lastPinchDist)))
+              const worldX = (cx - this.panX) / this.zoom
+              const worldY = (cy - this.panY) / this.zoom
+              this.zoom = newZoom
+              this.panX = cx - worldX * this.zoom
+              this.panY = cy - worldY * this.zoom
+            }
+
+            lastPinchCenterX = cx
+            lastPinchCenterY = cy
+            lastPinchDist = dist
+            this.clamp()
+            this.apply()
+          }
+        }
+        return
+      }
       if (!isDragging) return
       const dx = event.globalX - dragStartX
       const dy = event.globalY - dragStartY
@@ -97,8 +169,25 @@ export function createCamera(app: Application, cameraContainer: Container): Came
       this.apply()
     },
 
-    onPointerUp(): void {
+    onPointerUp(event: FederatedPointerEvent): void {
+      if (event.pointerType === 'touch') {
+        const wasGesture = activeTouches.size >= 2
+        activeTouches.delete(event.pointerId)
+        if (wasGesture && activeTouches.size < 2) {
+          lastPinchDist = 0
+          gestureJustEnded = true
+        }
+        return
+      }
       isDragging = false
+    },
+
+    consumeGestureFlag(): boolean {
+      if (gestureJustEnded) {
+        gestureJustEnded = false
+        return true
+      }
+      return false
     },
 
     applyKeyPan(keys: Set<string>): void {

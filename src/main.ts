@@ -40,13 +40,7 @@ if (container) {
     const camera = createCamera(pixiApp, cameraContainer)
     camera.centerOnGrid()
 
-    // Wire mouse wheel zoom
-    pixiApp.canvas.addEventListener('wheel', (e) => {
-      e.preventDefault()
-      camera.onWheel(e)
-    }, { passive: false })
-
-    // Wire drag pan via PixiJS stage events
+    // Wire pointer events: Ctrl/Cmd+drag or middle-click → pan; 2-finger touch → pan+pinch-zoom; tap/click → place/inspect
     pixiApp.stage.eventMode = 'static'
     pixiApp.stage.hitArea = pixiApp.screen
     pixiApp.stage.on('pointerdown', (e) => camera.onPointerDown(e))
@@ -56,8 +50,9 @@ if (container) {
       const t = camera.screenToTile(e.globalX, e.globalY)
       uiStore.setHoveredTile(t.x, t.y)
     })
-    pixiApp.stage.on('pointerup', () => camera.onPointerUp())
-    pixiApp.stage.on('pointerupoutside', () => camera.onPointerUp())
+    pixiApp.stage.on('pointerup', (e) => camera.onPointerUp(e))
+    pixiApp.stage.on('pointerupoutside', (e) => camera.onPointerUp(e))
+    pixiApp.stage.on('pointercancel', (e) => camera.onPointerUp(e))
 
     // Keyboard pan
     const keysDown = new Set<string>()
@@ -80,6 +75,18 @@ if (container) {
     // Init Pinia stores after simulation is ready
     const gameStore = useGameStore()
     const uiStore = useUiStore()
+
+    // Scroll wheel: zoom when Ctrl/Cmd held or no tower type is selected; otherwise rotate placement facing
+    pixiApp.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault()
+      if (e.ctrlKey || e.metaKey || uiStore.selectedTowerType === null) {
+        camera.onWheel(e)
+      } else {
+        // Scroll up (deltaY < 0) = clockwise (same as R key); scroll down = counter-clockwise
+        if (e.deltaY < 0) uiStore.rotatePlacementFacing()
+        else uiStore.rotatePlacementBackward()
+      }
+    }, { passive: false })
 
     // Start game loop
     const renderer = {
@@ -125,6 +132,8 @@ if (container) {
 
     // Tower placement / selection on canvas click
     pixiApp.stage.on('click', (e) => {
+      // Suppress stray click events that immediately follow a multi-touch gesture
+      if (camera.consumeGestureFlag()) return
       const tile = camera.screenToTile(e.globalX, e.globalY)
       if (tile.x < 0 || tile.x >= 51 || tile.y < 0 || tile.y >= 51) return
 
