@@ -26,6 +26,16 @@ export const useUiStore = defineStore('ui', () => {
   /** Entity ID of the inspected enemy or gateway (null for tower — use selectedTowerEid). */
   const inspectedEid = ref<number | null>(null)
 
+  /** Multi-selected tower entity IDs. Empty = no multi-selection active. */
+  const selectedTowerEids = ref<number[]>([])
+  /** True while a rubber-band rectangle selection drag is in progress. */
+  const isDraggingSelection = ref(false)
+  /** Rubber-band selection box in screen pixels (top-left origin + dimensions). */
+  const dragBoxX = ref(0)
+  const dragBoxY = ref(0)
+  const dragBoxW = ref(0)
+  const dragBoxH = ref(0)
+
   const SPEED_STEPS = [0, 0.1, 0.5, 1, 2, 4, 8, 16, 32, 64] as const
 
   function increaseSpeed(): void {
@@ -43,6 +53,7 @@ export const useUiStore = defineStore('ui', () => {
   function selectTowerType(type: number | null): void {
     selectedTowerType.value = type
     selectedTowerEid.value = null // deselect placed tower instance
+    selectedTowerEids.value = []
     inspectedKind.value = null
     inspectedEid.value = null
   }
@@ -70,8 +81,37 @@ export const useUiStore = defineStore('ui', () => {
 
   function clearInspection(): void {
     selectedTowerEid.value = null
+    selectedTowerEids.value = []
     inspectedKind.value = null
     inspectedEid.value = null
+  }
+
+  /** Set the multi-selection to the given tower eids. Clears single-tower selection. */
+  function setMultiSelection(eids: number[]): void {
+    selectedTowerEids.value = eids
+    selectedTowerEid.value = null
+    selectedTowerType.value = null
+    inspectedKind.value = null
+    inspectedEid.value = null
+  }
+
+  function startSelectionDrag(sx: number, sy: number): void {
+    isDraggingSelection.value = true
+    dragBoxX.value = sx
+    dragBoxY.value = sy
+    dragBoxW.value = 0
+    dragBoxH.value = 0
+  }
+
+  function updateSelectionDrag(startSX: number, startSY: number, curSX: number, curSY: number): void {
+    dragBoxX.value = Math.min(startSX, curSX)
+    dragBoxY.value = Math.min(startSY, curSY)
+    dragBoxW.value = Math.abs(curSX - startSX)
+    dragBoxH.value = Math.abs(curSY - startSY)
+  }
+
+  function endSelectionDrag(): void {
+    isDraggingSelection.value = false
   }
 
   function setHoveredTile(x: number, y: number): void {
@@ -115,5 +155,7 @@ export const useUiStore = defineStore('ui', () => {
     inspectedKind, inspectedEid,
     selectTowerType, selectTowerInstance, selectEnemy, selectGateway, clearInspection,
     setHoveredTile, rotatePlacementFacing, rotatePlacementBackward, increaseSpeed, decreaseSpeed, setPlacementLevel,
+    selectedTowerEids, isDraggingSelection, dragBoxX, dragBoxY, dragBoxW, dragBoxH,
+    setMultiSelection, startSelectionDrag, updateSelectionDrag, endSelectionDrag,
   }
 })

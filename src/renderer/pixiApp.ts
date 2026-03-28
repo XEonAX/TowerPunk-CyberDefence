@@ -10,13 +10,15 @@ export interface RenderLayers {
   grid: Container
   /** Layer 1 — Tower placement preview (ghost) */
   ghost: Container
-  /** Layer 2 — Tower sprites */
+  /** Layer 2 — Multi-selection tile highlights */
+  selection: Container
+  /** Layer 3 — Tower sprites */
   towers: Container
-  /** Layer 3 — Enemy sprites */
+  /** Layer 4 — Enemy sprites */
   enemies: Container
-  /** Layer 4 — Pickup sprites */
+  /** Layer 5 — Pickup sprites */
   pickups: Container
-  /** Layer 5 — Particle effects, VFX */
+  /** Layer 6 — Particle effects, VFX */
   fx: Container
 }
 
@@ -54,6 +56,7 @@ export async function initPixi(container: HTMLElement): Promise<{ app: Applicati
   const renderLayers: RenderLayers = {
     grid: new Container(),
     ghost: new Container(),
+    selection: new Container(),
     towers: new Container(),
     enemies: new Container(),
     pickups: new Container(),
@@ -62,6 +65,7 @@ export async function initPixi(container: HTMLElement): Promise<{ app: Applicati
 
   renderLayers.grid.label = 'grid'
   renderLayers.ghost.label = 'ghost'
+  renderLayers.selection.label = 'selection'
   renderLayers.towers.label = 'towers'
   renderLayers.enemies.label = 'enemies'
   renderLayers.pickups.label = 'pickups'
@@ -70,6 +74,7 @@ export async function initPixi(container: HTMLElement): Promise<{ app: Applicati
   // Add layers in z-order to camera container
   cameraContainer.addChild(renderLayers.grid)
   cameraContainer.addChild(renderLayers.ghost)
+  cameraContainer.addChild(renderLayers.selection)
   cameraContainer.addChild(renderLayers.towers)
   cameraContainer.addChild(renderLayers.enemies)
   cameraContainer.addChild(renderLayers.pickups)

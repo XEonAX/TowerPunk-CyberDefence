@@ -10,6 +10,8 @@
     <TowerPanel @command="handleCommand" />
     <AbilityBar @command="handleCommand" />
     <InspectPanel />
+    <MultiSelectPanel @command="handleCommand" />
+    <SelectionBox />
     <WaveTimer />
     <GameResult @restart="handleRestart" />
   </div>
@@ -22,6 +24,8 @@ import HUD from './components/HUD.vue'
 import TowerPanel from './components/TowerPanel.vue'
 import AbilityBar from './components/AbilityBar.vue'
 import InspectPanel from './components/InspectPanel.vue'
+import MultiSelectPanel from './components/MultiSelectPanel.vue'
+import SelectionBox from './components/SelectionBox.vue'
 import WaveTimer from './components/WaveTimer.vue'
 import GameResult from './components/GameResult.vue'
 import { useUiStore } from './stores/ui.store'
@@ -66,19 +70,30 @@ function onKeyDown(e: KeyboardEvent): void {
   }
 
   switch (e.key) {
-    // U  →  upgrade selected tower
+    // U  →  upgrade selected tower(s)
     case 'u':
     case 'U':
-      if (uiStore.selectedTowerEid !== null) {
+      if (uiStore.selectedTowerEids.length > 1) {
+        e.preventDefault()
+        for (const eid of uiStore.selectedTowerEids) {
+          handleCommand({ type: CommandType.UPGRADE_TOWER, eid })
+        }
+      } else if (uiStore.selectedTowerEid !== null) {
         e.preventDefault()
         handleCommand({ type: CommandType.UPGRADE_TOWER, eid: uiStore.selectedTowerEid })
       }
       break
 
-    // Delete / Backspace  →  dismantle selected tower
+    // Delete / Backspace  →  dismantle selected tower(s)
     case 'Delete':
     case 'Backspace':
-      if (uiStore.selectedTowerEid !== null) {
+      if (uiStore.selectedTowerEids.length > 1) {
+        e.preventDefault()
+        for (const eid of uiStore.selectedTowerEids) {
+          handleCommand({ type: CommandType.DISMANTLE_TOWER, eid })
+        }
+        uiStore.clearInspection()
+      } else if (uiStore.selectedTowerEid !== null) {
         e.preventDefault()
         handleCommand({ type: CommandType.DISMANTLE_TOWER, eid: uiStore.selectedTowerEid })
         uiStore.clearInspection()
@@ -108,12 +123,12 @@ function onKeyDown(e: KeyboardEvent): void {
       }
       break
 
-    // Escape  →  cancel placement / deselect
+    // Escape  →  cancel placement / deselect / clear multi-selection
     case 'Escape':
       if (uiStore.selectedTowerType !== null) {
         e.preventDefault()
         uiStore.selectTowerType(null)
-      } else if (uiStore.inspectedKind !== null) {
+      } else if (uiStore.selectedTowerEids.length > 0 || uiStore.inspectedKind !== null) {
         e.preventDefault()
         uiStore.clearInspection()
       }

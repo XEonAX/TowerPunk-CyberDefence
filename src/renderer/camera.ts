@@ -127,10 +127,17 @@ export function createCamera(app: Application, cameraContainer: Container): Came
 
     onPointerMove(event: FederatedPointerEvent): void {
       if (event.pointerType === 'touch') {
+        const oldPos = activeTouches.get(event.pointerId)
         if (activeTouches.has(event.pointerId)) {
           activeTouches.set(event.pointerId, { x: event.globalX, y: event.globalY })
         }
-        if (activeTouches.size === 2) {
+        if (activeTouches.size === 1 && oldPos) {
+          // Single-finger pan
+          this.panX += event.globalX - oldPos.x
+          this.panY += event.globalY - oldPos.y
+          this.clamp()
+          this.apply()
+        } else if (activeTouches.size === 2) {
           const pair = getTwoTouches()
           if (pair) {
             const cx = (pair[0].x + pair[1].x) / 2

@@ -12,6 +12,7 @@ import { updateEnemyLayer, snapshotEnemies } from './renderer/layers/enemy.layer
 import { updateTowerLayer } from './renderer/layers/tower.layer'
 import { updatePickupLayer } from './renderer/layers/pickup.layer'
 import { updateGhostLayer } from './renderer/layers/ghost.layer'
+import { updateSelectionLayer } from './renderer/layers/selection.layer'
 import { updateFxLayer } from './renderer/layers/fx.layer'
 import { createCamera } from './renderer/camera'
 import { createSimulation } from './game/simulation'
@@ -40,19 +41,109 @@ if (container) {
     const camera = createCamera(pixiApp, cameraContainer)
     camera.centerOnGrid()
 
+    // Rectangle selection drag state (mouse left button only)
+    let selDragActive = false
+    let selDragOccurred = false
+    let selDragStartSX = 0
+    let selDragStartSY = 0
+    let selDragStartTileX = 0
+    let selDragStartTileY = 0
+    let selDragJustEnded = false
+
+    /** Finalise a completed drag: either flood-fill place or rubber-band select. */
+    function completeRectangleAction(startTileX: number, startTileY: number, endTileX: number, endTileY: number): void {
+      const minX = Math.max(0, Math.min(startTileX, endTileX))
+      const maxX = Math.min(50, Math.max(startTileX, endTileX))
+      const minY = Math.max(0, Math.min(startTileY, endTileY))
+      const maxY = Math.min(50, Math.max(startTileY, endTileY))
+      const world = simulation.getWorld()
+
+      if (uiStore.selectedTowerType !== null && uiStore.selectedTowerType !== TowerType.FIREWALL) {
+        // Flood-fill placement — push commands for every tile; command system validates each
+        for (let ty = minY; ty <= maxY; ty++) {
+          for (let tx = minX; tx <= maxX; tx++) {
+            world.commandQueue.push({
+              type: CommandType.PLACE_TOWER,
+              towerType: uiStore.selectedTowerType,
+              x: tx,
+              y: ty,
+              facing: uiStore.placementFacing,
+              level: uiStore.placementLevel,
+            } as Command)
+          }
+        }
+      } else if (uiStore.selectedTowerType === null) {
+        // Rectangle selection — collect tower eids in the rect
+        const eids: number[] = []
+        for (let ty = minY; ty <= maxY; ty++) {
+          for (let tx = minX; tx <= maxX; tx++) {
+            const eid = towerAtTile(world, tx, ty)
+            if (eid !== null) eids.push(eid)
+          }
+        }
+        if (eids.length === 1) {
+          uiStore.selectTowerInstance(eids[0])
+        } else if (eids.length > 1) {
+          uiStore.setMultiSelection(eids)
+        } else {
+          uiStore.clearInspection()
+        }
+      }
+      // Firewall flood-fill is not supported (paired placement doesn’t translate to a rect fill)
+    }
+
+    /** End an in-progress drag, optionally completing the rectangle action. */
+    function endSelDrag(complete: boolean, endScreenX: number, endScreenY: number): void {
+      if (!selDragActive) return
+      selDragActive = false
+      if (selDragOccurred) {
+        if (complete) {
+          const endTile = camera.screenToTile(endScreenX, endScreenY)
+          completeRectangleAction(selDragStartTileX, selDragStartTileY, endTile.x, endTile.y)
+          selDragJustEnded = true
+        }
+        uiStore.endSelectionDrag()
+        selDragOccurred = false
+      }
+    }
+
     // Wire pointer events: Ctrl/Cmd+drag or middle-click → pan; 2-finger touch → pan+pinch-zoom; tap/click → place/inspect
     pixiApp.stage.eventMode = 'static'
     pixiApp.stage.hitArea = pixiApp.screen
-    pixiApp.stage.on('pointerdown', (e) => camera.onPointerDown(e))
+    pixiApp.stage.on('pointerdown', (e) => {
+      camera.onPointerDown(e)
+      // Start potential rectangle drag (mouse left button, no modifier key)
+      if (e.pointerType === 'mouse' && e.button === 0 && !e.ctrlKey && !e.metaKey) {
+        selDragActive = true
+        selDragOccurred = false
+        selDragStartSX = e.globalX
+        selDragStartSY = e.globalY
+        const t = camera.screenToTile(e.globalX, e.globalY)
+        selDragStartTileX = t.x
+        selDragStartTileY = t.y
+      }
+    })
     pixiApp.stage.on('pointermove', (e) => {
       camera.onPointerMove(e)
       // Update hovered tile for ghost preview
       const t = camera.screenToTile(e.globalX, e.globalY)
       uiStore.setHoveredTile(t.x, t.y)
+      // Update rubber-band box while dragging
+      if (selDragActive) {
+        const dx = e.globalX - selDragStartSX
+        const dy = e.globalY - selDragStartSY
+        if (!selDragOccurred && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+          selDragOccurred = true
+          uiStore.startSelectionDrag(selDragStartSX, selDragStartSY)
+        }
+        if (selDragOccurred) {
+          uiStore.updateSelectionDrag(selDragStartSX, selDragStartSY, e.globalX, e.globalY)
+        }
+      }
     })
-    pixiApp.stage.on('pointerup', (e) => camera.onPointerUp(e))
-    pixiApp.stage.on('pointerupoutside', (e) => camera.onPointerUp(e))
-    pixiApp.stage.on('pointercancel', (e) => camera.onPointerUp(e))
+    pixiApp.stage.on('pointerup', (e) => { camera.onPointerUp(e); endSelDrag(true, e.globalX, e.globalY) })
+    pixiApp.stage.on('pointerupoutside', (e) => { camera.onPointerUp(e); endSelDrag(true, e.globalX, e.globalY) })
+    pixiApp.stage.on('pointercancel', (e) => { camera.onPointerUp(e); endSelDrag(false, 0, 0) })
 
     // Keyboard pan
     const keysDown = new Set<string>()
@@ -113,6 +204,7 @@ if (container) {
         updateEnemyLayer(layers.enemies, world, alpha)
         updatePickupLayer(layers.pickups, world, alpha)
         updateGhostLayer(layers.ghost, world, uiStore.hoveredTileX, uiStore.hoveredTileY, uiStore.selectedTowerType, uiStore.placementFacing, uiStore.placementLevel)
+        updateSelectionLayer(layers.selection, world.tilePosX, world.tilePosY, uiStore.selectedTowerEids)
         updateFxLayer(layers.fx, world, alpha)
       },
     }
@@ -132,8 +224,9 @@ if (container) {
 
     // Tower placement / selection on canvas click
     pixiApp.stage.on('click', (e) => {
-      // Suppress stray click events that immediately follow a multi-touch gesture
+      // Suppress stray click events that immediately follow a gesture or completed drag
       if (camera.consumeGestureFlag()) return
+      if (selDragJustEnded) { selDragJustEnded = false; return }
       const tile = camera.screenToTile(e.globalX, e.globalY)
       if (tile.x < 0 || tile.x >= 51 || tile.y < 0 || tile.y >= 51) return
 
