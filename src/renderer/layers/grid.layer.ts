@@ -29,6 +29,10 @@ export function createGridLayer(container: Container): void {
 
   const totalSize = GRID_SIZE * TILE_SIZE
 
+  // --- Solid background — occludes the plexus layer beneath the grid area ---
+  gfx.rect(0, 0, totalSize, totalSize)
+  gfx.fill({ color: 0x0a0a0f, alpha: 1.0 })
+
   // --- Grid lines (blue) ---
   gfx.setStrokeStyle({ width: 1, color: GRID_LINE_COLOR, alpha: GRID_LINE_ALPHA })
 

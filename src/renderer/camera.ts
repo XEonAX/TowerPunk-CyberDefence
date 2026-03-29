@@ -8,10 +8,10 @@
  *   Touch: 1-finger tap → click (place/inspect); 2-finger drag/pinch → pan + zoom
  */
 
+import { GRID_SIZE } from '@game/constants'
 import type { Application, Container, FederatedPointerEvent } from 'pixi.js'
 
 const TILE_SIZE = 16 // pixels per tile
-const GRID_SIZE = 51
 
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 4.0
@@ -243,4 +243,4 @@ export function createCamera(app: Application, cameraContainer: Container): Came
   return camera
 }
 
-export { TILE_SIZE }
+export { TILE_SIZE, MIN_ZOOM }

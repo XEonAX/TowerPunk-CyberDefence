@@ -21,6 +21,7 @@ import { startGameLoop } from './game/gameLoop'
 import { useGameStore } from './ui/stores/game.store'
 import { useUiStore } from './ui/stores/ui.store'
 import { installDevHelpers } from './misc/helper'
+import { GRID_SIZE } from '@game/constants'
 
 const pinia = createPinia()
 const app = createApp(App)
@@ -35,7 +36,7 @@ if (container) {
     await Promise.all([loadTowerTextures(), loadEnemyTextures()])
 
     // Initialize plexus background (below grid, pans with camera)
-    createPlexusLayer(layers.plexus, pixiApp)
+    createPlexusLayer(layers.plexus, pixiApp, () => uiStore.gameSpeed)
 
     // Initialize grid layer
     createGridLayer(layers.grid)
@@ -232,7 +233,7 @@ if (container) {
       if (camera.consumeGestureFlag()) return
       if (selDragJustEnded) { selDragJustEnded = false; return }
       const tile = camera.screenToTile(e.globalX, e.globalY)
-      if (tile.x < 0 || tile.x >= 51 || tile.y < 0 || tile.y >= 51) return
+      if (tile.x < 0 || tile.x >= GRID_SIZE || tile.y < 0 || tile.y >= GRID_SIZE) return
 
       const world = simulation.getWorld()
 
