@@ -1,11 +1,20 @@
 <template>
   <div id="app-root">
-    <!-- Landing page overlay — shown before the game starts -->
+    <!-- Loading screen — plays the intro sequence before the landing page -->
+    <Transition name="loading-fade">
+      <LoadingScreen v-if="showLoading" @done="onLoadingDone" />
+    </Transition>
+
+    <!-- Landing page overlay — shown after the loading sequence -->
     <Transition name="landing-fade">
       <LandingPage v-if="showLanding" @start="onStart" />
     </Transition>
 
     <div id="pixi-container"></div>
+    <!-- Black backdrop: hides the game canvas until the player starts the game -->
+    <Transition name="backdrop-fade">
+      <div v-if="showLoading || showLanding" class="game-backdrop" />
+    </Transition>
     <HUD />
     <TowerPanel @command="handleCommand" />
     <AbilityBar @command="handleCommand" />
@@ -19,6 +28,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import LoadingScreen from './components/LoadingScreen.vue'
 import LandingPage from './components/LandingPage.vue'
 import HUD from './components/HUD.vue'
 import TowerPanel from './components/TowerPanel.vue'
@@ -35,8 +45,17 @@ import { CommandType } from '@game/ecs/world'
 const gameStore = useGameStore()
 const uiStore = useUiStore()
 
-// ── Landing page ────────────────────────────────────────────────────────────
-const showLanding = ref(true)
+// ── Boot sequence: Loading → Landing → Game ────────────────────────────────
+// showLoading starts true; when the intro sequence finishes it becomes false
+// and showLanding becomes true, revealing the start menu.
+const showLoading = ref(true)
+const showLanding = ref(false)
+
+function onLoadingDone(): void {
+  showLoading.value = false
+  showLanding.value = true
+}
+
 function onStart(): void {
   showLanding.value = false
 }
@@ -169,11 +188,36 @@ body {
   inset: 0;
 }
 
-/* ── Landing page transition ────────────────────────────────────────────── */
+/* ── Loading screen transition (fade out when complete) ────────────── */
+.loading-fade-leave-active {
+  transition: opacity 0.6s ease;
+}
+.loading-fade-leave-to {
+  opacity: 0;
+}
+
+/* ── Landing page transition ────────────────────────────────────────── */
+/* No enter transition — the loading screen glitches in the title logo,
+   so the landing page appears instantly beneath the fading loading canvas. */
 .landing-fade-leave-active {
   transition: opacity 0.8s ease;
 }
 .landing-fade-leave-to {
+  opacity: 0;
+}
+
+/* ── Game backdrop ──────────────────────────────────────────────── */
+.game-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 9998; /* below loading (10000) and landing (9999), above pixi */
+  pointer-events: none;
+}
+.backdrop-fade-leave-active {
+  transition: opacity 1s ease;
+}
+.backdrop-fade-leave-to {
   opacity: 0;
 }
 

@@ -5,12 +5,8 @@
 
     <!-- Content stack -->
     <div class="landing__content">
-      <div class="landing__dvd" :class="{ visible: dvdVisible }">
-        <img src="../../assets/DVD-Projet.svg" alt="DVD Project Presents" class="landing__dvd-img" />
-      </div>
-
       <div class="landing__title" :class="{ visible: titleVisible }">
-        <img src="../../assets/Towerpunk.svg" alt="TowerPunk: Cyber Defence" class="landing__title-img" />
+        <img src="../../assets/loadingscreen/Towerpunk.png" alt="TowerPunk: Cyber Defence" class="landing__title-img" />
       </div>
 
       <div class="landing__start-wrap" :class="{ visible: btnVisible }">
@@ -37,8 +33,8 @@ import { Application, Graphics } from 'pixi.js'
 defineEmits<{ (e: 'start'): void }>()
 
 // ── Animation visibility state ────────────────────────────────────────────────
-const dvdVisible   = ref(false)
-const titleVisible = ref(false)
+// Title is visible immediately — the loading screen already glitched it in
+const titleVisible = ref(true)
 const btnVisible   = ref(false)
 
 // ── Plexus (PixiJS) ───────────────────────────────────────────────────────────
@@ -99,8 +95,6 @@ function initParticles(w: number, h: number): void {
 }
 
 // ── Timers for logo reveal sequence ──────────────────────────────────────────
-let t1: ReturnType<typeof setTimeout>
-let t2: ReturnType<typeof setTimeout>
 let t3: ReturnType<typeof setTimeout>
 
 onMounted(async () => {
@@ -231,9 +225,7 @@ onMounted(async () => {
   })
 
   // Staggered reveal
-  t1 = setTimeout(() => { dvdVisible.value   = true }, 600)
-  t2 = setTimeout(() => { titleVisible.value = true }, 1600)
-  t3 = setTimeout(() => { btnVisible.value   = true }, 2600)
+  t3 = setTimeout(() => { btnVisible.value = true }, 800)
 })
 
 onUnmounted(() => {
@@ -241,8 +233,6 @@ onUnmounted(() => {
   pixiApp = null
   pointerX = NaN
   pointerY = NaN
-  clearTimeout(t1)
-  clearTimeout(t2)
   clearTimeout(t3)
 })
 </script>
@@ -280,27 +270,6 @@ onUnmounted(() => {
   max-width: 700px;
   pointer-events: none;
   z-index: 1;
-}
-
-/* ── DVD "presents" logo ────────────────────────────────────────────────── */
-.landing__dvd {
-  opacity: 0;
-  transform: translateY(-12px);
-  transition: opacity 1s ease, transform 1s ease;
-  width: 100%;
-  max-width: 360px;
-}
-
-.landing__dvd.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.landing__dvd-img {
-  width: 100%;
-  height: auto;
-  /* recolour the SVG to cyan if it uses currentColor */
-  filter: drop-shadow(0 0 8px rgba(0, 204, 255, 0.55));
 }
 
 /* ── TowerPunk title ─────────────────────────────────────────────────────── */
