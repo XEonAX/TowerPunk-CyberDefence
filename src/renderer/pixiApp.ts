@@ -6,6 +6,8 @@
 import { Application, Container } from 'pixi.js'
 
 export interface RenderLayers {
+  /** Layer -1 — Red plexus particle background (below grid, pans with camera) */
+  plexus: Container
   /** Layer 0 — Grid lines, Blackwall boundary */
   grid: Container
   /** Layer 1 — Tower placement preview (ghost) */
@@ -54,6 +56,7 @@ export async function initPixi(container: HTMLElement): Promise<{ app: Applicati
 
   // Create render layers in z-order (Tech.md §6.2)
   const renderLayers: RenderLayers = {
+    plexus: new Container(),
     grid: new Container(),
     ghost: new Container(),
     selection: new Container(),
@@ -63,6 +66,7 @@ export async function initPixi(container: HTMLElement): Promise<{ app: Applicati
     fx: new Container(),
   }
 
+  renderLayers.plexus.label = 'plexus'
   renderLayers.grid.label = 'grid'
   renderLayers.ghost.label = 'ghost'
   renderLayers.selection.label = 'selection'
@@ -72,6 +76,7 @@ export async function initPixi(container: HTMLElement): Promise<{ app: Applicati
   renderLayers.fx.label = 'fx'
 
   // Add layers in z-order to camera container
+  cameraContainer.addChild(renderLayers.plexus)
   cameraContainer.addChild(renderLayers.grid)
   cameraContainer.addChild(renderLayers.ghost)
   cameraContainer.addChild(renderLayers.selection)
