@@ -15,7 +15,7 @@
  */
 import type { World } from '../ecs/world'
 import * as C from '../ecs/component'
-import { markForRemoval } from '../ecs/world'
+import { CommandType, GamePhase, markForRemoval } from '../ecs/world'
 import {
   BLACKWALL_PASSIVE_DPT,
   BLACKWALL_REPAIR_COMPONENTS,
@@ -39,6 +39,10 @@ function _autoConvertEddies(world: World): void {
   const batches = Math.floor(world.eddies / EDDIES_PER_COMPONENT)
   world.eddies     -= batches * EDDIES_PER_COMPONENT
   world.components += batches
+  // Auto-start the wave when the player farms enough Eddies to convert in PRE_GAME.
+  if (world.currentPhase === GamePhase.PRE_GAME) {
+    world.commandQueue.push({ type: CommandType.START_WAVE })
+  }
 }
 
 // ---------------------------------------------------------------------------
