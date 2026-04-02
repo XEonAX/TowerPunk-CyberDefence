@@ -24,6 +24,14 @@
       <button class="sp-arrow" @click="uiStore.increaseSpeed()" :disabled="uiStore.gameSpeed >= 16">▶</button>
     </div>
   </div>
+
+  <!-- Breach alarm overlay -->
+  <Transition name="alarm">
+    <div v-if="showAlarm" class="wave-alarm breach-open">⚠ BREACH DETECTED</div>
+  </Transition>
+  <Transition name="alarm">
+    <div v-if="showClosed" class="wave-alarm breach-closed">✓ BREACH CLOSED</div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -54,6 +62,24 @@ watch(() => gameStore.components, (n, o) => {
   }
 })
 
+// ---- Breach alarm ----
+const showAlarm = ref(false)
+let alarmTimer: ReturnType<typeof setTimeout> | null = null
+
+const showClosed = ref(false)
+let closedTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(() => gameStore.activeGatewayCount, (n, o) => {
+  if (n > o) {
+    showAlarm.value = true
+    if (alarmTimer) clearTimeout(alarmTimer)
+    alarmTimer = setTimeout(() => { showAlarm.value = false }, 2000)
+  } else if (n < o) {
+    showClosed.value = true
+    if (closedTimer) clearTimeout(closedTimer)
+    closedTimer = setTimeout(() => { showClosed.value = false }, 2000)
+  }
+})
 </script>
 
 <style scoped>
@@ -135,4 +161,37 @@ watch(() => gameStore.components, (n, o) => {
 }
 .res-pop { animation: res-pop 0.32s ease-out; }
 
+/* Breach alarm overlay */
+.wave-alarm {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 200;
+  font-family: monospace;
+}
+.breach-open {
+  color: #ff2244;
+  text-shadow: 0 0 16px #ff2244, 0 0 32px #ff2244;
+}
+.breach-closed {
+  color: #00ff88;
+  text-shadow: 0 0 16px #00ff88, 0 0 32px #00ff88;
+}
+.alarm-enter-active { animation: alarm-in 0.15s ease-out; }
+.alarm-leave-active { animation: alarm-out 1.8s ease-in forwards; }
+@keyframes alarm-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes alarm-out {
+  0%   { opacity: 1; }
+  60%  { opacity: 1; }
+  100% { opacity: 0; }
+}
 </style>
