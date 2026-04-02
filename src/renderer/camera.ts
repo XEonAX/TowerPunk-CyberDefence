@@ -49,6 +49,38 @@ export interface Camera {
   clamp(): void
 }
 
+// ---------------------------------------------------------------------------
+// Screen shake
+// ---------------------------------------------------------------------------
+
+let _shakeIntensity = 0
+let _shakeFrames = 0
+let _shakePeakFrames = 0
+let _shakeEnabled = true
+
+/**
+ * Trigger a decaying screen shake effect (renderer-only, no simulation side effects).
+ * A new call replaces the current shake only if it is stronger.
+ * Automatically suppressed when `setShakeEnabled(false)` has been called.
+ */
+export function shakeCamera(intensity: number, frames: number): void {
+  if (!_shakeEnabled) return
+  if (intensity > _shakeIntensity || _shakeFrames === 0) {
+    _shakeIntensity = intensity
+    _shakeFrames = frames
+    _shakePeakFrames = frames
+  }
+}
+
+/**
+ * Enable or disable screen shake globally.
+ * Typically disabled at high game speeds (≥ 8×) to avoid visual noise.
+ */
+export function setShakeEnabled(enabled: boolean): void {
+  _shakeEnabled = enabled
+  if (!enabled) _shakeFrames = 0
+}
+
 // Mouse drag state
 let isDragging = false
 let dragStartX = 0
@@ -208,14 +240,23 @@ export function createCamera(app: Application, cameraContainer: Container): Came
         this.panX += dx
         this.panY += dy
         this.clamp()
-        this.apply()
+        // apply() is called explicitly by the render loop each frame
       }
     },
 
     apply(): void {
-      cameraContainer.x = this.panX
-      cameraContainer.y = this.panY
       cameraContainer.scale.set(this.zoom)
+      if (_shakeFrames > 0) {
+        const decay = _shakeFrames / _shakePeakFrames
+        const ox = (Math.random() - 0.5) * 2 * _shakeIntensity * decay
+        const oy = (Math.random() - 0.5) * 2 * _shakeIntensity * decay
+        cameraContainer.x = this.panX + ox
+        cameraContainer.y = this.panY + oy
+        _shakeFrames--
+      } else {
+        cameraContainer.x = this.panX
+        cameraContainer.y = this.panY
+      }
     },
 
     screenToTile(screenX: number, screenY: number): { x: number; y: number } {

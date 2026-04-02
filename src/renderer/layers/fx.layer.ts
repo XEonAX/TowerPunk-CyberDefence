@@ -11,6 +11,7 @@ import type { World } from '@game/ecs/world'
 import * as C from '@game/ecs/component'
 import { TILE_SIZE } from '../camera'
 import { TICK_RATE } from '@game/constants'
+import { Graphics } from 'pixi.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,6 +54,59 @@ const decayFlushTimer = new Int16Array(MAX_ENTITIES)
 const textPool: Text[] = []
 /** Active damage numbers */
 const activeDamageNumbers: DamageNumber[] = []
+
+// ---------------------------------------------------------------------------
+// Particle burst — spawned on enemy death
+// ---------------------------------------------------------------------------
+
+interface Particle {
+  g: Graphics
+  x: number
+  y: number
+  vx: number
+  vy: number
+  frame: number
+  maxFrames: number
+}
+
+/** Colour per enemy type for the death particle burst. */
+const ENEMY_DEATH_COLORS: Record<number, number> = {
+  [C.EnemyType.DATA_LEECH]:        0x00ff88,
+  [C.EnemyType.CODE_RUNNER]:       0xffdd44,
+  [C.EnemyType.FIREWALL_BREACHER]: 0xff8800,
+  [C.EnemyType.GLITCH]:            0xff00ff,
+  [C.EnemyType.ORCHESTRATOR]:      0xff0044,
+  [C.EnemyType.VDB_NETRUNNER]:     0x00ccff,
+  [C.EnemyType.SABOTEUR]:          0xaaff00,
+  [C.EnemyType.AI_OVERLORD]:       0xff4400,
+}
+
+const particlePool: Graphics[] = []
+const activeParticles: Particle[] = []
+
+function spawnParticleBurst(container: Container, x: number, y: number, color: number, count: number): void {
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5
+    const speed = 0.7 + Math.random() * 1.6
+    const g = particlePool.pop() ?? new Graphics()
+    g.clear()
+    g.setFillStyle({ color, alpha: 0.9 })
+    g.circle(0, 0, 1.4 + Math.random() * 0.8)
+    g.fill()
+    g.visible = true
+    g.alpha = 1
+    g.x = x
+    g.y = y
+    container.addChild(g)
+    activeParticles.push({
+      g, x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      frame: 0,
+      maxFrames: 16 + Math.floor(Math.random() * 10),
+    })
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Pool helpers
@@ -147,6 +201,12 @@ export function updateFxLayer(container: Container, world: World, _alpha: number
         spawnDamageNumber(container, eid, damageAccum[eid], world)
         damageAccum[eid] = 0
       }
+      // Particle burst
+      const px = world.tilePosX[eid] * TILE_SIZE + TILE_SIZE * 0.5
+      const py = world.tilePosY[eid] * TILE_SIZE + TILE_SIZE * 0.5
+      const color = ENEMY_DEATH_COLORS[world.enemyType[eid]] ?? 0xff4444
+      const isBoss = world.enemyType[eid] === C.EnemyType.AI_OVERLORD || world.enemyType[eid] === C.EnemyType.ORCHESTRATOR
+      spawnParticleBurst(container, px, py, color, isBoss ? 14 : 8)
       damageFlushTimer[eid] = 0
       lastEnemyHp[eid] = 0
       continue
@@ -254,6 +314,26 @@ export function updateFxLayer(container: Container, world: World, _alpha: number
       activeDamageNumbers.splice(i, 1)
     }
   }
+
+  // --- 4. Advance & render particles ---
+  for (let i = activeParticles.length - 1; i >= 0; i--) {
+    const p = activeParticles[i]
+    p.frame++
+    p.x += p.vx
+    p.y += p.vy
+    p.vy += 0.06   // slight downward gravity
+    p.vx *= 0.90   // drag
+    p.vy *= 0.90
+    p.g.x = p.x
+    p.g.y = p.y
+    p.g.alpha = (1 - p.frame / p.maxFrames) * 0.9
+    if (p.frame >= p.maxFrames) {
+      container.removeChild(p.g)
+      p.g.visible = false
+      particlePool.push(p.g)
+      activeParticles.splice(i, 1)
+    }
+  }
 }
 
 /**
@@ -270,5 +350,11 @@ export function resetFxLayer(container: Container): void {
   lastPickupValue.fill(0)
   decayAccum.fill(0)
   decayFlushTimer.fill(0)
+  for (const p of activeParticles) {
+    container.removeChild(p.g)
+    p.g.visible = false
+    particlePool.push(p.g)
+  }
+  activeParticles.length = 0
 }
 

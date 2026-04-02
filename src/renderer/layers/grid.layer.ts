@@ -23,8 +23,10 @@ const CORE_ALPHA = 0.6
 /**
  * Draw the 51×51 grid, Core tile highlight, and Blackwall boundary.
  * Call once during initialization. The entire layer moves with the camera.
+ * Returns an update function that should be called each render frame to
+ * animate the pulsing Blackwall boundary.
  */
-export function createGridLayer(container: Container): void {
+export function createGridLayer(container: Container): () => void {
   const gfx = new Graphics()
 
   const totalSize = GRID_SIZE * TILE_SIZE
@@ -60,16 +62,22 @@ export function createGridLayer(container: Container): void {
   gfx.rect(coreX, coreY, TILE_SIZE, TILE_SIZE)
   gfx.stroke()
 
-  // --- Blackwall boundary (red lines) ---
-  // Outer border
-  gfx.setStrokeStyle({ width: 2, color: BLACKWALL_COLOR, alpha: BLACKWALL_ALPHA })
-  gfx.rect(0, 0, totalSize, totalSize)
-  gfx.stroke()
-
-  // Inner boundary accent
-  gfx.setStrokeStyle({ width: 1, color: BLACKWALL_COLOR, alpha: BLACKWALL_ALPHA * 0.5 })
-  gfx.rect(TILE_SIZE, TILE_SIZE, totalSize - 2 * TILE_SIZE, totalSize - 2 * TILE_SIZE)
-  gfx.stroke()
-
   container.addChild(gfx)
+
+  // --- Animated Blackwall boundary — separate Graphics updated each frame ---
+  const pulseGfx = new Graphics()
+  container.addChild(pulseGfx)
+
+  return (): void => {
+    const time = performance.now() / 1000
+    const outer = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(time * 1.4))
+    const inner = 0.12 + 0.18 * (0.5 + 0.5 * Math.sin(time * 2.9 + 1.1))
+    pulseGfx.clear()
+    pulseGfx.setStrokeStyle({ width: 2, color: BLACKWALL_COLOR, alpha: outer })
+    pulseGfx.rect(0, 0, totalSize, totalSize)
+    pulseGfx.stroke()
+    pulseGfx.setStrokeStyle({ width: 1, color: BLACKWALL_COLOR, alpha: inner })
+    pulseGfx.rect(TILE_SIZE, TILE_SIZE, totalSize - 2 * TILE_SIZE, totalSize - 2 * TILE_SIZE)
+    pulseGfx.stroke()
+  }
 }

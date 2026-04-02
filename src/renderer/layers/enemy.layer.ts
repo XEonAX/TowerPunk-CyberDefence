@@ -16,7 +16,8 @@ import type { World } from '@game/ecs/world'
 import * as C from '@game/ecs/component'
 import { computeEnemyMotion } from '../enemyMotion'
 import { getEnemyTexture } from '../enemyTextures'
-import { TILE_SIZE } from '../camera'
+import { TILE_SIZE, shakeCamera } from '../camera'
+import { GlitchFilter } from '../filters/GlitchFilter'
 
 const MAX_ENTITIES = 4096
 
@@ -46,6 +47,8 @@ function release(sprite: Sprite): void {
   sprite.tint = 0xffffff
   sprite.rotation = 0
   sprite.scale.set(1, 1)
+  sprite.alpha = 1
+  sprite.filters = null
   pool.push(sprite)
 }
 
@@ -62,6 +65,55 @@ const glitchState = new Map<number, GlitchState>()
 
 /** ORCHESTRATOR & VDB_NETRUNNER — accumulated spin angle in radians. */
 const spinAngle = new Map<number, number>()
+
+// ---------------------------------------------------------------------------
+// Hit flash & status overlay state
+// ---------------------------------------------------------------------------
+
+/** Last HP value per entity used to detect damage for the hit-flash effect. */
+const hitFlashLastHp = new Float32Array(MAX_ENTITIES)
+/** Countdown frames remaining for the white hit-flash overlay (max 3). */
+const hitFlashFrames = new Int8Array(MAX_ENTITIES)
+/** Countdown frames remaining for the yellow stun-application flash (max 4). */
+const stunFlashFrames = new Int8Array(MAX_ENTITIES)
+/** Whether the entity was stunned last frame — detects new stun application. */
+const lastWasStunned = new Uint8Array(MAX_ENTITIES)
+
+
+// ---------------------------------------------------------------------------
+// Death dissolve animation
+// ---------------------------------------------------------------------------
+
+interface DeathAnim {
+  sprite: Sprite
+  x: number
+  y: number
+  baseScaleX: number
+  baseScaleY: number
+  frame: number
+  maxFrames: number
+  driftX: number
+  driftY: number
+}
+
+/** Active death dissolve animations (sprites no longer in the `active` map). */
+const activeDeathAnims: DeathAnim[] = []
+
+// ---------------------------------------------------------------------------
+// GlitchFilter pool — applied to GLITCH-type enemy sprites
+// ---------------------------------------------------------------------------
+
+const glitchFilterPool: GlitchFilter[] = []
+const activeGlitchFilters = new Map<number, GlitchFilter>()
+
+function acquireGlitchFilter(): GlitchFilter {
+  return glitchFilterPool.pop() ?? new GlitchFilter()
+}
+
+function releaseGlitchFilter(f: GlitchFilter): void {
+  f.intensity = 0
+  glitchFilterPool.push(f)
+}
 
 // ---------------------------------------------------------------------------
 // Tick-lagged interpolation state
@@ -116,12 +168,45 @@ export function updateEnemyLayer(container: Container, world: World, alpha: numb
   for (const [eid, sprite] of active) {
     const mask = world.bitmask[eid]
     if (!(mask & C.ENEMY) || (mask & C.PENDING_REMOVAL)) {
-      container.removeChild(sprite)
-      release(sprite)
+      // Release GlitchFilter back to pool
+      const gf = activeGlitchFilters.get(eid)
+      if (gf) {
+        releaseGlitchFilter(gf)
+        activeGlitchFilters.delete(eid)
+      }
+
+      if (mask & C.PENDING_REMOVAL) {
+        // Death dissolve — keep sprite alive briefly; transition it to the death anim pool.
+        // Clear filter before death anim (avoid rendering it during dissolve).
+        sprite.filters = null
+        activeDeathAnims.push({
+          sprite,
+          x: sprite.x,
+          y: sprite.y,
+          baseScaleX: Math.abs(sprite.scale.x),
+          baseScaleY: Math.abs(sprite.scale.y),
+          frame: 0,
+          maxFrames: 10,
+          driftX: (Math.random() - 0.5) * 4,
+          driftY: (Math.random() - 0.5) * 4,
+        })
+        // Screen shake for boss deaths
+        const etype = world.enemyType[eid] as C.EnemyType
+        if (etype === C.EnemyType.AI_OVERLORD) shakeCamera(7, 22)
+        else if (etype === C.EnemyType.ORCHESTRATOR) shakeCamera(4, 14)
+      } else {
+        container.removeChild(sprite)
+        release(sprite)
+      }
+
       toRelease.push(eid)
       lastHFlip.delete(eid)
       glitchState.delete(eid)
       spinAngle.delete(eid)
+      hitFlashFrames[eid] = 0
+      stunFlashFrames[eid] = 0
+      lastWasStunned[eid] = 0
+      hitFlashLastHp[eid] = 0
     }
   }
   for (const eid of toRelease) active.delete(eid)
@@ -160,7 +245,6 @@ export function updateEnemyLayer(container: Container, world: World, alpha: numb
       // Reassign texture in case pool reuse gave us a sprite from a different type
       sprite.texture = getEnemyTexture(enemyType)
     }
-
     const isBoss = enemyType === C.EnemyType.AI_OVERLORD
     const desiredSize = isBoss ? TILE_SIZE * 1.2 : TILE_SIZE * 0.7
     const tex = sprite.texture
@@ -216,6 +300,15 @@ export function updateEnemyLayer(container: Container, world: World, alpha: numb
         sprite.rotation  = gs.rot
         sprite.scale.x   = baseScaleX * gs.sx
         sprite.scale.y   = baseScaleY * gs.sy
+        // GlitchFilter — assign lazily, update time + intensity each frame
+        if (!activeGlitchFilters.has(eid)) {
+          const gf = acquireGlitchFilter()
+          sprite.filters = [gf]
+          activeGlitchFilters.set(eid, gf)
+        }
+        const gf = activeGlitchFilters.get(eid)!
+        gf.time = performance.now() / 1000
+        gf.intensity = gs.tintFrames > 0 ? 0.65 : 0.18  // spike on flicker
         break
       }
 
@@ -241,6 +334,65 @@ export function updateEnemyLayer(container: Container, world: World, alpha: numb
     // Interpolate position between the previous tick's snapshot and this tick's result.
     sprite.x = prevRenderX[eid] + (motion.renderX - prevRenderX[eid]) * alpha
     sprite.y = prevRenderY[eid] + (motion.renderY - prevRenderY[eid]) * alpha
+
+    // ---- Hit flash detection (HP drop → brief white overlay) ----
+    if (!(mask & C.SPAWN_IMMUNITY)) {
+      const curHp = world.healthCurrent[eid]
+      const prevHp = hitFlashLastHp[eid]
+      if (prevHp === 0) {
+        hitFlashLastHp[eid] = curHp
+      } else if (curHp < prevHp) {
+        hitFlashFrames[eid] = 3
+        hitFlashLastHp[eid] = curHp
+      } else {
+        hitFlashLastHp[eid] = curHp
+      }
+    }
+    if (hitFlashFrames[eid] > 0) hitFlashFrames[eid]--
+
+    // ---- Stun flash detection (new stun application → brief yellow tint) ----
+    const isStunned = (mask & C.STUN) ? 1 : 0
+    if (isStunned && !lastWasStunned[eid]) stunFlashFrames[eid] = 4
+    lastWasStunned[eid] = isStunned
+    if (stunFlashFrames[eid] > 0) stunFlashFrames[eid]--
+
+    // ---- Status tint — applied directly to sprite so only visible pixels are affected ----
+    // Priority: hit flash > stun flash > slow.
+    // PixiJS tint is a multiply, so transparent pixels remain transparent — no box artifact.
+    if (hitFlashFrames[eid] > 0) {
+      // Red-white flash: 0xff8888 at peak → 0xffd3d3 at tail
+      const t = hitFlashFrames[eid] / 3
+      const gb = Math.round(0x88 + 0x77 * (1 - t))
+      sprite.tint = (0xff << 16) | (gb << 8) | gb
+    } else if (stunFlashFrames[eid] > 0) {
+      // Yellow flash: 0xffee44 at peak → near-white at tail
+      const t = stunFlashFrames[eid] / 4
+      const b = Math.round(0x44 + 0xbb * (1 - t))
+      sprite.tint = (0xff << 16) | (0xee << 8) | b
+    } else if (mask & C.SLOW) {
+      // Persistent cold-blue tint for slowed enemies
+      sprite.tint = 0x88bbff
+    }
+    // Note: GLITCH sets its own tint inside the per-type switch above;
+    // status effects override it intentionally when active.
+  }
+
+  // ---- Death dissolve animation ----
+  for (let i = activeDeathAnims.length - 1; i >= 0; i--) {
+    const da = activeDeathAnims[i]
+    da.frame++
+    const t = da.frame / da.maxFrames
+    da.sprite.x = da.x + da.driftX * t
+    da.sprite.y = da.y + da.driftY * t
+    da.sprite.scale.set(da.baseScaleX * (1 - t * 0.75), da.baseScaleY * (1 - t * 0.75))
+    da.sprite.alpha = 1 - t
+    // Brief white flash on first 2 frames
+    da.sprite.tint = da.frame <= 2 ? 0xffffff : 0xaaaaaa
+    if (da.frame >= da.maxFrames) {
+      container.removeChild(da.sprite)
+      release(da.sprite)
+      activeDeathAnims.splice(i, 1)
+    }
   }
 
   // HP bars — drawn as a single shared Graphics pass on top of all sprites
@@ -290,4 +442,11 @@ export function _clearEnemyPool(): void {
   spinAngle.clear()
   prevRenderX.fill(0)
   prevRenderY.fill(0)
+  hitFlashFrames.fill(0)
+  hitFlashLastHp.fill(0)
+  stunFlashFrames.fill(0)
+  lastWasStunned.fill(0)
+  activeDeathAnims.length = 0
+  activeGlitchFilters.clear()
+  glitchFilterPool.length = 0
 }

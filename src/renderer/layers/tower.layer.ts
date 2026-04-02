@@ -9,7 +9,7 @@ import { Graphics, Container, Sprite } from 'pixi.js'
 import { getTowerTexture, getGatewayTexture } from '../towerTextures'
 import type { World } from '@game/ecs/world'
 import * as C from '@game/ecs/component'
-import { TILE_SIZE } from '../camera'
+import { TILE_SIZE, shakeCamera } from '../camera'
 import {
   DATA_SPIKE_RANGE,
   DAEMON_TURRET_RANGE,
@@ -88,6 +88,34 @@ let projectileGfx: Graphics | null = null
 /** Dedicated Graphics for drawing Data Spike cone wave FX (§5.3.2). */
 let coneFxGfx: Graphics | null = null
 
+// ---------------------------------------------------------------------------
+// Muzzle flash, impact flare, Core glow, Gateway pulse
+// ---------------------------------------------------------------------------
+
+interface Flash { x: number; y: number; frames: number; color: number }
+
+/** Short muzzle-flash at the tower origin when a projectile/cone_fx fires. */
+const muzzleFlashes: Flash[] = []
+/** Short impact flare at the projectile target when the beam expires. */
+const impactFlashes: Flash[] = []
+
+/** IDs visible last frame — used to detect newly-fired projectiles. */
+const prevProjectileEids = new Set<number>()
+const prevConeFxEids = new Set<number>()
+/** Cache target & color while a projectile lives so we can draw the impact flare on expiry. */
+const projTargetCache = new Map<number, { toX: number; toY: number; color: number }>()
+
+/** Dedicated Graphics for muzzle/impact flashes. */
+let flashGfx: Graphics | null = null
+
+/** Pulsing beacon glow around the Core tile. */
+let coreGlowGfx: Graphics | null = null
+/** Last observed Core HP — used to trigger screen shake on damage. */
+let lastCoreHp = -1
+
+/** Expanding ring pulses radiating from active Blackwall Gateways. */
+let gatewayPulseGfx: Graphics | null = null
+
 /**
  * Return the attack range in tiles for a tower, or null if it has no range.
  * ICE_SNIPER returns [min, max] as a tuple.
@@ -129,6 +157,7 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
   for (const [eid, sprite] of activeGateways) {
     const mask = world.bitmask[eid]
     if (!(mask & C.GATEWAY) || (mask & C.PENDING_REMOVAL)) {
+      if (mask & C.PENDING_REMOVAL) shakeCamera(5, 15)  // gateway destroyed
       container.removeChild(sprite)
       sprite.destroy()
       toReleaseGw.push(eid)
@@ -270,6 +299,29 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     sprite.y = world.gatewayY[eid] * TILE_SIZE
   }
 
+  // Gateway pulse rings — radiating outward from each active gateway
+  if (!gatewayPulseGfx) {
+    gatewayPulseGfx = new Graphics()
+    container.addChild(gatewayPulseGfx)
+  }
+  gatewayPulseGfx.clear()
+  const gtime = performance.now() / 1000
+  for (let i = 0; i < world.activeGatewayCount; i++) {
+    const gwEid = world.activeGateways[i]
+    if (world.bitmask[gwEid] & C.PENDING_REMOVAL) continue
+    const gwCx = (world.gatewayX[gwEid] + 0.5) * TILE_SIZE
+    const gwCy = (world.gatewayY[gwEid] + 0.5) * TILE_SIZE
+    // Two rings offset by half-period for a shimmer effect
+    for (let r = 0; r < 2; r++) {
+      const t = (gtime * 0.85 + i * 0.33 + r * 0.5) % 1
+      const radius = t * TILE_SIZE * 2.4
+      const ringAlpha = (1 - t) * 0.45
+      gatewayPulseGfx.setStrokeStyle({ width: 1.5, color: 0xff2244, alpha: ringAlpha })
+      gatewayPulseGfx.circle(gwCx, gwCy, radius)
+      gatewayPulseGfx.stroke()
+    }
+  }
+
   // Render Core (§3) — not a tower, uses C.POSITION | C.HEALTH
   const ceid = world.coreEid
   if (ceid > 0) {
@@ -294,6 +346,31 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
 
     coreGfx.x = world.posX[ceid] * TILE_SIZE
     coreGfx.y = world.posY[ceid] * TILE_SIZE
+
+    // --- Core HP shake trigger ---
+    const coreHpNow = world.healthCurrent[ceid]
+    if (lastCoreHp >= 0 && coreHpNow < lastCoreHp) {
+      shakeCamera(Math.min(7, 2 + (lastCoreHp - coreHpNow) * 0.15), 18)
+    }
+    lastCoreHp = coreHpNow
+
+    // --- Core beacon glow (pulsing rings) ---
+    if (!coreGlowGfx) {
+      coreGlowGfx = new Graphics()
+      container.addChild(coreGlowGfx)
+    }
+    const ct = performance.now() / 1000
+    const pulse1 = 0.5 + 0.5 * Math.sin(ct * 2.2)
+    const pulse2 = 0.5 + 0.5 * Math.sin(ct * 4.6 + Math.PI * 0.7)
+    const glowCx = (world.posX[ceid] + 0.5) * TILE_SIZE
+    const glowCy = (world.posY[ceid] + 0.5) * TILE_SIZE
+    coreGlowGfx.clear()
+    coreGlowGfx.setStrokeStyle({ width: 1.5, color: coreColor, alpha: pulse1 * 0.50 })
+    coreGlowGfx.circle(glowCx, glowCy, TILE_SIZE * (1.1 + pulse1 * 0.35))
+    coreGlowGfx.stroke()
+    coreGlowGfx.setStrokeStyle({ width: 1, color: 0x00ccff, alpha: pulse2 * 0.35 })
+    coreGlowGfx.circle(glowCx, glowCy, TILE_SIZE * (0.7 + pulse2 * 0.20))
+    coreGlowGfx.stroke()
   }
 
   // Draw Data Spike cone FX (§5.3.2)
@@ -359,6 +436,42 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     }
   }
 
+  // ---- Detect new PROJECTILE / CONE_FX entities → muzzle flash; expired → impact flare ----
+  const curProjEids = new Set<number>()
+  const curConeFxEids = new Set<number>()
+  for (let eid = 1; eid < MAX_ENTITIES; eid++) {
+    const m = world.bitmask[eid]
+    if (m & C.PROJECTILE) {
+      curProjEids.add(eid)
+      if (!prevProjectileEids.has(eid)) {
+        // Newly spawned — muzzle flash at origin
+        const color = TOWER_COLORS[world.projTowerType[eid]] ?? 0xffffff
+        muzzleFlashes.push({ x: world.projFromX[eid], y: world.projFromY[eid], frames: 3, color })
+        projTargetCache.set(eid, { toX: world.projToX[eid], toY: world.projToY[eid], color })
+      }
+    }
+    if (m & C.CONE_FX) {
+      curConeFxEids.add(eid)
+      if (!prevConeFxEids.has(eid)) {
+        const color = TOWER_COLORS[world.projTowerType[eid]] ?? 0xffffff
+        muzzleFlashes.push({ x: world.projFromX[eid], y: world.projFromY[eid], frames: 3, color })
+      }
+    }
+  }
+  for (const eid of prevProjectileEids) {
+    if (!curProjEids.has(eid)) {
+      const cached = projTargetCache.get(eid)
+      if (cached) {
+        impactFlashes.push({ x: cached.toX, y: cached.toY, frames: 4, color: cached.color })
+        projTargetCache.delete(eid)
+      }
+    }
+  }
+  prevProjectileEids.clear()
+  curProjEids.forEach(id => prevProjectileEids.add(id))
+  prevConeFxEids.clear()
+  curConeFxEids.forEach(id => prevConeFxEids.add(id))
+
   // Draw shot beams for ECS PROJECTILE entities (§5.4.2 Daemon Turret, §5.5.2 ICE Sniper)
   if (!projectileGfx) {
     projectileGfx = new Graphics()
@@ -390,6 +503,41 @@ export function updateTowerLayer(container: Container, world: World, alpha: numb
     projectileGfx.setFillStyle({ color, alpha: beamAlpha })
     projectileGfx.circle(toPx, toPy, 3)
     projectileGfx.fill()
+  }
+
+  // ---- Muzzle flashes and impact flares ----
+  if (!flashGfx) {
+    flashGfx = new Graphics()
+    container.addChild(flashGfx)
+  }
+  flashGfx.clear()
+  for (let i = muzzleFlashes.length - 1; i >= 0; i--) {
+    const fl = muzzleFlashes[i]
+    const a = fl.frames / 3
+    const px = (fl.x + 0.5) * TILE_SIZE
+    const py = (fl.y + 0.5) * TILE_SIZE
+    flashGfx.setFillStyle({ color: fl.color, alpha: a * 0.45 })
+    flashGfx.circle(px, py, 5.5)
+    flashGfx.fill()
+    flashGfx.setFillStyle({ color: 0xffffff, alpha: a })
+    flashGfx.circle(px, py, 2.5)
+    flashGfx.fill()
+    fl.frames--
+    if (fl.frames <= 0) muzzleFlashes.splice(i, 1)
+  }
+  for (let i = impactFlashes.length - 1; i >= 0; i--) {
+    const fl = impactFlashes[i]
+    const a = fl.frames / 4
+    const px = (fl.x + 0.5) * TILE_SIZE
+    const py = (fl.y + 0.5) * TILE_SIZE
+    flashGfx.setFillStyle({ color: fl.color, alpha: a * 0.55 })
+    flashGfx.circle(px, py, 6)
+    flashGfx.fill()
+    flashGfx.setFillStyle({ color: 0xffffff, alpha: a * 0.85 })
+    flashGfx.circle(px, py, 2.5)
+    flashGfx.fill()
+    fl.frames--
+    if (fl.frames <= 0) impactFlashes.splice(i, 1)
   }
 
   // Range circle overlay for selected tower
@@ -478,4 +626,13 @@ export function _clearTowerPool(): void {
   rangeGfx = null
   projectileGfx = null
   coneFxGfx = null
+  flashGfx = null
+  coreGlowGfx = null
+  gatewayPulseGfx = null
+  muzzleFlashes.length = 0
+  impactFlashes.length = 0
+  prevProjectileEids.clear()
+  prevConeFxEids.clear()
+  projTargetCache.clear()
+  lastCoreHp = -1
 }

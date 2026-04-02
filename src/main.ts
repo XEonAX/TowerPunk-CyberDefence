@@ -15,7 +15,7 @@ import { updatePickupLayer } from './renderer/layers/pickup.layer'
 import { updateGhostLayer } from './renderer/layers/ghost.layer'
 import { updateSelectionLayer } from './renderer/layers/selection.layer'
 import { updateFxLayer } from './renderer/layers/fx.layer'
-import { createCamera } from './renderer/camera'
+import { createCamera, setShakeEnabled } from './renderer/camera'
 import { createSimulation } from './game/simulation'
 import { startGameLoop } from './game/gameLoop'
 import { useGameStore } from './ui/stores/game.store'
@@ -39,7 +39,7 @@ if (container) {
     createPlexusLayer(layers.plexus, pixiApp, () => uiStore.gameSpeed)
 
     // Initialize grid layer
-    createGridLayer(layers.grid)
+    const updateGrid = createGridLayer(layers.grid)
 
     // Initialize camera
     const cameraContainer = getCameraContainer()
@@ -191,6 +191,8 @@ if (container) {
       },
       draw(alpha: number): void {
         camera.applyKeyPan(keysDown)
+        camera.apply()  // apply camera transform (includes screen shake)
+        setShakeEnabled(uiStore.gameSpeed < 8)  // suppress shake at high speeds
         // Sync simulation state to Vue stores (Tech.md §8)
         const world = simulation.getWorld()
         gameStore.syncFromWorld(world)
@@ -205,6 +207,7 @@ if (container) {
           gameStore.syncInspectedGateway(world, null)
         }
         // Update render layers
+        updateGrid()
         updateTowerLayer(layers.towers, world, alpha, uiStore.selectedTowerEid)
         updateEnemyLayer(layers.enemies, world, alpha)
         updatePickupLayer(layers.pickups, world, alpha)

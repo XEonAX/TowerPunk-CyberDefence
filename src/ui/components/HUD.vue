@@ -1,8 +1,8 @@
 <template>
   <div class="hud game-panel">
     <div class="hud-resources">
-      <span class="resource eddies">€$ <span class="res-num">{{ gameStore.eddies }}</span></span>
-      <span class="resource components">🔋 <span class="res-num">{{ gameStore.components }}</span></span>
+      <span class="resource eddies">€$ <span class="res-num" :class="{ 'res-pop': eddyPopping }">{{ gameStore.eddies }}</span></span>
+      <span class="resource components">🔋 <span class="res-num" :class="{ 'res-pop': componentPopping }">{{ gameStore.components }}</span></span>
     </div>
     <div class="hud-core">
       <div class="core-label">CORE</div>
@@ -27,11 +27,33 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import { useGameStore } from '../stores/game.store'
 import { useUiStore } from '../stores/ui.store'
 
 const gameStore = useGameStore()
 const uiStore = useUiStore()
+
+// ---- Resource counter pop ----
+const eddyPopping = ref(false)
+const componentPopping = ref(false)
+
+watch(() => gameStore.eddies, (n, o) => {
+  if (n > o) {
+    eddyPopping.value = false
+    requestAnimationFrame(() => { eddyPopping.value = true })
+    setTimeout(() => { eddyPopping.value = false }, 320)
+  }
+})
+
+watch(() => gameStore.components, (n, o) => {
+  if (n > o) {
+    componentPopping.value = false
+    requestAnimationFrame(() => { componentPopping.value = true })
+    setTimeout(() => { componentPopping.value = false }, 320)
+  }
+})
+
 </script>
 
 <style scoped>
@@ -104,4 +126,13 @@ const uiStore = useUiStore()
   text-align: center;
   font-family: monospace;
 }
+
+/* Resource counter pop — fires when eddies or components increase */
+@keyframes res-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.45); filter: brightness(1.8); }
+  100% { transform: scale(1); }
+}
+.res-pop { animation: res-pop 0.32s ease-out; }
+
 </style>
