@@ -1,35 +1,37 @@
 <template>
   <div id="app-root">
-    <!-- Loading screen — plays the intro sequence before the landing page -->
+    <!-- Loading screen — plays the intro sequence + landing (plexus + PRESS TO START) -->
     <Transition name="loading-fade">
-      <LoadingScreen v-if="showLoading" @done="onLoadingDone" />
+      <LoadingScreen v-if="bootPhase === 'loading'" @done="onLoadingDone" />
     </Transition>
 
-    <!-- Landing page overlay — shown after the loading sequence -->
-    <Transition name="landing-fade">
-      <LandingPage v-if="showLanding" @start="onStart" />
+    <!-- Main menu — shown after the loading sequence -->
+    <Transition name="menu-fade">
+      <MainMenu v-if="bootPhase === 'menu'" @newGame="onNewGame" @continue="onContinue" />
     </Transition>
 
     <div id="pixi-container"></div>
     <!-- Black backdrop: hides the game canvas until the player starts the game -->
     <Transition name="backdrop-fade">
-      <div v-if="showLoading || showLanding" class="game-backdrop" />
+      <div v-if="bootPhase !== 'game'" class="game-backdrop" />
     </Transition>
-    <HUD />
-    <TowerPanel @command="handleCommand" />
-    <AbilityBar @command="handleCommand" />
-    <InspectPanel />
-    <MultiSelectPanel @command="handleCommand" />
-    <SelectionBox />
-    <WaveTimer />
-    <GameResult @restart="handleRestart" />
+    <template v-if="bootPhase === 'game'">
+      <HUD />
+      <TowerPanel @command="handleCommand" />
+      <AbilityBar @command="handleCommand" />
+      <InspectPanel />
+      <MultiSelectPanel @command="handleCommand" />
+      <SelectionBox />
+      <WaveTimer />
+      <GameResult @restart="handleRestart" />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import LoadingScreen from './components/LoadingScreen.vue'
-import LandingPage from './components/LandingPage.vue'
+import MainMenu from './components/MainMenu.vue'
 import HUD from './components/HUD.vue'
 import TowerPanel from './components/TowerPanel.vue'
 import AbilityBar from './components/AbilityBar.vue'
@@ -45,19 +47,20 @@ import { CommandType } from '@game/ecs/world'
 const gameStore = useGameStore()
 const uiStore = useUiStore()
 
-// ── Boot sequence: Loading → Landing → Game ────────────────────────────────
-// showLoading starts true; when the intro sequence finishes it becomes false
-// and showLanding becomes true, revealing the start menu.
-const showLoading = ref(true)
-const showLanding = ref(false)
+// ── Boot sequence: Loading → Menu → Game ─────────────────────────────────
+type BootPhase = 'loading' | 'menu' | 'game'
+const bootPhase = ref<BootPhase>('loading')
 
 function onLoadingDone(): void {
-  showLoading.value = false
-  showLanding.value = true
+  bootPhase.value = 'menu'
 }
 
-function onStart(): void {
-  showLanding.value = false
+function onNewGame(): void {
+  bootPhase.value = 'game'
+}
+
+function onContinue(): void {
+  bootPhase.value = 'game'
 }
 
 function handleCommand(cmd: object): void {
@@ -128,17 +131,14 @@ function onKeyDown(e: KeyboardEvent): void {
       }
       break
 
-    // Enter / Space  →  dismiss landing, start wave, or skip break
+    // Enter / Space → start wave or skip break (never auto-starts game from menu)
     case 'Enter':
     case ' ':
       e.preventDefault()
-      if (showLanding.value) {
-        onStart()
-      }
       if (gameStore.isPreGame) {
-        handleCommand({ type: CommandType.START_WAVE }) // start wave
+        handleCommand({ type: CommandType.START_WAVE })
       } else if (gameStore.isWaveBreak) {
-        handleCommand({ type: CommandType.SKIP_BREAK }) // skip break
+        handleCommand({ type: CommandType.SKIP_BREAK })
       }
       break
 
@@ -196,13 +196,17 @@ body {
   opacity: 0;
 }
 
-/* ── Landing page transition ────────────────────────────────────────── */
-/* No enter transition — the loading screen glitches in the title logo,
-   so the landing page appears instantly beneath the fading loading canvas. */
-.landing-fade-leave-active {
-  transition: opacity 0.8s ease;
+/* ── Main menu transition ────────────────────────────────────────────────── */
+.menu-fade-enter-active {
+  transition: opacity 0.5s ease;
 }
-.landing-fade-leave-to {
+.menu-fade-enter-from {
+  opacity: 0;
+}
+.menu-fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+.menu-fade-leave-to {
   opacity: 0;
 }
 
