@@ -16,7 +16,7 @@ const CORE_Y = 25
 const GRID_LINE_COLOR = 0x0044aa   // Blue dotted lines — §2.2
 const GRID_LINE_ALPHA = 0.35
 const BLACKWALL_COLOR = 0xcc0022   // Red dotted lines — §2.5
-const BLACKWALL_ALPHA = 0.8
+
 const CORE_COLOR = 0x0088ff        // Blue Core highlight — §3.1
 const CORE_ALPHA = 0.6
 
