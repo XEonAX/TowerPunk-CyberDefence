@@ -5,7 +5,7 @@
       <span class="resource components">🔋 <span class="res-num" :class="{ 'res-pop': componentPopping }">{{ gameStore.components }}</span></span>
     </div>
     <div class="hud-core">
-      <div class="core-label">CORE</div>
+      <div class="core-label">CORE Health</div>
       <div class="core-hp-bar">
         <div class="core-hp-fill" :style="{ width: (gameStore.coreHpPercent * 100) + '%' }"></div>
       </div>
@@ -23,7 +23,13 @@
       <span class="sp-value">{{ uiStore.gameSpeed }}×</span>
       <button class="sp-arrow" @click="uiStore.increaseSpeed()" :disabled="uiStore.gameSpeed >= 16">▶</button>
     </div>
+    <button class="hud-codex-btn" @click="showCodex = true" aria-label="Open Codex">CODEX</button>
   </div>
+
+  <!-- Codex overlay -->
+  <Transition name="codex-fade">
+    <Codex v-if="showCodex" @close="showCodex = false" />
+  </Transition>
 
   <!-- Breach alarm overlay -->
   <Transition name="alarm">
@@ -38,6 +44,9 @@
 import { ref, watch } from 'vue'
 import { useGameStore } from '../stores/game.store'
 import { useUiStore } from '../stores/ui.store'
+import Codex from './Codex.vue'
+
+const showCodex = ref(false)
 
 const gameStore = useGameStore()
 const uiStore = useUiStore()
@@ -160,6 +169,34 @@ watch(() => gameStore.activeGatewayCount, (n, o) => {
   100% { transform: scale(1); }
 }
 .res-pop { animation: res-pop 0.32s ease-out; }
+
+/* Codex button */
+.hud-codex-btn {
+  pointer-events: all;
+  background: none;
+  border: 1px solid rgba(0, 68, 170, 0.5);
+  color: rgba(0, 204, 255, 0.5);
+  font-family: monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  padding: 3px 9px;
+  cursor: pointer;
+  text-transform: uppercase;
+  border-radius: 1px;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.hud-codex-btn:hover {
+  color: #00ccff;
+  border-color: #00ccff;
+  background: rgba(0, 68, 170, 0.15);
+}
+
+/* Codex fade transition */
+.codex-fade-enter-active,
+.codex-fade-leave-active { transition: opacity 0.2s ease; }
+.codex-fade-enter-from,
+.codex-fade-leave-to    { opacity: 0; }
 
 /* Breach alarm overlay */
 .wave-alarm {

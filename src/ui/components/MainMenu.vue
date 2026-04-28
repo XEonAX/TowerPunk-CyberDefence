@@ -53,6 +53,17 @@
             OPTIONS
             <span class="mm-item__bracket" aria-hidden="true">]</span>
           </button>
+
+          <button
+            class="mm-item"
+            :class="{ 'mm-item--active': focusedIndex === 3 }"
+            @click="onCodex"
+            @mouseenter="focusedIndex = 3; audio.hover()"
+          >
+            <span class="mm-item__bracket" aria-hidden="true">[</span>
+            CODEX
+            <span class="mm-item__bracket" aria-hidden="true">]</span>
+          </button>
         </nav>
 
         <div class="mm-footer">
@@ -66,12 +77,18 @@
   <Transition name="options-fade">
     <OptionsPanel v-if="showOptions" @close="showOptions = false; audio.click()" />
   </Transition>
+
+  <!-- Codex overlay -->
+  <Transition name="options-fade">
+    <Codex v-if="showCodex" @close="showCodex = false; audio.click()" />
+  </Transition>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import PlexusBackground from './PlexusBackground.vue'
 import OptionsPanel from './OptionsPanel.vue'
+import Codex from './Codex.vue'
 import { useUIAudio } from '@audio/uiAudio'
 
 const emit = defineEmits<{
@@ -93,13 +110,16 @@ onMounted(() => {
 // ── Options overlay ───────────────────────────────────────────────────────────
 const showOptions = ref(false)
 
+// ── Codex overlay ─────────────────────────────────────────────────────────────
+const showCodex = ref(false)
+
 // ── Keyboard navigation ───────────────────────────────────────────────────────
 // Focus starts on "NEW GAME" (index 1) since Continue is typically disabled.
 const focusedIndex = ref(1)
 
 // Selectable indices: skip index 0 when no save
 function activeItems(): number[] {
-  return hasSave.value ? [0, 1, 2] : [1, 2]
+  return hasSave.value ? [0, 1, 2, 3] : [1, 2, 3]
 }
 
 function activateItem(index: number): void {
@@ -109,11 +129,14 @@ function activateItem(index: number): void {
     onNewGame()
   } else if (index === 2) {
     onOptions()
+  } else if (index === 3) {
+    onCodex()
   }
 }
 
 function onKeyDown(e: KeyboardEvent): void {
   if (showOptions.value) return
+  if (showCodex.value) return
 
   const items = activeItems()
   const pos   = items.indexOf(focusedIndex.value)
@@ -161,6 +184,11 @@ function onContinue(): void {
 function onOptions(): void {
   audio.click()
   showOptions.value = true
+}
+
+function onCodex(): void {
+  audio.click()
+  showCodex.value = true
 }
 </script>
 
