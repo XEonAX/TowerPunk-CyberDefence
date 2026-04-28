@@ -25,6 +25,7 @@ import {
   ENEMY_AI_OVERLORD,
 } from '../constants'
 import { idx } from '../pathfinding/grid'
+import { AudioEventType, AUDIO_EVENT_CAPACITY } from '../../audio/audioEvents'
 
 // Immunity flag bitmasks per enemy type (§7.1.3, §7.1.4, §7.3, §7.4, §7.5)
 const IMMUNITY_FLAGS: readonly number[] = [
@@ -139,6 +140,13 @@ export function spawnEnemyAtTile(
   world.stunTicks[eid]     = 0
 
   world.enemiesAlive++
+
+  // Audio: emit ENEMY_SPAWNED event
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.ENEMY_SPAWNED
+    world.audioEventDataBuf[world.audioEventCount] = enemyType
+    world.audioEventCount++
+  }
 }
 
 function spawnOneEnemy(world: World): void {
@@ -217,4 +225,11 @@ function spawnOneEnemy(world: World): void {
   }
 
   world.enemiesAlive++
+
+  // Audio: emit ENEMY_SPAWNED event
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.ENEMY_SPAWNED
+    world.audioEventDataBuf[world.audioEventCount] = enemyType
+    world.audioEventCount++
+  }
 }

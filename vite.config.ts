@@ -10,6 +10,7 @@ export default defineConfig({
       '@game': resolve(__dirname, 'src/game'),
       '@renderer': resolve(__dirname, 'src/renderer'),
       '@ui': resolve(__dirname, 'src/ui'),
+      '@audio': resolve(__dirname, 'src/audio'),
     },
   },
   server: {

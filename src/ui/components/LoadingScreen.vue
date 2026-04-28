@@ -23,7 +23,7 @@
           </div>
           <div class="loading-landing__start-wrap" :class="{ visible: startBtnVisible }">
             <div class="loading-landing__meta">The &lt;center&gt; cannot hold it is too late.</div>
-            <button class="loading-landing__start" @click.stop="onStartClicked">
+            <button class="loading-landing__start" @mouseenter="uiAudio.hover()" @click.stop="uiAudio.click(); onStartClicked()">
               PRESS
               <span class="loading-landing__key" aria-label="Spacebar">
                 <svg viewBox="0 0 36 24" width="22" height="15" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -47,6 +47,10 @@ import { GlitchFilter } from '@renderer/filters/GlitchFilter'
 import { LoadingTimeline } from '@renderer/loadingTimeline'
 import type { ScreenId } from '@renderer/loadingTimeline'
 import PlexusBackground from './PlexusBackground.vue'
+import { LoadingAudio } from '@audio/loadingAudio'
+import { useUIAudio } from '@audio/uiAudio'
+
+const uiAudio = useUIAudio()
 
 // Vite static asset imports — resolved to hashed URLs at build time
 import dvdUrl from '../../assets/loadingscreen/DVD Projet Red.png'
@@ -69,6 +73,7 @@ let emittedDone = false
 let skipRequested = false
 let skipHintTimer: ReturnType<typeof setTimeout> | null = null
 let startBtnTimer: ReturnType<typeof setTimeout> | null = null
+const loadingAudio = new LoadingAudio()
 
 /** Emit 'done' exactly once. Called only when the user clicks PRESS TO START. */
 function finish(): void {
@@ -78,10 +83,15 @@ function finish(): void {
 }
 
 /** Transition from intro sequence into the landing (plexus + start) phase. */
-function enterLanding(): void {
+function enterLanding(skipped = false): void {
   if (landingVisible.value) return
   pixiApp?.ticker.stop()
   landingVisible.value = true
+  if (skipped) {
+    loadingAudio.skipToLanding()
+  } else {
+    loadingAudio.triggerLanding()
+  }
   // Stagger in the start button
   startBtnTimer = setTimeout(() => { startBtnVisible.value = true }, 600)
 }
@@ -254,13 +264,16 @@ onMounted(async () => {
     // User requested skip — go to landing phase rather than straight to menu
     if (skipRequested) {
       skipRequested = false
-      enterLanding()
+      enterLanding(true)
       return
     }
 
     const dt = ticker.deltaMS
 
     const state = timeline.advance(dt)
+
+    // ── Audio — trigger sounds on phase transitions ────────────────────
+    loadingAudio.onPhaseEnter(state.phaseIndex)
 
     // ── Screen visibility ──────────────────────────────────────────────
     const screenIds: ScreenId[] = ['dvd', 'pixijs', 'logos', 'legal']
@@ -326,6 +339,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
   if (skipHintTimer !== null) clearTimeout(skipHintTimer)
   if (startBtnTimer !== null) clearTimeout(startBtnTimer)
+  loadingAudio.cancel()
   pixiApp?.destroy({ removeView: true })
   pixiApp = null
 })

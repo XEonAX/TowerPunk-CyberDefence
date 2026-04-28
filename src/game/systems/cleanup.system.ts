@@ -14,6 +14,7 @@ import * as C from '../ecs/component'
 import { CORE_X, CORE_Y, TICK_RATE } from '../constants'
 import { idx } from '../pathfinding/grid'
 import { computeDualFlowfields } from '../pathfinding/flowfield'
+import { AudioEventType, AUDIO_EVENT_CAPACITY } from '../../audio/audioEvents'
 
 export function cleanupSystem(world: World): void {
   // First pass: ensure Firewall partners are also queued (§5.2.4)
@@ -47,6 +48,12 @@ export function cleanupSystem(world: World): void {
         world.gridBlocked[ti]   = 0
         world.gridTowerType[ti] = 0
         gridChanged = true
+        // Audio: tower was destroyed by an enemy (grid was still occupied = combat kill)
+        if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+          world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_DESTROYED
+          world.audioEventDataBuf[world.audioEventCount] = world.towerType[eid]
+          world.audioEventCount++
+        }
       }
     }
 
@@ -65,12 +72,35 @@ export function cleanupSystem(world: World): void {
       // §7.5.1: Orchestrator spawns a Gateway at its death tile
       if (world.enemyType[eid] === C.EnemyType.ORCHESTRATOR) {
         spawnInteriorGateway(world, world.tilePosX[eid], world.tilePosY[eid])
+        // Audio: breach opened by Orchestrator death
+        if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+          world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.BREACH_OPENED
+          world.audioEventDataBuf[world.audioEventCount] = 0
+          world.audioEventCount++
+        }
+      }
+
+      // Audio: enemy death
+      if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+        const isBoss = world.enemyType[eid] === C.EnemyType.ORCHESTRATOR ||
+                       world.enemyType[eid] === C.EnemyType.AI_OVERLORD
+        world.audioEventTypeBuf[world.audioEventCount] = isBoss
+          ? AudioEventType.ENEMY_BOSS_DIED
+          : AudioEventType.ENEMY_DIED
+        world.audioEventDataBuf[world.audioEventCount] = world.enemyType[eid]
+        world.audioEventCount++
       }
     }
 
     // ----- Gateway removal -----
     if ((mask & C.GATEWAY) !== 0) {
       removeFromActiveGateways(world, eid)
+      // Audio: breach closed (gateway destroyed by player)
+      if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+        world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.BREACH_CLOSED
+        world.audioEventDataBuf[world.audioEventCount] = 0
+        world.audioEventCount++
+      }
     }
 
     // ----- Destroy entity -----

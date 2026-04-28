@@ -35,6 +35,7 @@ import { isEdgeTile, idx } from '../pathfinding/grid'
 import { canPlaceTower, canPlaceFirewallPair } from '../pathfinding/placement'
 import { computeDualFlowfields } from '../pathfinding/flowfield'
 import { queueStun } from './statusQueue.system'
+import { AudioEventType, AUDIO_EVENT_CAPACITY } from '../../audio/audioEvents'
 import {
   MAX_TOWER_LEVEL,
   MAX_ABILITY_LEVEL,
@@ -294,6 +295,13 @@ function _handlePlaceTower(world: World, cmd: PlaceTowerCommand): void {
     world.flowCost, world.flowDir,
     world.glitchCost, world.glitchDir,
   )
+
+  // Audio: tower placed successfully
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_PLACED
+    world.audioEventDataBuf[world.audioEventCount] = tt
+    world.audioEventCount++
+  }
 }
 
 /** §5.2 — Place a linked Firewall pair. */
@@ -363,6 +371,13 @@ function _handlePlaceFirewall(world: World, cmd: PlaceFirewallCommand): void {
     world.flowCost, world.flowDir,
     world.glitchCost, world.glitchDir,
   )
+
+  // Audio: firewall pair placed
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_PLACED
+    world.audioEventDataBuf[world.audioEventCount] = C.TowerType.FIREWALL
+    world.audioEventCount++
+  }
 }
 
 /**
@@ -453,6 +468,16 @@ function _handleUpgradeTower(world: World, cmd: UpgradeTowerCommand): void {
   world.components -= compCost
 
   _applyTowerLevelStats(world, eid, tt, currentLevel + 1)
+
+  // Audio: upgrade (emit max-level variant if now at MAX_TOWER_LEVEL)
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    const isMax = (currentLevel + 1) >= MAX_TOWER_LEVEL
+    world.audioEventTypeBuf[world.audioEventCount] = isMax
+      ? AudioEventType.TOWER_UPGRADE_MAX
+      : AudioEventType.TOWER_UPGRADED
+    world.audioEventDataBuf[world.audioEventCount] = tt
+    world.audioEventCount++
+  }
 }
 
 /** §4.2.6–4.2.7 — Dismantle a tower, with optional component refund. */
@@ -517,6 +542,13 @@ function _handleDismantleTower(
     world.flowCost, world.flowDir,
     world.glitchCost, world.glitchDir,
   )
+
+  // Audio: tower dismantled
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_DISMANTLED
+    world.audioEventDataBuf[world.audioEventCount] = world.towerType[eid]
+    world.audioEventCount++
+  }
 }
 
 /** §8.3 — Skip the remaining break for a speed bonus. */
@@ -620,6 +652,13 @@ function _handleActivateAbility(world: World, cmd: ActivateAbilityCommand): void
     case C.AbilityType.BOOSTED:
     case C.AbilityType.ORACLE:
       break
+  }
+
+  // Audio: ability activated
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.ABILITY_ACTIVATED
+    world.audioEventDataBuf[world.audioEventCount] = abilityType
+    world.audioEventCount++
   }
 }
 

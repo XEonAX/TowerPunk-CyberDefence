@@ -24,7 +24,7 @@
             :disabled="!hasSave"
             :aria-disabled="!hasSave"
             @click="onContinue"
-            @mouseenter="focusedIndex = 0"
+            @mouseenter="focusedIndex = 0; audio.hover()"
           >
             <span class="mm-item__bracket" aria-hidden="true">[</span>
             CONTINUE
@@ -36,7 +36,7 @@
             class="mm-item"
             :class="{ 'mm-item--active': focusedIndex === 1 }"
             @click="onNewGame"
-            @mouseenter="focusedIndex = 1"
+            @mouseenter="focusedIndex = 1; audio.hover()"
           >
             <span class="mm-item__bracket" aria-hidden="true">[</span>
             NEW GAME
@@ -47,7 +47,7 @@
             class="mm-item"
             :class="{ 'mm-item--active': focusedIndex === 2 }"
             @click="onOptions"
-            @mouseenter="focusedIndex = 2"
+            @mouseenter="focusedIndex = 2; audio.hover()"
           >
             <span class="mm-item__bracket" aria-hidden="true">[</span>
             OPTIONS
@@ -64,7 +64,7 @@
 
   <!-- Options overlay -->
   <Transition name="options-fade">
-    <OptionsPanel v-if="showOptions" @close="showOptions = false" />
+    <OptionsPanel v-if="showOptions" @close="showOptions = false; audio.click()" />
   </Transition>
 </template>
 
@@ -72,11 +72,14 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import PlexusBackground from './PlexusBackground.vue'
 import OptionsPanel from './OptionsPanel.vue'
+import { useUIAudio } from '@audio/uiAudio'
 
 const emit = defineEmits<{
   (e: 'newGame'): void
   (e: 'continue'): void
 }>()
+
+const audio = useUIAudio()
 
 // ── Save detection ────────────────────────────────────────────────────────────
 // No save system is implemented yet — Continue is disabled until a save key exists.
@@ -145,15 +148,18 @@ onUnmounted(() => {
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 function onNewGame(): void {
+  audio.click()
   emit('newGame')
 }
 
 function onContinue(): void {
   if (!hasSave.value) return
+  audio.click()
   emit('continue')
 }
 
 function onOptions(): void {
+  audio.click()
   showOptions.value = true
 }
 </script>

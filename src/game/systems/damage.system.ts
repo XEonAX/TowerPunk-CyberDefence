@@ -28,6 +28,7 @@ import {
 } from '../constants'
 import { DATA_SPIKE_FIRE_FLAG, chebyshev, inDataSpikeCone, getCooldownForTower, isAimed } from './targeting.system'
 import { queueSlow, queueStun } from './statusQueue.system'
+import { AudioEventType, AUDIO_EVENT_CAPACITY } from '../../audio/audioEvents'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,6 +67,7 @@ function applyIceWallDamage(world: World, teid: number): void {
   const tx         = world.posX[teid] | 0
   const ty         = world.posY[teid] | 0
   const N          = world.bitmask.length
+  let hitAny      = false
 
   for (let eid = 1; eid < N; eid++) {
     const mask = world.bitmask[eid]
@@ -80,6 +82,7 @@ function applyIceWallDamage(world: World, teid: number): void {
       const actual = effectiveDamage(world, eid, dpsPerTick)
       if (actual > 0) {
         world.healthCurrent[eid] -= actual
+        hitAny = true
         if (world.healthCurrent[eid] <= 0) {
           markForRemoval(world, eid)
           continue
@@ -91,6 +94,11 @@ function applyIceWallDamage(world: World, teid: number): void {
     if ((immune & C.IMMUNE_SLOW) === 0 && (immune & C.IMMUNE_ICE_SLOW) === 0) {
       queueSlow(world, eid, slowMag, TICK_RATE / 2)  // §5.1.2: 0.5 s duration
     }
+  }
+  if (hitAny && world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_ATTACK
+    world.audioEventDataBuf[world.audioEventCount] = C.TowerType.ICE_WALL
+    world.audioEventCount++
   }
 }
 
@@ -112,6 +120,7 @@ function applyFirewallDamage(world: World, teid: number): void {
   const gapX     = world.firewallGapX[teid]
   const gapY     = world.firewallGapY[teid]
   const N        = world.bitmask.length
+  let hitAny     = false
 
   for (let eid = 1; eid < N; eid++) {
     const mask = world.bitmask[eid]
@@ -127,6 +136,7 @@ function applyFirewallDamage(world: World, teid: number): void {
       const actual = effectiveDamage(world, eid, dpsPerTick)
       if (actual > 0) {
         world.healthCurrent[eid] -= actual
+        hitAny = true
         if (world.healthCurrent[eid] <= 0) {
           markForRemoval(world, eid)
           continue
@@ -138,6 +148,11 @@ function applyFirewallDamage(world: World, teid: number): void {
     if ((immune & C.IMMUNE_STUN) === 0 && (immune & C.IMMUNE_FIREWALL_STUN) === 0) {
       queueStun(world, eid, FIREWALL_STUN_TICKS)
     }
+  }
+  if (hitAny && world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_ATTACK
+    world.audioEventDataBuf[world.audioEventCount] = C.TowerType.FIREWALL
+    world.audioEventCount++
   }
 }
 
@@ -163,6 +178,13 @@ function applyDataSpikeDamage(world: World, teid: number): void {
 
   // Spawn a render-only sweeping cone wave effect
   spawnConeFx(world, tx, ty, facing, range, C.TowerType.DATA_SPIKE, CONE_FX_TICKS)
+
+  // Audio event
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_ATTACK
+    world.audioEventDataBuf[world.audioEventCount] = C.TowerType.DATA_SPIKE
+    world.audioEventCount++
+  }
 
   for (let eid = 1; eid < N; eid++) {
     const mask = world.bitmask[eid]
@@ -207,6 +229,13 @@ function applyDaemonTurretDamage(world: World, teid: number): void {
   // Spawn a render-only shot beam from tower to target tile
   spawnProjectile(world, world.posX[teid], world.posY[teid], tx, ty, C.TowerType.DAEMON_TURRET, SHOT_BEAM_TICKS)
 
+  // Audio event
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_ATTACK
+    world.audioEventDataBuf[world.audioEventCount] = C.TowerType.DAEMON_TURRET
+    world.audioEventCount++
+  }
+
   // Hit ALL enemies on the target tile (splash — §5.4.2)
   for (let eid = 1; eid < N; eid++) {
     const mask = world.bitmask[eid]
@@ -245,6 +274,13 @@ function applyIceSniperDamage(world: World, teid: number): void {
 
   // Spawn a render-only shot beam from tower to target tile
   spawnProjectile(world, world.posX[teid], world.posY[teid], targetTileX, targetTileY, C.TowerType.ICE_SNIPER, SHOT_BEAM_TICKS)
+
+  // Audio event
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.TOWER_ATTACK
+    world.audioEventDataBuf[world.audioEventCount] = C.TowerType.ICE_SNIPER
+    world.audioEventCount++
+  }
 
   const level  = clampLevel(world, teid)
   const damage = ICE_SNIPER_DAMAGE[level] ?? 100

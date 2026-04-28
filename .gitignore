@@ -421,3 +421,4 @@ FodyWeavers.xsd
 dist/
 coverage/
 playwright-report/
+vite.config.js

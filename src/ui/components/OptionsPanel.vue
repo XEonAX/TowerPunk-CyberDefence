@@ -7,8 +7,55 @@
       </div>
 
       <div class="options-body">
-        <p class="options-coming-soon">COMING SOON</p>
-        <p class="options-sub">Configuration interfaces are being compiled.</p>
+        <p class="options-section-label">// AUDIO</p>
+
+        <div class="options-slider-row">
+          <label class="options-slider-label" for="vol-master">Master</label>
+          <input
+            id="vol-master"
+            type="range" min="0" max="1" step="0.01"
+            :value="audioStore.masterVolume"
+            @input="audioStore.setMaster(parseFloat(($event.target as HTMLInputElement).value))"
+            class="options-slider"
+          />
+          <span class="options-slider-val">{{ Math.round(audioStore.masterVolume * 100) }}</span>
+        </div>
+
+        <div class="options-slider-row">
+          <label class="options-slider-label" for="vol-sfx">SFX</label>
+          <input
+            id="vol-sfx"
+            type="range" min="0" max="1" step="0.01"
+            :value="audioStore.sfxVolume"
+            @input="audioStore.setSfx(parseFloat(($event.target as HTMLInputElement).value))"
+            class="options-slider"
+          />
+          <span class="options-slider-val">{{ Math.round(audioStore.sfxVolume * 100) }}</span>
+        </div>
+
+        <div class="options-slider-row">
+          <label class="options-slider-label" for="vol-ui">UI</label>
+          <input
+            id="vol-ui"
+            type="range" min="0" max="1" step="0.01"
+            :value="audioStore.uiVolume"
+            @input="audioStore.setUi(parseFloat(($event.target as HTMLInputElement).value))"
+            class="options-slider"
+          />
+          <span class="options-slider-val">{{ Math.round(audioStore.uiVolume * 100) }}</span>
+        </div>
+
+        <div class="options-slider-row">
+          <label class="options-slider-label" for="vol-ambient">Ambient</label>
+          <input
+            id="vol-ambient"
+            type="range" min="0" max="1" step="0.01"
+            :value="audioStore.ambientVolume"
+            @input="audioStore.setAmbient(parseFloat(($event.target as HTMLInputElement).value))"
+            class="options-slider"
+          />
+          <span class="options-slider-val">{{ Math.round(audioStore.ambientVolume * 100) }}</span>
+        </div>
       </div>
 
       <div class="options-footer">
@@ -20,8 +67,11 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
+import { useAudioStore } from '@ui/stores/audio.store'
 
 defineEmits<{ (e: 'close'): void }>()
+
+const audioStore = useAudioStore()
 
 function onKeyDown(e: KeyboardEvent): void {
   if (e.key === 'Escape') {
@@ -86,25 +136,72 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 .options-close:hover { opacity: 1; }
 
 .options-body {
-  padding: 40px 18px;
-  text-align: center;
+  padding: 24px 22px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.options-coming-soon {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.3em;
-  color: #ffdd00;
-  text-shadow: 0 0 12px rgba(255, 221, 0, 0.5);
-  margin-bottom: 12px;
-}
-
-.options-sub {
+.options-section-label {
   font-size: 10px;
-  letter-spacing: 0.15em;
-  color: rgba(0, 204, 255, 0.45);
+  letter-spacing: 0.22em;
+  color: rgba(0, 204, 255, 0.5);
   text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.options-slider-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 36px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.options-slider-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #00ccff;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.options-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: #0044aa;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  accent-color: #00ccff;
+}
+.options-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #00ccff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(0, 204, 255, 0.6);
+}
+.options-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #00ccff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.options-slider-val {
+  font-size: 10px;
+  color: rgba(0, 204, 255, 0.6);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .options-footer {

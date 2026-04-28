@@ -23,6 +23,8 @@ export interface TimelineState {
   screenAlpha: number
   /** Glitch filter intensity [0, 1]. */
   glitchIntensity: number
+  /** Current phase index into the PHASES array (–1 when done). */
+  phaseIndex: number
   /** True when the full sequence has completed — emit 'done'. */
   done: boolean
 }
@@ -80,7 +82,7 @@ export class LoadingTimeline {
    */
   advance(dt: number): TimelineState {
     if (this._done) {
-      return { activeScreen: null, screenAlpha: 0, glitchIntensity: 0, done: true }
+      return { activeScreen: null, screenAlpha: 0, glitchIntensity: 0, phaseIndex: -1, done: true }
     }
 
     this.phaseElapsed += dt
@@ -97,7 +99,7 @@ export class LoadingTimeline {
     // All phases complete → signal done
     if (this.phaseIndex >= PHASES.length) {
       this._done = true
-      return { activeScreen: null, screenAlpha: 0, glitchIntensity: 0, done: true }
+      return { activeScreen: null, screenAlpha: 0, glitchIntensity: 0, phaseIndex: -1, done: true }
     }
 
     const phase = PHASES[this.phaseIndex]
@@ -158,6 +160,7 @@ export class LoadingTimeline {
       activeScreen:    phase.screen,
       screenAlpha:     Math.max(0, Math.min(1, screenAlpha)),
       glitchIntensity: Math.max(0, Math.min(1, glitchIntensity)),
+      phaseIndex:      this.phaseIndex,
       done:            false,
     }
   }

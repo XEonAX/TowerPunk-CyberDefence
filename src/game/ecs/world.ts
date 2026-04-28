@@ -8,6 +8,7 @@
 import { createEntityPool, type EntityPool, type EntityId } from './entity'
 import * as C from './component'
 import { CORE_STARTING_HP, CORE_X, CORE_Y, GATEWAY_HP, GRID_SIZE, INITIAL_COMPONENTS, INITIAL_EDDIES } from '../constants'
+import { AUDIO_EVENT_CAPACITY } from '../../audio/audioEvents'
 
 /** Maximum simultaneous entities (enemies + towers + pickups + gateways) */
 const MAX_ENTITIES = 4096
@@ -339,6 +340,14 @@ export interface World {
   // --- Removal queue ---
   removalQueue: Uint32Array
   removalQueueLen: number
+
+  // --- Audio event bus (written by simulation, drained by GameAudioSystem) ---
+  /** AudioEventType per event — see src/audio/audioEvents.ts */
+  audioEventTypeBuf: Uint8Array
+  /** Per-event data payload (enemy type, tower type, etc.) */
+  audioEventDataBuf: Uint8Array
+  /** Number of events accumulated this frame. Reset by GameAudioSystem after drain. */
+  audioEventCount: number
 }
 
 // ---------------------------------------------------------------------------
@@ -499,6 +508,10 @@ export function createWorld(seed: number = 12345): World {
 
     removalQueue: new Uint32Array(N),
     removalQueueLen: 0,
+
+    audioEventTypeBuf: new Uint8Array(AUDIO_EVENT_CAPACITY),
+    audioEventDataBuf: new Uint8Array(AUDIO_EVENT_CAPACITY),
+    audioEventCount: 0,
   }
 
   // Initialize flowfield as unreachable

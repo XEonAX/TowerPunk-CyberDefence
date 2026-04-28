@@ -16,6 +16,7 @@ import * as C from '../ecs/component'
 import { getWaveData, SPAWN_INTERVAL_TICKS } from '../wave'
 import { breakDuration, GRID_SIZE, AI_OVERLORD_PHASE_DURATION_TICKS } from '../constants'
 import { rngRange } from '../rng'
+import { AudioEventType, AUDIO_EVENT_CAPACITY } from '../../audio/audioEvents'
 
 export function eventSystem(world: World): void {
   // §10.2: Lose condition — Core HP reaches 0
@@ -25,6 +26,12 @@ export function eventSystem(world: World): void {
     world.currentPhase !== GamePhase.VICTORY
   ) {
     world.currentPhase = GamePhase.GAME_OVER
+    // Audio: game over
+    if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+      world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.GAME_OVER
+      world.audioEventDataBuf[world.audioEventCount] = 0
+      world.audioEventCount++
+    }
     return
   }
 
@@ -72,6 +79,12 @@ function handleWaveBreak(world: World): void {
     }
     if (!bossAlive) {
       world.currentPhase = GamePhase.VICTORY
+      // Audio: victory
+      if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+        world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.VICTORY
+        world.audioEventDataBuf[world.audioEventCount] = 0
+        world.audioEventCount++
+      }
       return
     }
   }
@@ -114,6 +127,13 @@ function startNextWave(world: World): void {
   world.nextSpawnTick = world.tickCount + SPAWN_INTERVAL_TICKS
 
   world.currentPhase = GamePhase.WAVE_ACTIVE
+
+  // Audio: wave started
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.WAVE_STARTED
+    world.audioEventDataBuf[world.audioEventCount] = wave
+    world.audioEventCount++
+  }
 }
 
 /**
@@ -124,6 +144,13 @@ function endWave(world: World): void {
   const breakTicks = breakDuration(world.currentWave)
   world.breakTicksRemaining = isFinite(breakTicks) ? breakTicks : Infinity
   world.currentPhase = GamePhase.WAVE_BREAK
+
+  // Audio: wave ended
+  if (world.audioEventCount < AUDIO_EVENT_CAPACITY) {
+    world.audioEventTypeBuf[world.audioEventCount] = AudioEventType.WAVE_ENDED
+    world.audioEventDataBuf[world.audioEventCount] = world.currentWave
+    world.audioEventCount++
+  }
 }
 
 // ---------------------------------------------------------------------------

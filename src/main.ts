@@ -22,6 +22,7 @@ import { useGameStore } from './ui/stores/game.store'
 import { useUiStore } from './ui/stores/ui.store'
 import { installDevHelpers } from './misc/helper'
 import { GRID_SIZE } from '@game/constants'
+import { gameAudioSystem } from './audio/gameAudio'
 
 const pinia = createPinia()
 const app = createApp(App)
@@ -195,6 +196,8 @@ if (container) {
         setShakeEnabled(uiStore.gameSpeed < 8)  // suppress shake at high speeds
         // Sync simulation state to Vue stores (Tech.md §8)
         const world = simulation.getWorld()
+        // Drain audio events accumulated during this frame's ticks
+        gameAudioSystem.update(world)
         gameStore.syncFromWorld(world)
         gameStore.syncSelectedTower(world, uiStore.selectedTowerEid)
         // Sync inspected entity stats for non-tower inspections

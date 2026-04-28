@@ -1,5 +1,8 @@
 <template>
   <div id="app-root">
+    <!-- Boot splash — plain unstyled page, gates the first user gesture for Web Audio -->
+    <BootSplash v-if="bootPhase === 'splash'" @enter="onSplashEnter" />
+
     <!-- Loading screen — plays the intro sequence + landing (plexus + PRESS TO START) -->
     <Transition name="loading-fade">
       <LoadingScreen v-if="bootPhase === 'loading'" @done="onLoadingDone" />
@@ -32,6 +35,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import LoadingScreen from './components/LoadingScreen.vue'
 import MainMenu from './components/MainMenu.vue'
+import BootSplash from './components/BootSplash.vue'
 import HUD from './components/HUD.vue'
 import TowerPanel from './components/TowerPanel.vue'
 import AbilityBar from './components/AbilityBar.vue'
@@ -47,9 +51,13 @@ import { CommandType } from '@game/ecs/world'
 const gameStore = useGameStore()
 const uiStore = useUiStore()
 
-// ── Boot sequence: Loading → Menu → Game ─────────────────────────────────
-type BootPhase = 'loading' | 'menu' | 'game'
-const bootPhase = ref<BootPhase>('loading')
+// ── Boot sequence: Splash → Loading → Menu → Game ───────────────────────────
+type BootPhase = 'splash' | 'loading' | 'menu' | 'game'
+const bootPhase = ref<BootPhase>('splash')
+
+function onSplashEnter(): void {
+  bootPhase.value = 'loading'
+}
 
 function onLoadingDone(): void {
   bootPhase.value = 'menu'
